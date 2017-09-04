@@ -41,8 +41,12 @@ static inline int stringslice_getc(struct stringslice *slice)
 {
 	if (!stringslice_ok(slice)) return -1;
 
-	return *slice->start++;
+	return (unsigned char)*slice->start++;
 }
+
+// Get a UTF-8 codepoint
+// Implementation in utf8.c
+int stringslice_get_utf8(struct stringslice *slice);
 
 void stringslice_match_ws(struct stringslice *slice);
 

@@ -139,6 +139,10 @@ char *stringbuf_shrink(struct stringbuf *str);
 // Append a character
 static inline void stringbuf_putc(struct stringbuf *str, char c);
 
+// Append a UTF-8 codepoint
+// Implementation in utf8.c
+int stringbuf_put_utf8(struct stringbuf *str, int c);
+
 // Append a null-terminated string
 static inline void stringbuf_puts(struct stringbuf *str, const char *s);
 

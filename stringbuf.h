@@ -52,25 +52,21 @@ struct stringbuf *stringbuf_new_raw(void);
 // otherwise, put it at *str
 #define stringbuf_new_prealloc(maxn) stringbuf_init_prealloc(stringbuf_new_raw(), maxn)
 struct stringbuf *stringbuf_init_prealloc(struct stringbuf *str, size_t maxn);
-#define stringbuf_new_prealloc_at stringbuf_init_prealloc
 
 // Create a new string
 // if str == NULL, malloc the string
 // otherwise, put it at *str
 #define stringbuf_new() stringbuf_init(stringbuf_new_raw())
 #define stringbuf_init(str) stringbuf_init_prealloc(str, 32)
-#define stringbuf_new_at stringbuf_init
 
 // Create a new string
 // Copy n chars starting at c into the string
 #define stringbuf_new_array(n, s) stringbuf_init_array(stringbuf_new_raw(), n, s)
 struct stringbuf *stringbuf_init_array(struct stringbuf *str, size_t n, const char *s);
-#define stringbuf_new_array_at stringbuf_init_array
 
 // Create a new string from a string slice
 #define stringbuf_new_array(n, s) stringbuf_init_array(stringbuf_new_raw(), n, s)
 struct stringbuf *stringbuf_init_slice(struct stringbuf *str, const char *start, const char *end);
-#define stringbuf_new_slice_at stringbuf_init_slice
 
 // Belongs in stringslice.h, but can't because inline and dereferencing pointer to incomplete type
 static inline struct stringslice stringslice_new_str(struct stringbuf *str)
@@ -82,13 +78,11 @@ static inline struct stringslice stringslice_new_str(struct stringbuf *str)
 // Copy a null-terminated string at s into the string
 #define stringbuf_new_cstr(s) stringbuf_init_cstr(stringbuf_new_raw(), s)
 struct stringbuf *stringbuf_init_cstr(struct stringbuf *str, const char *s);
-#define stringbuf_new_str_at stringbuf_init_cstr
 
 // Clone a string
 #define stringbuf_new_str(orig) stringbuf_init_str(stringbuf_new_raw(), orig)
 struct stringbuf *stringbuf_init_str(struct stringbuf *str, const struct stringbuf *orig);
 #define stringbuf_dup stringbuf_new_str
-#define stringbuf_dup_at stringbuf_init_str
 
 // Destroy a string and its buffer
 void stringbuf_free(struct stringbuf *str);

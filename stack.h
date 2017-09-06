@@ -22,27 +22,22 @@ struct stack *stack_alloc_raw(void);
 // Create a new stack, given how many slots to preallocate
 #define stack_new_prealloc(maxn) stack_init_prealloc(stack_alloc_raw(), maxn)
 struct stack *stack_init_prealloc(struct stack *stk, size_t maxn);
-#define stack_new_prealloc_at stack_init_prealloc
 
 // Create a new stack
 #define stack_new() stack_init(stack_alloc_raw())
 #define stack_init(stk) stack_init_prealloc(stk, 16)
-#define stack_new_at stack_init
 
 // Create a new stack and fill it with the given data
 #define stack_new_v(n, ...) stack_init_v(stack_alloc_raw(), n, __VA_ARGS__)
 struct stack *stack_init_v(struct stack *stk, size_t n, ...);
-#define stack_new_v_at stack_init_v
 
 // Create a new stack and fill it with the given data
 #define stack_new_array(n, elements) stack_init_array(stack_alloc_raw(), n, elements)
 struct stack *stack_init_array(struct stack *stk, size_t n, void **elements);
-#define stack_new_array_at stack_init_array
 
 // Clone a stack
 #define stack_dup(orig) stack_init_stack(stack_alloc_raw(), orig)
 struct stack *stack_init_stack(struct stack *stk, struct stack *orig);
-#define stack_dup_at stack_init_stack
 
 // Destroy given stack and its internal buffer
 // Calls stack_reset on itself first.

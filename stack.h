@@ -85,13 +85,10 @@ void stack_pushn(struct stack *stk, size_t n, void **elements);
 // Append stk2 to the end of stk
 void stack_append(struct stack *stk, struct stack *stk2);
 
-// Transfer n elements from src to dest
-// Transfers nothing and returns -1 if src->n < n
-// Returns the number of transfered elements, or -1 if they could not all be
-//  transfered.
-// TODO: Should return an ssize_t, but they apparently don't exist on non-POSIX
-//  systems.
-int stack_transfer(struct stack *dest, struct stack *src, size_t n);
+// Transfer n elements from src to dest, preserving order
+// Does nothing and returns 0 if exactly n elements couldn't be transfered
+// Returns the number of transfered elements - either n or 0
+size_t stack_transfer(struct stack *dest, struct stack *src, size_t n);
 
 // Pop the top element off of the stack
 void *stack_pop(struct stack *stk);
@@ -111,4 +108,6 @@ void *stack_index(struct stack *stk, size_t i);
 void stack_assign(struct stack *stk, size_t i, void *s);
 
 
+// qsort a stack
+void stack_qsort(struct stack *stk, int (*compar)(const void *p1, const void *p2));
 #endif /* AEM_STACK_H */

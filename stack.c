@@ -187,16 +187,12 @@ void stack_append(struct stack *restrict stk, struct stack *restrict stk2)
 	stk->n = n;
 }
 
-int stack_transfer(struct stack *restrict dest, struct stack *restrict src, size_t n)
+size_t stack_transfer(struct stack *restrict dest, struct stack *restrict src, size_t n)
 {
 	if (dest == NULL) return 0;
 	if (src  == NULL) return 0;
 
-	if (src->n < n)
-	{
-		/* bad */
-		return -1;
-	}
+	if (src->n < n) return 0;
 
 	size_t new_top = src->n - n;
 
@@ -208,15 +204,6 @@ int stack_transfer(struct stack *restrict dest, struct stack *restrict src, size
 	stack_trunc(src, new_top);
 
 	return n;
-}
-
-void stack_push_nodup(struct stack *stk, void *s)
-{
-	if (stk == NULL) return;
-
-	if (s == stack_peek(stk)) return;
-
-	stack_push(stk, s);
 }
 
 void *stack_pop(struct stack *stk)
@@ -314,4 +301,10 @@ void stack_assign(struct stack *stk, size_t i, void *s)
 	}
 
 	stk->s[i] = s;
+}
+
+
+void stack_qsort(struct stack *stk, int (*compar)(const void *p1, const void *p2))
+{
+	qsort(stk->s, stk->n, sizeof(stk->s[0]), compar);
 }

@@ -2,4 +2,4 @@
 libaem.a
 libaem_test
 
-depends.d
+.deps

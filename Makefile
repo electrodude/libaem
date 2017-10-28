@@ -9,11 +9,16 @@ LDFLAGS=
 CFLAGS+=-O3
 LDFLAGS+=-O3
 
-SOURCES_LIBAEM=$(shell echo stringbuf.c stringslice.c utf8.c stack.c)
+SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c
 OBJECTS_LIBAEM=$(patsubst %.c,%.o,${SOURCES_LIBAEM})
 
 SOURCES_LIBAEM_TEST=$(shell echo test.c)
 OBJECTS_LIBAEM_TEST=$(patsubst %.c,%.o,${SOURCES_LIBAEM_TEST})
+
+DEPDIR=.deps
+DEPFLAGS=-MD -MP -MF ${DEPDIR}/$*.d
+
+$(shell mkdir -p ${DEPDIR})
 
 all:	libaem.a
 
@@ -21,7 +26,7 @@ test:	libaem_test
 	./libaem_test
 
 clean:
-	rm -vf *.o libaem_test libaem.a depends.d
+	rm -vf *.o ${DEPDIR}/*.d libaem_test libaem.a
 
 libaem_test:	${OBJECTS_LIBAEM_TEST} libaem.a
 	${LD} $^ ${LDFLAGS} -o $@
@@ -31,13 +36,10 @@ libaem.a:	${OBJECTS_LIBAEM}
 	${RANLIB} $@
 
 %.o:	%.c
-	${CC} ${CFLAGS} -c $< -o $@
+	${CC} ${CFLAGS} ${DEPFLAGS} -c $< -o $@
 
-depends.d:	${SOURCES_LIBAEM}
-	@${CC} ${CFLAGS} -MM $^ > $@
+.PHONY:	all test clean
 
-.PHONY:	all test clean depends.d
-
-include depends.d
+include $(wildcard ${DEPDIR}/*.d)
 
 # vim: set ts=13 :

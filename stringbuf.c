@@ -13,9 +13,9 @@
 
 #define STRINGBUF_DEBUG_ALLOC 0
 
-struct stringbuf *stringbuf_new_raw(void)
+struct aem_stringbuf *stringbuf_new_raw(void)
 {
-	struct stringbuf *str = malloc(sizeof(*str));
+	struct aem_stringbuf *str = malloc(sizeof(*str));
 
 	if (str == NULL) return NULL;
 
@@ -24,7 +24,7 @@ struct stringbuf *stringbuf_new_raw(void)
 	return str;
 }
 
-struct stringbuf *stringbuf_init_prealloc(struct stringbuf *str, size_t maxn)
+struct aem_stringbuf *stringbuf_init_prealloc(struct aem_stringbuf *str, size_t maxn)
 {
 	if (str == NULL) return NULL;
 
@@ -38,7 +38,7 @@ struct stringbuf *stringbuf_init_prealloc(struct stringbuf *str, size_t maxn)
 	return str;
 }
 
-struct stringbuf *stringbuf_init_array(struct stringbuf *restrict str, size_t n, const char *restrict s)
+struct aem_stringbuf *stringbuf_init_array(struct aem_stringbuf *restrict str, size_t n, const char *restrict s)
 {
 	stringbuf_init_prealloc(str, n);
 
@@ -47,7 +47,7 @@ struct stringbuf *stringbuf_init_array(struct stringbuf *restrict str, size_t n,
 	return str;
 }
 
-struct stringbuf *stringbuf_init_cstr(struct stringbuf *restrict str, const char *restrict s)
+struct aem_stringbuf *stringbuf_init_cstr(struct aem_stringbuf *restrict str, const char *restrict s)
 {
 	stringbuf_init(str);
 
@@ -56,7 +56,7 @@ struct stringbuf *stringbuf_init_cstr(struct stringbuf *restrict str, const char
 	return str;
 }
 
-struct stringbuf *stringbuf_init_slice(struct stringbuf *restrict str, const char *start, const char *end)
+struct aem_stringbuf *stringbuf_init_slice(struct aem_stringbuf *restrict str, const char *start, const char *end)
 {
 	stringbuf_init(str);
 
@@ -65,7 +65,7 @@ struct stringbuf *stringbuf_init_slice(struct stringbuf *restrict str, const cha
 	return str;
 }
 
-struct stringbuf *stringbuf_init_str(struct stringbuf *restrict str, const struct stringbuf *restrict orig)
+struct aem_stringbuf *stringbuf_init_str(struct aem_stringbuf *restrict str, const struct aem_stringbuf *restrict orig)
 {
 	stringbuf_init_prealloc(str, orig->maxn);
 
@@ -76,7 +76,7 @@ struct stringbuf *stringbuf_init_str(struct stringbuf *restrict str, const struc
 	return str;
 }
 
-void stringbuf_free(struct stringbuf *str)
+void stringbuf_free(struct aem_stringbuf *str)
 {
 	if (str == NULL) return;
 	if (str->bad) return;
@@ -86,7 +86,7 @@ void stringbuf_free(struct stringbuf *str)
 	free(str);
 }
 
-static inline void stringbuf_storage_free(struct stringbuf *str)
+static inline void stringbuf_storage_free(struct aem_stringbuf *str)
 {
 	switch (str->storage)
 	{
@@ -106,7 +106,7 @@ static inline void stringbuf_storage_free(struct stringbuf *str)
 	}
 }
 
-void stringbuf_dtor(struct stringbuf *str)
+void stringbuf_dtor(struct aem_stringbuf *str)
 {
 	if (str == NULL) return;
 
@@ -120,7 +120,7 @@ void stringbuf_dtor(struct stringbuf *str)
 	str->maxn = 0;
 }
 
-char *stringbuf_release(struct stringbuf *str)
+char *stringbuf_release(struct aem_stringbuf *str)
 {
 	if (str == NULL) return NULL;
 
@@ -134,7 +134,7 @@ char *stringbuf_release(struct stringbuf *str)
 }
 
 
-void stringbuf_grow(struct stringbuf *str, size_t maxn_new)
+void stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 {
 	if (str->bad) return;
 
@@ -198,7 +198,7 @@ void stringbuf_grow(struct stringbuf *str, size_t maxn_new)
 }
 
 
-char *stringbuf_shrink(struct stringbuf *str)
+char *stringbuf_shrink(struct aem_stringbuf *str)
 {
 	if (str == NULL) return NULL;
 
@@ -221,7 +221,7 @@ char *stringbuf_shrink(struct stringbuf *str)
 	return stringbuf_get(str);
 }
 
-void stringbuf_printf(struct stringbuf *restrict str, const char *restrict fmt, ...)
+void stringbuf_printf(struct aem_stringbuf *restrict str, const char *restrict fmt, ...)
 {
 	if (str == NULL) return;
 	if (str->bad) return;
@@ -246,7 +246,7 @@ void stringbuf_printf(struct stringbuf *restrict str, const char *restrict fmt, 
 }
 
 /*
-char *stringbuf_append_manual(struct stringbuf *str, size_t len)
+char *stringbuf_append_manual(struct aem_stringbuf *str, size_t len)
 {
 	if (str == NULL) return;
 
@@ -261,7 +261,7 @@ char *stringbuf_append_manual(struct stringbuf *str, size_t len)
 }
 */
 
-void stringbuf_append(struct stringbuf *restrict str, const struct stringbuf *restrict str2)
+void stringbuf_append(struct aem_stringbuf *restrict str, const struct aem_stringbuf *restrict str2)
 {
 	if (str == NULL) return;
 
@@ -280,7 +280,7 @@ void stringbuf_append(struct stringbuf *restrict str, const struct stringbuf *re
 	str->n += str2->n;
 }
 
-void stringbuf_putq(struct stringbuf *str, char c)
+void stringbuf_putq(struct aem_stringbuf *str, char c)
 {
 	if (str == NULL) return;
 	if (str->bad) return;
@@ -319,7 +319,7 @@ void stringbuf_putq(struct stringbuf *str, char c)
 	}
 }
 
-void stringbuf_append_quote(struct stringbuf *restrict str, const struct stringbuf *restrict str2)
+void stringbuf_append_quote(struct aem_stringbuf *restrict str, const struct aem_stringbuf *restrict str2)
 {
 	if (str == NULL) return;
 	if (str->bad) return;
@@ -336,7 +336,7 @@ void stringbuf_append_quote(struct stringbuf *restrict str, const struct stringb
 	}
 }
 
-void stringbuf_append_stringslice_quote(struct stringbuf *restrict str, const struct stringslice *restrict slice)
+void stringbuf_append_stringslice_quote(struct aem_stringbuf *restrict str, const struct aem_stringslice *restrict slice)
 {
 	if (str == NULL) return;
 	if (str->bad) return;
@@ -353,7 +353,7 @@ void stringbuf_append_stringslice_quote(struct stringbuf *restrict str, const st
 	}
 }
 
-void stringbuf_pad(struct stringbuf *str, size_t len, char c)
+void stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)
 {
 	if (str == NULL) return;
 	if (str->bad) return;
@@ -364,7 +364,7 @@ void stringbuf_pad(struct stringbuf *str, size_t len, char c)
 	}
 }
 
-int stringbuf_index(struct stringbuf *str, size_t i)
+int stringbuf_index(struct aem_stringbuf *str, size_t i)
 {
 	if (str == NULL) return -1;
 
@@ -379,7 +379,7 @@ int stringbuf_index(struct stringbuf *str, size_t i)
 	return str->s[i];
 }
 
-void stringbuf_assign(struct stringbuf *str, size_t i, char c)
+void stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 {
 	if (str == NULL) return;
 
@@ -394,7 +394,7 @@ void stringbuf_assign(struct stringbuf *str, size_t i, char c)
 }
 
 
-size_t stringbuf_fread(struct stringbuf *str, FILE *fp)
+size_t stringbuf_fread(struct aem_stringbuf *str, FILE *fp)
 {
 	if (str == NULL) return 1;
 
@@ -407,7 +407,7 @@ size_t stringbuf_fread(struct stringbuf *str, FILE *fp)
 	return n_read;
 }
 
-int stringbuf_file_read(struct stringbuf *str, FILE *fp)
+int stringbuf_file_read(struct aem_stringbuf *str, FILE *fp)
 {
 	if (str == NULL) return 1;
 
@@ -435,7 +435,7 @@ int stringbuf_file_read(struct stringbuf *str, FILE *fp)
 	return 0;
 }
 
-int stringbuf_file_write(const struct stringbuf *restrict str, FILE *fp)
+int stringbuf_file_write(const struct aem_stringbuf *restrict str, FILE *fp)
 {
 	if (str == NULL) return 1;
 
@@ -462,7 +462,7 @@ int stringbuf_file_write(const struct stringbuf *restrict str, FILE *fp)
 
 
 #ifdef __unix__
-int stringbuf_fd_read(struct stringbuf *str, int fd)
+int stringbuf_fd_read(struct aem_stringbuf *str, int fd)
 {
 	if (str == NULL) return 1;
 
@@ -493,7 +493,7 @@ int stringbuf_fd_read(struct stringbuf *str, int fd)
 	return 0;
 }
 
-int stringbuf_fd_read_n(struct stringbuf *str, size_t n, int fd)
+int stringbuf_fd_read_n(struct aem_stringbuf *str, size_t n, int fd)
 {
 	if (str == NULL) return 1;
 
@@ -526,7 +526,7 @@ int stringbuf_fd_read_n(struct stringbuf *str, size_t n, int fd)
 	return 0;
 }
 
-int stringbuf_fd_write(const struct stringbuf *restrict str, int fd)
+int stringbuf_fd_write(const struct aem_stringbuf *restrict str, int fd)
 {
 	if (str == NULL) return 1;
 

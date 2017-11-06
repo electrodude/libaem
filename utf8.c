@@ -1,7 +1,7 @@
 #include "stringslice.h"
 #include "stringbuf.h"
 
-int stringbuf_put_utf8(struct stringbuf *str, int c)
+int stringbuf_put_utf8(struct aem_stringbuf *str, unsigned int c)
 {
 	if (c < 0x80)
 	{
@@ -50,7 +50,7 @@ int stringbuf_put_utf8(struct stringbuf *str, int c)
 	return 0;
 }
 
-int stringslice_get_utf8(struct stringslice *slice)
+int stringslice_get_utf8(struct aem_stringslice *slice)
 {
 	const char *start = slice->start; // make backup of start
 

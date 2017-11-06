@@ -28,9 +28,9 @@ struct aem_stringbuf
 	                  //  (not counting null terminator)
 	size_t maxn;      // allocated length of buffer
 
-	enum aem_stringbuf_storage storage;
-	int bad     : 1;
-	int fixed   : 1;
+	enum aem_stringbuf_storage storage; // whether we own the storage
+	int bad     : 1;  // error flag: memory allocation error or .fixed = 1 but size exceeded
+	int fixed   : 1;  // can't be realloced
 
 };
 

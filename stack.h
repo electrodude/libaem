@@ -8,9 +8,9 @@
 
 struct aem_stack
 {
-	void **s;                                               // pointer to stack buffer
-	size_t n;                                               // current size of stack
-	size_t maxn;                                            // number of allocated slots
+	void **s;         // pointer to stack buffer
+	size_t n;         // current size of stack
+	size_t maxn;      // number of allocated slots
 };
 
 #define stack aem_stack

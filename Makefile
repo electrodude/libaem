@@ -26,7 +26,7 @@ test:	libaem_test
 	./libaem_test
 
 clean:
-	rm -vf *.o ${DEPDIR}/*.d libaem_test libaem.a
+	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} ${DEPDIR}/*.d libaem_test libaem.a
 
 libaem_test:	${OBJECTS_LIBAEM_TEST} libaem.a
 	${LD} $^ ${LDFLAGS} -o $@

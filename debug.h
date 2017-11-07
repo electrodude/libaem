@@ -1,6 +1,8 @@
 #ifndef AEM_DEBUG_H
 #define AEM_DEBUG_H
 
+#include <stdio.h>
+
 extern FILE *aem_debug_fp;
 
 int aem_dprintf(const char *fmt, ...);

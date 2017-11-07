@@ -3,8 +3,8 @@ LD=gcc
 AR=ar rcu
 RANLIB=ranlib
 
-CFLAGS=-std=c99 -Wall -Wextra
-LDFLAGS=
+CFLAGS+=-std=c99 -fPIC -Wall -Wextra
+LDFLAGS+=
 
 CFLAGS+=-O3
 LDFLAGS+=-O3

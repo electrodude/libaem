@@ -114,8 +114,8 @@ void **stack_release(struct aem_stack *stk, size_t *n)
 
 static inline void stack_grow(struct aem_stack *stk, size_t maxn_new)
 {
-#if DEBUG
-	fprintf(stderr, "realloc: %zd, %zd -> %zd\n", stk->n, stk->maxn, maxn_new);
+#if AEM_STACK_DEBUG
+	aem_logf_ctx(AEM_LOG_DEBUG, "realloc: %zd, %zd -> %zd\n", stk->n, stk->maxn, maxn_new);
 #endif
 	stk->maxn = maxn_new;
 	stk->s = realloc(stk->s, stk->maxn * sizeof(void*));
@@ -145,8 +145,8 @@ void stack_push(struct aem_stack *stk, void *s)
 {
 	if (stk == NULL) return;
 
-#if DEBUG
-	fprintf(stderr, "Push %p\n", s);
+#if AEM_STACK_DEBUG
+	aem_logf_ctx(AEM_LOG_DEBUG, "push %p\n", s);
 #endif
 
 	if (stk->maxn < stk->n + 1)
@@ -212,8 +212,8 @@ void *stack_pop(struct aem_stack *stk)
 
 	if (stk->n <= 0)
 	{
-#if DEBUG
-		fprintf(stderr, "Pop underflow!\n");
+#if AEM_STACK_DEBUG
+		aem_logf_ctx(AEM_LOG_DEBUG, "underflow\n");
 #endif
 
 		return NULL;
@@ -221,8 +221,8 @@ void *stack_pop(struct aem_stack *stk)
 
 	void *p = stk->s[--stk->n];
 
-#if DEBUG
-	fprintf(stderr, "Pop %p\n", p);
+#if AEM_STACK_DEBUG
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p\n", p);
 #endif
 
 	return p;
@@ -234,15 +234,15 @@ void *stack_peek(struct aem_stack *stk)
 
 	if (stk->n <= 0)
 	{
-#if DEBUG
-		fprintf(stderr, "Peek underflow!\n");
+#if AEM_STACK_DEBUG
+		aem_logf_ctx(AEM_LOG_DEBUG, "underflow\n");
 #endif
 
 		return NULL;
 	}
 
-#if DEBUG
-	fprintf(stderr, "Peek %p\n", stk->s[stk->n-1]);
+#if AEM_STACK_DEBUG
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p\n", stk->s[stk->n-1]);
 #endif
 
 	return stk->s[stk->n-1];
@@ -256,15 +256,15 @@ void *stack_index_end(struct aem_stack *stk, size_t i)
 
 	if (i >= stk->n)
 	{
-#if DEBUG
-		fprintf(stderr, "Index rev [-%zd = %zd] underflow!\n", i, i2);
+#if AEM_STACK_DEBUG
+		aem_logf_ctx(AEM_LOG_DEBUG, "[-%zd = %zd] underflow\n", i, i2);
 #endif
 
 		return NULL;
 	}
 
-#if DEBUG
-	fprintf(stderr, "Index rev [-%zd = %zd]\n", i, i2, stk->s[i2]);
+#if AEM_STACK_DEBUG
+	aem_logf_ctx(AEM_LOG_DEBUG, "[-%zd = %zd]\n", i, i2, stk->s[i2]);
 #endif
 
 	return stk->s[i2];
@@ -278,8 +278,8 @@ void *stack_index(struct aem_stack *stk, size_t i)
 	{
 		return NULL;
 	}
-#if DEBUG
-	fprintf(stderr, "Index [%zd] = %p\n", i, stk->s[i]);
+#if AEM_STACK_DEBUG
+	aem_logf_ctx(AEM_LOG_DEBUG, "[%zd] = %p\n", i, stk->s[i]);
 #endif
 
 	return stk->s[i];

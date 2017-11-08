@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "debug.h"
+#include "log.h"
 #include "stringbuf.h"
 #include "stringslice.h"
 #include "stack.h"
@@ -9,7 +9,13 @@
 
 int main(int argc, char **argv)
 {
-	aem_debug_fp = stderr;
+	aem_log_fp = stderr;
+	aem_log_level_curr = AEM_LOG_INFO;
+
+	aem_logf_ctx(AEM_LOG_NOTICE, "test start\n");
+
+
+	aem_logf_ctx(AEM_LOG_NOTICE, "test end\n");
 
 	return 0;
 }

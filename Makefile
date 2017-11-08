@@ -9,7 +9,7 @@ LDFLAGS+=
 CFLAGS+=-O3
 LDFLAGS+=-O3
 
-SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c debug.c
+SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c log.c
 OBJECTS_LIBAEM=$(patsubst %.c,%.o,${SOURCES_LIBAEM})
 
 SOURCES_LIBAEM_TEST=$(shell echo test.c)

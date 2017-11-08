@@ -4,7 +4,7 @@
 #define STRINGBUF_DEBUG 0
 
 #if STRINGBUF_DEBUG
-#include <stdio.h>
+#include "log.h"
 #endif
 
 #include "stringslice.h"
@@ -284,7 +284,7 @@ static inline void stringbuf_putc(struct aem_stringbuf *str, char c)
 	if (str == NULL) return;
 
 #if STRINGBUF_DEBUG
-	fprintf(stderr, "putc(\"%s\", '%c')\n", stringbuf_get(str), c);
+	aem_logf_ctx(AEM_LOG_DEBUG, "putc(\"%s\", '%c')\n", stringbuf_get(str), c);
 #endif
 
 	stringbuf_reserve(str, 1);

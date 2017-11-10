@@ -6,12 +6,12 @@
  * Make any recursive structs you wish to iterate over contain an instance of
  * iter_gen.  For each recursive data structure you have, you should have a
  * global master instance of iter_gen.  Before iterating over a data structure,
- * call iter_gen_master_reset(&your_master).  Each time you come across a node
- * while iterating over your data structure, call
- * iter_gen_id(&your_obj->iter, &your_master) on it.  If it has not yet been
- * visited since the last call to iter_gen_master_reset(&your_master), it will
- * return an identifier number >= 0 unique since the last call to
- * iter_gen_master_reset.
+ * call aem_iter_gen_master_reset(&your_master).  Each time you come across a
+ * node while iterating over your data structure, call
+ * aem_iter_gen_id(&your_obj->iter, &your_master) on it.  If it has not yet
+ * been visited since the last call to aem_iter_gen_master_reset(&your_master),
+ * it will return an identifier number >= 0 unique since the last call to
+ * aem_iter_gen_master_reset.
  *
  * Be careful that you only ever use one master struct iter_gen for any given
  * data structure.  Otherwise, you will miss elements.
@@ -30,15 +30,13 @@ struct aem_iter_gen
 	void *ptr;
 };
 
-#define iter_gen aem_iter_gen
-
-static inline void iter_gen_master_reset(struct aem_iter_gen *master)
+static inline void aem_iter_gen_master_reset(struct aem_iter_gen *master)
 {
 	master->gen++;
 	master->id = 0;
 }
 
-static inline int iter_gen_id(struct aem_iter_gen *obj, struct aem_iter_gen *master)
+static inline int aem_iter_gen_id(struct aem_iter_gen *obj, struct aem_iter_gen *master)
 {
 	if (obj->gen == master->gen) return -1;
 

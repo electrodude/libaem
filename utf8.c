@@ -1,46 +1,46 @@
 #include "stringslice.h"
 #include "stringbuf.h"
 
-int stringbuf_put_utf8(struct aem_stringbuf *str, unsigned int c)
+int aem_stringbuf_put_utf8(struct aem_stringbuf *str, unsigned int c)
 {
 	if (c < 0x80)
 	{
-		stringbuf_putc(str, c);
+		aem_stringbuf_putc(str, c);
 	}
 	else if (c < 0x800)
 	{
-		stringbuf_putc(str, 0xc0 | ((c >>  6) & 0x1f));
-		stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		aem_stringbuf_putc(str, 0xc0 | ((c >>  6) & 0x1f));
+		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
 	}
 	else if (c < 0x10000)
 	{
-		stringbuf_putc(str, 0xe0 | ((c >> 12) & 0x0f));
-		stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		aem_stringbuf_putc(str, 0xe0 | ((c >> 12) & 0x0f));
+		aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
 	}
 	else if (c < 0x200000)
 	{
-		stringbuf_putc(str, 0xf0 | ((c >> 18) & 0x07));
-		stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		aem_stringbuf_putc(str, 0xf0 | ((c >> 18) & 0x07));
+		aem_stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
 	}
 	else if (c < 0x4000000)
 	{
-		stringbuf_putc(str, 0xf8 | ((c >> 24) & 0x03));
-		stringbuf_putc(str, 0x80 | ((c >> 18) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		aem_stringbuf_putc(str, 0xf8 | ((c >> 24) & 0x03));
+		aem_stringbuf_putc(str, 0x80 | ((c >> 18) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
 	}
 	else if (c < 0x80000000)
 	{
-		stringbuf_putc(str, 0xfc | ((c >> 30) & 0x01));
-		stringbuf_putc(str, 0x80 | ((c >> 24) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >> 18) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
-		stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		aem_stringbuf_putc(str, 0xfc | ((c >> 30) & 0x01));
+		aem_stringbuf_putc(str, 0x80 | ((c >> 24) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >> 18) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
+		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
 	}
 	else
 	{
@@ -50,11 +50,11 @@ int stringbuf_put_utf8(struct aem_stringbuf *str, unsigned int c)
 	return 0;
 }
 
-int stringslice_get_utf8(struct aem_stringslice *slice)
+int aem_stringslice_get_utf8(struct aem_stringslice *slice)
 {
 	const char *start = slice->start; // make backup of start
 
-	int c = stringslice_getc(slice);
+	int c = aem_stringslice_getc(slice);
 	if (c < 0) return c;
 
 	size_t n = 0;
@@ -100,9 +100,9 @@ int stringslice_get_utf8(struct aem_stringslice *slice)
 
 	for (size_t i = 0; i < n; i++)
 	{
-		if (!stringslice_ok(slice)) return -1;
+		if (!aem_stringslice_ok(slice)) return -1;
 
-		int c2 = stringslice_getc(slice);
+		int c2 = aem_stringslice_getc(slice);
 		if (c2 < 0 || (c2 & 0xc0) != 0x80)
 		{
 			slice->start = start;

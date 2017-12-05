@@ -43,31 +43,6 @@ struct aem_stack *aem_stack_init_v(struct aem_stack *stk, size_t n, ...)
 	return stk;
 }
 
-struct aem_stack *aem_stack_init_array(struct aem_stack *stk, size_t n, void **restrict elements)
-{
-	aem_stack_init_prealloc(stk, n);
-
-	aem_stack_pushn(stk, n, elements);
-
-	return stk;
-}
-
-struct aem_stack *aem_stack_init_stack(struct aem_stack *stk, struct aem_stack *restrict orig)
-{
-	if (stk == NULL) return NULL;
-
-	aem_stack_init_prealloc(stk, orig->maxn);
-
-	stk->n = orig->n;
-
-	AEM_STACK_FOREACH(i, orig)
-	{
-		stk->s[i] = orig->s[i];
-	}
-
-	return stk;
-}
-
 void aem_stack_free(struct aem_stack *stk)
 {
 	if (stk == NULL) return;

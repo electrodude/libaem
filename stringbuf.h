@@ -32,6 +32,10 @@ struct aem_stringbuf
 
 };
 
+#ifndef AEM_STRINGBUF_PREALLOC_LEN
+// This may have different values in different files.
+#define AEM_STRINGBUF_PREALLOC_LEN 32
+#endif
 
 // you can use this without calling aem_stringbuf_init() on it first because realloc(NULL, size) === malloc(size)
 #define AEM_STRINGBUF_EMPTY ((struct aem_stringbuf){0})
@@ -40,58 +44,53 @@ struct aem_stringbuf
 // If the storage on the stack proves to be too small, it is copied into a
 //  malloc()'d buffer and is then treated like any other stringbuf.
 // You must call aem_stringbuf_dtor on this unless you're absolutely sure that it
-//  wasn't copied into a malloc()'d buffer
+//  wasn't copied into a malloc()'d buffer.  You can ensure that it won't be
+//  copied into a malloc()'d buffer (instead, characters will just stop getting
+//  added when it gets full) if you set .fixed = 1.
 #define AEM_STRINGBUF_ON_STACK(_name, _len) \
 	char _name##_stringbuf_data[_len]; \
 	struct aem_stringbuf _name = {.s=_name##_stringbuf_data, .n=0, .maxn = _len, .storage = AEM_STRINGBUF_STORAGE_UNOWNED};
 
-// Allocates a new stringbuf and i
+// Allocates a new stringbuf and initialize it to all zeros (sufficiently
+//  initialized for immediate use, see AEM_STRINGBUF_EMPTY).
 struct aem_stringbuf *aem_stringbuf_new_raw(void);
 
 // Create a new string, given how many bytes to preallocate
-// if str == NULL, malloc the string
-// otherwise, put it at *str
-#define aem_stringbuf_new_prealloc(maxn) aem_stringbuf_init_prealloc(aem_stringbuf_new_raw(), maxn)
 struct aem_stringbuf *aem_stringbuf_init_prealloc(struct aem_stringbuf *str, size_t maxn);
+#define aem_stringbuf_new_prealloc(maxn) aem_stringbuf_init_prealloc(aem_stringbuf_new_raw(), maxn)
 
 // Create a new string
-// if str == NULL, malloc the string
-// otherwise, put it at *str
+#define aem_stringbuf_init(str) aem_stringbuf_init_prealloc(str, (AEM_STRINGBUF_PREALLOC_LEN))
 #define aem_stringbuf_new() aem_stringbuf_init(aem_stringbuf_new_raw())
-#define aem_stringbuf_init(str) aem_stringbuf_init_prealloc(str, 32)
 
-// Create a new string
-// Copy n chars starting at c into the string
+// Create a new malloc'd string from a stringslice
+static inline struct aem_stringbuf *aem_stringbuf_init_array(struct aem_stringbuf *restrict str, size_t n, const char *s);
 #define aem_stringbuf_new_array(n, s) aem_stringbuf_init_array(aem_stringbuf_new_raw(), n, s)
-struct aem_stringbuf *aem_stringbuf_init_array(struct aem_stringbuf *str, size_t n, const char *s);
 
-// Create a new string from a string slice
-#define aem_stringbuf_new_array(n, s) aem_stringbuf_init_array(aem_stringbuf_new_raw(), n, s)
-struct aem_stringbuf *aem_stringbuf_init_slice(struct aem_stringbuf *str, const char *start, const char *end);
+// Create a new malloc'd string from a stringslice
+static inline struct aem_stringbuf *aem_stringbuf_init_slice(struct aem_stringbuf *restrict str, const char *start, const char *end);
+#define aem_stringbuf_new_slice(start, end) aem_stringbuf_init_slice(aem_stringbuf_new_raw(), start, end)
 
-// Belongs in stringslice.h, but can't because inline and dereferencing pointer to incomplete type
-static inline struct aem_stringslice aem_stringslice_new_str(struct aem_stringbuf *str)
-{
-	return aem_stringslice_new_len(str->s, str->n);
-}
-
-// Create a new string
-// Copy a null-terminated string at s into the string
+// Create a new malloc'd string and set it to null-terminated string s
+static inline struct aem_stringbuf *aem_stringbuf_init_cstr(struct aem_stringbuf *restrict str, const char *s);
 #define aem_stringbuf_new_cstr(s) aem_stringbuf_init_cstr(aem_stringbuf_new_raw(), s)
-struct aem_stringbuf *aem_stringbuf_init_cstr(struct aem_stringbuf *str, const char *s);
 
-// Clone a string
-#define aem_stringbuf_new_str(orig) aem_stringbuf_init_str(aem_stringbuf_new_raw(), orig)
-struct aem_stringbuf *aem_stringbuf_init_str(struct aem_stringbuf *str, const struct aem_stringbuf *orig);
+// Create a new malloc'd string and set it to orig
+// Clone a string.
+static inline struct aem_stringbuf *aem_stringbuf_init_str(struct aem_stringbuf *restrict str, const struct aem_stringbuf *orig);
+#define aem_stringbuf_new_str(str) aem_stringbuf_init_str(aem_stringbuf_new_raw(), str)
 #define aem_stringbuf_dup(orig) aem_stringbuf_new_str(orig)
 
-// Destroy a string and its buffer
+// Belongs in stringslice.h, but can't because inline and dereferencing pointer to incomplete type
+static inline struct aem_stringslice aem_stringslice_new_str(struct aem_stringbuf *orig);
+
+// Free a malloc'd stringbuf and its buffer.
 void aem_stringbuf_free(struct aem_stringbuf *str);
 
-// Destruct a non-malloc'd string
+// Free a non-malloc'd stringbuf's buffer.
 void aem_stringbuf_dtor(struct aem_stringbuf *str);
 
-// Destroy string, returning its internal buffer
+// Free malloc'd stringbuf, returning its internal buffer.
 // The caller assumes responsibilty for free()ing the returned buffer.
 // Just use aem_stringbuf_get if str is on the stack.  TODO: This doesn't work with AEM_STRINGBUF_ON_STACK.
 // Appends null terminator
@@ -190,10 +189,8 @@ static inline void aem_stringbuf_append_slice(struct aem_stringbuf *str, const c
 
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c);
 
-
 // Set a string to a character, clearing it first
 // Is equivalent to aem_stringbuf_reset followed by aem_stringbuf_putc.
-// Deprecated.
 static inline void aem_stringbuf_setc(struct aem_stringbuf *str, char c)
 {
 	aem_stringbuf_reset(str);
@@ -202,7 +199,6 @@ static inline void aem_stringbuf_setc(struct aem_stringbuf *str, char c)
 
 // Set a string to a null-terminated string, clearing it first
 // Is equivalent to aem_stringbuf_reset followed by aem_stringbuf_puts.
-// Deprecated.
 static inline void aem_stringbuf_sets(struct aem_stringbuf *str, const char *s)
 {
 	aem_stringbuf_reset(str);
@@ -211,7 +207,6 @@ static inline void aem_stringbuf_sets(struct aem_stringbuf *str, const char *s)
 
 // Set a string to a string that is n characters long, clearing it first
 // Is equivalent to aem_stringbuf_reset followed by aem_stringbuf_putn.
-// Deprecated.
 static inline void aem_stringbuf_setn(struct aem_stringbuf *str, size_t n, const char *s)
 {
 	aem_stringbuf_reset(str);
@@ -220,13 +215,11 @@ static inline void aem_stringbuf_setn(struct aem_stringbuf *str, size_t n, const
 
 // Set a string to another string, clearing it first
 // Is equivalent to aem_stringbuf_reset followed by aem_stringbuf_append.
-// Deprecated.
 static inline void aem_stringbuf_setstr(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
 {
 	aem_stringbuf_reset(str);
 	aem_stringbuf_append(str, str2);
 }
-
 
 // Appends null terminator
 // Returns pointer to internal buffer
@@ -265,6 +258,40 @@ int aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd);
 
 
 // inline implementations of frequently called functions
+
+static inline struct aem_stringbuf *aem_stringbuf_init_array(struct aem_stringbuf *restrict str, size_t n, const char *s)
+{
+	aem_stringbuf_init_prealloc(str, n+1);
+	aem_stringbuf_putn(str, n, s);
+	return str;
+}
+
+static inline struct aem_stringbuf *aem_stringbuf_init_slice(struct aem_stringbuf *restrict str, const char *start, const char *end)
+{
+	aem_stringbuf_init_prealloc(str, end - start + 1);
+	aem_stringbuf_append_slice(str, start, end);
+	return str;
+}
+
+static inline struct aem_stringbuf *aem_stringbuf_init_cstr(struct aem_stringbuf *restrict str, const char *s)
+{
+	aem_stringbuf_init(str);
+	aem_stringbuf_puts(str, s);
+	return str;
+}
+
+static inline struct aem_stringbuf *aem_stringbuf_init_str(struct aem_stringbuf *restrict str, const struct aem_stringbuf *orig)
+{
+	aem_stringbuf_init_prealloc(str, orig->maxn);
+	aem_stringbuf_append(str, orig);
+	return str;
+}
+
+// Belongs in stringslice.h, but can't because inline and dereferencing pointer to incomplete type
+static inline struct aem_stringslice aem_stringslice_new_str(struct aem_stringbuf *str)
+{
+	return aem_stringslice_new_len(str->s, str->n);
+}
 
 static inline void aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
 {
@@ -354,12 +381,10 @@ static inline void aem_stringbuf_putnum(struct aem_stringbuf *str, int base, int
 	aem_stringbuf_putc(str, aem_stringbuf_putnum_digits[num % base]);
 }
 
-static char aem_stringbuf_puthex_hexdigits[16] = "0123456789abcdef";
-
 static inline void aem_stringbuf_puthex(struct aem_stringbuf *str, unsigned char byte)
 {
-	aem_stringbuf_putc(str, aem_stringbuf_puthex_hexdigits[(byte >> 4) & 0xF]);
-	aem_stringbuf_putc(str, aem_stringbuf_puthex_hexdigits[(byte     ) & 0xF]);
+	aem_stringbuf_putc(str, aem_stringbuf_putnum_digits[(byte >> 4) & 0xF]);
+	aem_stringbuf_putc(str, aem_stringbuf_putnum_digits[(byte     ) & 0xF]);
 }
 
 #endif /* AEM_STRINGBUF_H */

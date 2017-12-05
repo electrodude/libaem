@@ -40,44 +40,6 @@ struct aem_stringbuf *aem_stringbuf_init_prealloc(struct aem_stringbuf *str, siz
 	return str;
 }
 
-struct aem_stringbuf *aem_stringbuf_init_array(struct aem_stringbuf *restrict str, size_t n, const char *restrict s)
-{
-	aem_stringbuf_init_prealloc(str, n);
-
-	aem_stringbuf_putn(str, n, s);
-
-	return str;
-}
-
-struct aem_stringbuf *aem_stringbuf_init_cstr(struct aem_stringbuf *restrict str, const char *restrict s)
-{
-	aem_stringbuf_init(str);
-
-	aem_stringbuf_puts(str, s);
-
-	return str;
-}
-
-struct aem_stringbuf *aem_stringbuf_init_slice(struct aem_stringbuf *restrict str, const char *start, const char *end)
-{
-	aem_stringbuf_init(str);
-
-	aem_stringbuf_append_slice(str, start, end);
-
-	return str;
-}
-
-struct aem_stringbuf *aem_stringbuf_init_str(struct aem_stringbuf *restrict str, const struct aem_stringbuf *restrict orig)
-{
-	aem_stringbuf_init_prealloc(str, orig->maxn);
-
-	memcpy(str->s, orig->s, orig->n);
-
-	str->n = orig->n;
-
-	return str;
-}
-
 void aem_stringbuf_free(struct aem_stringbuf *str)
 {
 	if (str == NULL) return;

@@ -55,7 +55,7 @@ int aem_stringslice_get_utf8(struct aem_stringslice *slice)
 	const char *start = slice->start; // make backup of start
 
 	int c = aem_stringslice_getc(slice);
-	if (c < 0) return c;
+	if (c < 0) return c; // end of input
 
 	size_t n = 0;
 

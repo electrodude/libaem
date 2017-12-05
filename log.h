@@ -33,6 +33,8 @@ char aem_log_level_letter(enum aem_log_level loglevel);
 #define aem_logf_ctx(loglevel, fmt, ...) aem_logf((loglevel), "%c %s:%d(%s): " fmt, aem_log_level_letter(loglevel), __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 #endif
 
-#define aem_assert(condition) if (condition) { aem_logf_ctx("assertion failed: ", #condition); abort(); }
+#ifndef aem_assert
+#define aem_assert(condition) if (condition) { aem_logf_ctx("assertion failed: %s", #condition); abort(); }
+#endif
 
 #endif /* AEM_LOG_H */

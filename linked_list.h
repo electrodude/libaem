@@ -1,7 +1,13 @@
 #ifndef AEM_LINKED_LIST_H
 #define AEM_LINKED_LIST_H
 
+#ifndef aem_typeof
 #define aem_typeof __typeof__
+#endif
+
+#ifndef aem_assert
+#include "log.h"
+#endif
 
 #define AEM_LL_INIT(chain, prev, next) do { \
 	(chain)->prev = (chain); \

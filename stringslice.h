@@ -47,6 +47,13 @@ static inline int aem_stringslice_getc(struct aem_stringslice *slice)
 	return (unsigned char)*slice->start++;
 }
 
+// Unget (move backwards) one byte
+// Only use this if you know there is a byte to unget.
+static inline int aem_stringslice_ungetc(struct aem_stringslice *slice)
+{
+	return (unsigned char)*--slice->start;
+}
+
 // Get a UTF-8 codepoint
 // Implementation in utf8.c
 int aem_stringslice_get_utf8(struct aem_stringslice *slice);

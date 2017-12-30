@@ -34,7 +34,7 @@ char aem_log_level_letter(enum aem_log_level loglevel);
 #endif
 
 #ifndef aem_assert
-#define aem_assert(condition) if (!(condition)) { aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s", #condition); abort(); }
+#define aem_assert(condition) if (!(condition)) { aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s\n", #condition); abort(); }
 #endif
 
 #endif /* AEM_LOG_H */

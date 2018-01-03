@@ -9,7 +9,19 @@ LDFLAGS+=
 CFLAGS+=-O3
 LDFLAGS+=-O3
 
+ifeq (,$(findstring Windows,${OS}))
+        HOST_SYS:=$(shell uname -s)
+else
+        HOST_SYS=Windows
+endif
+
 SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c log.c
+ifeq (${HOST_SYS},Windows)
+SOURCES_LIBAEM+=serial.windows.c
+else
+SOURCES_LIBAEM+=serial.unix.c
+endif
+
 OBJECTS_LIBAEM=$(patsubst %.c,%.o,${SOURCES_LIBAEM})
 
 SOURCES_LIBAEM_TEST=$(shell echo test.c)

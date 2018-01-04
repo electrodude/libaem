@@ -196,6 +196,9 @@ static inline void aem_stringbuf_append_slice(struct aem_stringbuf *str, const c
 	aem_stringbuf_append_stringslice(str, aem_stringslice_new(start, end));
 }
 
+// Unquote quoted characters out of slice and append it to str until unquoted stuff is found
+int aem_stringbuf_append_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice);
+
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c);
 
 // Set a string to a character, clearing it first

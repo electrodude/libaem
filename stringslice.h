@@ -58,7 +58,7 @@ static inline int aem_stringslice_ungetc(struct aem_stringslice *slice)
 // Implementation in utf8.c
 int aem_stringslice_get_utf8(struct aem_stringslice *slice);
 
-void aem_stringslice_match_ws(struct aem_stringslice *slice);
+int aem_stringslice_match_ws(struct aem_stringslice *slice);
 
 struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice);
 struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice);

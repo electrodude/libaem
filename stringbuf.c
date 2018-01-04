@@ -223,25 +223,6 @@ char *aem_stringbuf_append_manual(struct aem_stringbuf *str, size_t len)
 }
 */
 
-void aem_stringbuf_append(struct aem_stringbuf *restrict str, const struct aem_stringbuf *restrict str2)
-{
-	if (str == NULL) return;
-
-	if (str2 == NULL) return;
-
-#if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= \"%s\"\n", aem_stringbuf_get(str), aem_stringbuf_get(str2));
-#endif
-
-
-	aem_stringbuf_reserve(str, str2->n);
-	if (str->bad) return;
-
-	memcpy(aem_stringbuf_end(str), str2->s, str2->n);
-
-	str->n += str2->n;
-}
-
 void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 {
 	if (str == NULL) return;
@@ -249,24 +230,16 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 
 	switch (c)
 	{
-		case '\n':
-			aem_stringbuf_puts(str, "\\n");
-			break;
-		case '\r':
-			aem_stringbuf_puts(str, "\\r");
-			break;
-		case '\t':
-			aem_stringbuf_puts(str, "\\t");
-			break;
-		case '\0':
-			aem_stringbuf_puts(str, "\\0");
-			break;
-		case '\\':
-			aem_stringbuf_puts(str, "\\\\");
-			break;
-		case '"':
-			aem_stringbuf_puts(str, "\\\"");
-			break;
+#define AEM_STRINGBUF_PUTQ_CASE(find, replace) \
+	case find: aem_stringbuf_puts(str, replace); break;
+		AEM_STRINGBUF_PUTQ_CASE('\n', "\\n")
+		AEM_STRINGBUF_PUTQ_CASE('\r', "\\r")
+		AEM_STRINGBUF_PUTQ_CASE('\t', "\\t")
+		AEM_STRINGBUF_PUTQ_CASE('\0', "\\0")
+		AEM_STRINGBUF_PUTQ_CASE('\"', "\\\"")
+		AEM_STRINGBUF_PUTQ_CASE('\\', "\\\\")
+		AEM_STRINGBUF_PUTQ_CASE(' ' , "\\ ")
+#undef AEM_STRINGBUF_PUTQ_CASE
 		default:
 			if (c >= 32 && c < 127)
 			{
@@ -281,23 +254,6 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 	}
 }
 
-void aem_stringbuf_append_quote(struct aem_stringbuf *restrict str, const struct aem_stringbuf *restrict str2)
-{
-	if (str == NULL) return;
-	if (str->bad) return;
-
-	if (str2 == NULL) return;
-
-#if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= quote(\"%s\")\n", aem_stringbuf_get(str), aem_stringbuf_get(str2));
-#endif
-
-	for (size_t i = 0; i < str2->n; i++)
-	{
-		aem_stringbuf_putq(str, str2->s[i]);
-	}
-}
-
 void aem_stringbuf_append_stringslice_quote(struct aem_stringbuf *restrict str, const struct aem_stringslice *restrict slice)
 {
 	if (str == NULL) return;
@@ -306,13 +262,72 @@ void aem_stringbuf_append_stringslice_quote(struct aem_stringbuf *restrict str, 
 	if (slice == NULL) return;
 
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= <slice>\n", aem_stringbuf_get(str));
+	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= quote(<slice>)\n", aem_stringbuf_get(str));
 #endif
 
 	for (const char *p = slice->start; p != slice->end; p++)
 	{
 		aem_stringbuf_putq(str, *p);
 	}
+}
+
+int aem_stringbuf_append_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice)
+{
+	if (str == NULL) return 1;
+	if (str->bad) return 1;
+
+	if (slice == NULL) return 0;
+
+	while (aem_stringslice_ok(slice))
+	{
+		int c = aem_stringslice_getc(slice);
+
+		if (c == '\\')
+		{
+			int c2 = aem_stringslice_getc(slice);
+
+			if (c2 < 0) c2 = '\\'; // if no character after the backslash, just output the backslash
+
+			switch (c2)
+			{
+#define AEM_STRINGBUF_APPEND_UNQUOTE_CASE(find, replace) \
+	case find: aem_stringbuf_putc(str, replace); break;
+				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('n' , '\n');
+				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('r' , '\r');
+				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('t' , '\t');
+				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('0' , '\0');
+				case 'x':;
+					int b = aem_stringslice_match_hexbyte(slice);
+					if (b >= 0) // if valid hex byte, unescape it
+					{
+						c2 = b;
+						aem_stringbuf_putc(str, b);
+					}
+					else
+					{
+						// else just put the unescaped 'x' without the backslash
+						aem_stringbuf_putc(str, c2);
+					}
+					break;
+
+				default:
+					aem_stringbuf_putc(str, c2);
+					break;
+#undef AEM_STRINGBUF_APPEND_UNQUOTE_CASE
+			}
+		}
+		else if (c > 32 && c < 127)
+		{
+			aem_stringbuf_putc(str, c);
+		}
+		else
+		{
+			aem_stringslice_ungetc(slice); // reject unescaped character and return
+			return 0;
+		}
+	}
+
+	return 0;
 }
 
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)

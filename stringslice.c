@@ -101,12 +101,12 @@ int aem_stringslice_eq(struct aem_stringslice slice, const char *s)
 {
 	if (s == NULL) return 1;
 
-	while (slice.start != slice.end && *s != '\0')
+	while (aem_stringslice_ok(&slice) && *s != '\0') // while neither are finished
 	{
-		if (*slice.start++ != *s++) return 0;
+		if (*slice.start++ != *s++) return 0; // unequal characters => no match
 	}
 
-	return *s == '\0';
+	return !aem_stringslice_ok(&slice) && *s == '\0'; // ensure both are finished
 }
 
 static inline int hex2nib(char c)

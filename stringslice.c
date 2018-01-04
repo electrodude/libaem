@@ -29,11 +29,19 @@ int aem_stringslice_file_write(const struct aem_stringslice *slice, FILE *fp)
 	return 0;
 }
 
-void aem_stringslice_match_ws(struct aem_stringslice *slice)
+int aem_stringslice_match_ws(struct aem_stringslice *slice)
 {
-	if (slice == NULL) return;
+	if (slice == NULL) return 0;
 
-	while (aem_stringslice_ok(slice) && isspace(*slice->start)) slice->start++;
+	int matched = 0;
+
+	while (aem_stringslice_ok(slice) && isspace(*slice->start))
+	{
+		matched = 1;
+		slice->start++;
+	}
+
+	return matched;
 }
 
 struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice)

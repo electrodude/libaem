@@ -82,7 +82,7 @@ static inline struct aem_stringbuf *aem_stringbuf_init_str(struct aem_stringbuf 
 #define aem_stringbuf_dup(orig) aem_stringbuf_new_str(orig)
 
 // Belongs in stringslice.h, but can't because inline and dereferencing pointer to incomplete type
-static inline struct aem_stringslice aem_stringslice_new_str(struct aem_stringbuf *orig);
+static inline struct aem_stringslice aem_stringslice_new_str(const struct aem_stringbuf *orig);
 
 // Free a malloc'd stringbuf and its buffer.
 void aem_stringbuf_free(struct aem_stringbuf *str);
@@ -164,16 +164,25 @@ char *aem_stringbuf_append_manual(struct aem_stringbuf *str, size_t len);
 */
 
 // Append a stringbuf
-void aem_stringbuf_append(struct aem_stringbuf *str, const struct aem_stringbuf *str2);
+static inline void aem_stringbuf_append(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
+{
+	if (str2 == NULL) return;
+	aem_stringbuf_putn(str, str2->n, str2->s);
+}
 
 // Append a character, escaping it if necessary
 void aem_stringbuf_putq(struct aem_stringbuf *str, char c);
 
-// Append a stringbuf, escaping characters as necessary
-void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2);
-
 // Append a struct stringslice, escaping characters as necessary
 void aem_stringbuf_append_stringslice_quote(struct aem_stringbuf *str, const struct aem_stringslice *slice);
+
+// Append a stringbuf, escaping characters as necessary
+static inline void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
+{
+	if (str2 == NULL) return;
+	struct aem_stringslice slice = aem_stringslice_new_str(str2);
+	aem_stringbuf_append_stringslice_quote(str, &slice);
+}
 
 // Append a stringslice
 static inline void aem_stringbuf_append_stringslice(struct aem_stringbuf *str, struct aem_stringslice slice)
@@ -211,6 +220,14 @@ static inline void aem_stringbuf_setn(struct aem_stringbuf *str, size_t n, const
 {
 	aem_stringbuf_reset(str);
 	aem_stringbuf_putn(str, n, s);
+}
+
+// Set a string to a stringslice, clearing it first
+// Is equivalent to aem_stringbuf_reset followed by aem_stringbuf_append_stringslice.
+static inline void aem_stringbuf_setslice(struct aem_stringbuf *str, const struct aem_stringslice slice)
+{
+	aem_stringbuf_reset(str);
+	aem_stringbuf_append_stringslice(str, slice);
 }
 
 // Set a string to another string, clearing it first
@@ -288,7 +305,7 @@ static inline struct aem_stringbuf *aem_stringbuf_init_str(struct aem_stringbuf 
 }
 
 // Belongs in stringslice.h, but can't because inline and dereferencing pointer to incomplete type
-static inline struct aem_stringslice aem_stringslice_new_str(struct aem_stringbuf *str)
+static inline struct aem_stringslice aem_stringslice_new_str(const struct aem_stringbuf *str)
 {
 	return aem_stringslice_new_len(str->s, str->n);
 }

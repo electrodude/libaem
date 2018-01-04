@@ -223,25 +223,6 @@ char *aem_stringbuf_append_manual(struct aem_stringbuf *str, size_t len)
 }
 */
 
-void aem_stringbuf_append(struct aem_stringbuf *restrict str, const struct aem_stringbuf *restrict str2)
-{
-	if (str == NULL) return;
-
-	if (str2 == NULL) return;
-
-#if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= \"%s\"\n", aem_stringbuf_get(str), aem_stringbuf_get(str2));
-#endif
-
-
-	aem_stringbuf_reserve(str, str2->n);
-	if (str->bad) return;
-
-	memcpy(aem_stringbuf_end(str), str2->s, str2->n);
-
-	str->n += str2->n;
-}
-
 void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 {
 	if (str == NULL) return;
@@ -281,23 +262,6 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 	}
 }
 
-void aem_stringbuf_append_quote(struct aem_stringbuf *restrict str, const struct aem_stringbuf *restrict str2)
-{
-	if (str == NULL) return;
-	if (str->bad) return;
-
-	if (str2 == NULL) return;
-
-#if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= quote(\"%s\")\n", aem_stringbuf_get(str), aem_stringbuf_get(str2));
-#endif
-
-	for (size_t i = 0; i < str2->n; i++)
-	{
-		aem_stringbuf_putq(str, str2->s[i]);
-	}
-}
-
 void aem_stringbuf_append_stringslice_quote(struct aem_stringbuf *restrict str, const struct aem_stringslice *restrict slice)
 {
 	if (str == NULL) return;
@@ -306,7 +270,7 @@ void aem_stringbuf_append_stringslice_quote(struct aem_stringbuf *restrict str, 
 	if (slice == NULL) return;
 
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= <slice>\n", aem_stringbuf_get(str));
+	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= quote(<slice>)\n", aem_stringbuf_get(str));
 #endif
 
 	for (const char *p = slice->start; p != slice->end; p++)

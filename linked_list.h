@@ -31,6 +31,8 @@
 	(_node)->prev->next = (_node)->next; \
 } while (0)
 
+#define AEM_LL_EMPTY(chain, next) ((chain)->next == (chain))
+
 #define AEM_LL_FOR_RANGE(curr, start, end, prev, next) \
 	for (aem_typeof(start) (curr) = (start); (curr) != (end); (curr) = (curr)->next)
 

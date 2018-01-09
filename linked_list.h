@@ -29,6 +29,8 @@
 	aem_typeof(node) _node = (node); \
 	(_node)->next->prev = (_node)->prev; \
 	(_node)->prev->next = (_node)->next; \
+	(_node)->next = (_node); \
+	(_node)->prev = (_node); \
 } while (0)
 
 #define AEM_LL_EMPTY(chain, next) ((chain)->next == (chain))

@@ -35,11 +35,17 @@
 
 #define AEM_LL_EMPTY(chain, next) ((chain)->next == (chain))
 
+#define AEM_LL_FOR_RANGE_TP(T, curr, start, end, prev, next) \
+	for (T curr = (start); curr != (end); curr = curr->next)
+
 #define AEM_LL_FOR_RANGE(curr, start, end, prev, next) \
-	for (aem_typeof(start) (curr) = (start); (curr) != (end); (curr) = (curr)->next)
+	AEM_LL_FOR_RANGE_TP(aem_typeof(start), curr, (start), (end), prev, next)
+
+#define AEM_LL_FOR_ALL_TP(T, curr, chain, prev, next) \
+	AEM_LL_FOR_RANGE_TP(T, curr, (chain)->next, (chain), prev, next)
 
 #define AEM_LL_FOR_ALL(curr, chain, prev, next) \
-	AEM_LL_FOR_RANGE((curr), (chain)->next, (chain), prev, next)
+	AEM_LL_FOR_ALL_TP(aem_typeof((chain)->next), curr, (chain), prev, next)
 
 #define AEM_LL_VERIFY(chain, prev, next, assert) do { \
 	AEM_LL_FOR_ALL(_curr, chain, prev, next) \

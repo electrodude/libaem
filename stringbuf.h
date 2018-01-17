@@ -11,7 +11,7 @@
 
 // String builder class
 // N.B.: The null terminator is not present on str->s except after calls to aem_stringbuf_get
-//  and functions that call it, such as aem_stringbuf_shrink and aem_stringbuf_release
+//  and functions that call it, such as aem_stringbuf_shrinkwrap and aem_stringbuf_release
 
 enum aem_stringbuf_storage
 {
@@ -127,7 +127,10 @@ static inline int aem_stringbuf_available(struct aem_stringbuf *str)
 // Returns pointer to internal buffer
 // The pointer is only valid until the next call to aem_stringbuf_put*.
 // The null terminator is only there until the next time the string is modified
-char *aem_stringbuf_shrink(struct aem_stringbuf *str);
+char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str);
+
+// deprecated old name
+#define aem_stringbuf_shrink aem_stringbuf_shrinkwrap
 
 
 // Append a character
@@ -243,7 +246,7 @@ static inline void aem_stringbuf_setstr(struct aem_stringbuf *str, const struct 
 
 // Appends null terminator
 // Returns pointer to internal buffer
-// The pointer is only valid until the next call to aem_stringbuf_reserve or aem_stringbuf_shrink.
+// The pointer is only valid until the next call to aem_stringbuf_reserve or aem_stringbuf_shrinkwrap.
 static inline char *aem_stringbuf_get(struct aem_stringbuf *str)
 {
 	if (str == NULL) return NULL;

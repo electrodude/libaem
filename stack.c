@@ -76,7 +76,7 @@ void **aem_stack_release(struct aem_stack *stk, size_t *n)
 		return NULL;
 	}
 
-	aem_stack_shrink(stk);
+	aem_stack_shrinkwrap(stk);
 
 	void **s = stk->s;
 	*n = stk->n;
@@ -96,7 +96,7 @@ static inline void aem_stack_grow(struct aem_stack *stk, size_t maxn_new)
 	stk->s = realloc(stk->s, stk->maxn * sizeof(void*));
 }
 
-void *aem_stack_shrink(struct aem_stack *stk)
+void *aem_stack_shrinkwrap(struct aem_stack *stk)
 {
 	if (stk == NULL) return NULL;
 

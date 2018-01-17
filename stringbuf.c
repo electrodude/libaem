@@ -86,7 +86,7 @@ char *aem_stringbuf_release(struct aem_stringbuf *str)
 {
 	if (str == NULL) return NULL;
 
-	aem_stringbuf_shrink(str);
+	aem_stringbuf_shrinkwrap(str);
 
 	char *s = str->s;
 
@@ -160,7 +160,7 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 }
 
 
-char *aem_stringbuf_shrink(struct aem_stringbuf *str)
+char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 {
 	if (str == NULL) return NULL;
 
@@ -406,7 +406,7 @@ int aem_stringbuf_file_read(struct aem_stringbuf *str, FILE *fp)
 		}
 	} while (!feof(fp));
 
-	aem_stringbuf_shrink(str);
+	aem_stringbuf_shrinkwrap(str);
 
 	return 0;
 }
@@ -464,7 +464,7 @@ int aem_stringbuf_fd_read(struct aem_stringbuf *str, int fd)
 
 	} while (n_read > 0);
 
-	aem_stringbuf_shrink(str);
+	aem_stringbuf_shrinkwrap(str);
 
 	return 0;
 }
@@ -497,7 +497,7 @@ int aem_stringbuf_fd_read_n(struct aem_stringbuf *str, size_t n, int fd)
 
 	} while (n_read > 0 && n > 0);
 
-	aem_stringbuf_shrink(str);
+	aem_stringbuf_shrinkwrap(str);
 
 	return 0;
 }

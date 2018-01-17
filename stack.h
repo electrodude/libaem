@@ -80,7 +80,10 @@ static inline void aem_stack_reset(struct aem_stack *stk)
 void **aem_stack_release(struct aem_stack *stk, size_t *n);
 
 // realloc() internal buffer to be as small as possible
-void *aem_stack_shrink(struct aem_stack *stk);
+void *aem_stack_shrinkwrap(struct aem_stack *stk);
+
+// deprecated old name
+#define aem_stack_shrink aem_stack_shrinkwrap
 
 // Ensure there is space allocated for at least maxn elements
 void aem_stack_reserve(struct aem_stack *stk, size_t maxn);

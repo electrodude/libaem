@@ -15,9 +15,10 @@ AEM's personal C library
 * `AEM_LL`: embedded circular doubly linked list (all macros)
 * `aem_iter_gen`: graph iterator helper
 
+* `aem_gc`: simple mark/sweep garbage collector
+
 
 ## Planned Features
 
 * `aem_hash`: hash table
 * `aem_childproc`: child process manager
-* `aem_gc`: simple mark/sweep garbage collector

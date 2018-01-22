@@ -29,7 +29,7 @@ void aem_gc_dtor(struct aem_gc_context *ctx)
 	}
 }
 
-void aem_gc_register(struct aem_gc_object *obj, struct aem_gc_vtbl *vtbl, struct aem_gc_context *ctx)
+void aem_gc_register(struct aem_gc_object *obj, const struct aem_gc_vtbl *vtbl, struct aem_gc_context *ctx)
 {
 	obj->vtbl = vtbl;
 

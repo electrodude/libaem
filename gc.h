@@ -19,7 +19,7 @@ void aem_gc_free_default(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 
 struct aem_gc_object
 {
-	struct aem_gc_vtbl *vtbl;
+	const struct aem_gc_vtbl *vtbl;
 
 	// singly linked list of instances belonging to the same aem_gc_context
 	// rooted in ctx->objects
@@ -40,7 +40,7 @@ struct aem_gc_context
 void aem_gc_init(struct aem_gc_context *ctx);
 void aem_gc_dtor(struct aem_gc_context *ctx);
 
-void aem_gc_register(struct aem_gc_object *obj, struct aem_gc_vtbl *vtbl, struct aem_gc_context *ctx);
+void aem_gc_register(struct aem_gc_object *obj, const struct aem_gc_vtbl *vtbl, struct aem_gc_context *ctx);
 
 void aem_gc_run(struct aem_gc_context *ctx);
 

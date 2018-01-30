@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "log.h"
+#include "linked_list.h"
 
 #include "gc.h"
 
@@ -14,7 +15,7 @@ void aem_gc_free_default(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 
 void aem_gc_init(struct aem_gc_context *ctx)
 {
-	ctx->objects.ctx_next = NULL;
+	AEM_LL1_INIT(&ctx->objects, ctx_next);
 
 	aem_iter_gen_init_master(&ctx->objects.iter);
 }
@@ -23,7 +24,7 @@ void aem_gc_dtor(struct aem_gc_context *ctx)
 {
 	aem_gc_run(ctx);
 
-	if (ctx->objects.ctx_next != NULL)
+	if (!AEM_LL_EMPTY(&ctx->objects, ctx_next))
 	{
 		aem_logf_ctx(AEM_LOG_BUG, "not all objects collected, leaking\n");
 	}
@@ -33,13 +34,11 @@ void aem_gc_register(struct aem_gc_object *obj, const struct aem_gc_vtbl *vtbl, 
 {
 	obj->vtbl = vtbl;
 
-	obj->ctx_next = ctx->objects.ctx_next;
-
 	aem_iter_gen_init(&obj->iter, &ctx->objects.iter);
 
 	obj->root = 0;
 
-	ctx->objects.ctx_next = obj;
+	AEM_LL1_INSERT_AFTER(&ctx->objects, obj, ctx_next);
 }
 
 void aem_gc_run(struct aem_gc_context *ctx)
@@ -48,7 +47,7 @@ void aem_gc_run(struct aem_gc_context *ctx)
 	aem_iter_gen_reset_master(&ctx->objects.iter);
 
 	// mark all roots
-	for (struct aem_gc_object *curr = ctx->objects.ctx_next; curr != NULL; curr = curr->ctx_next)
+	AEM_LL2_FOR_ALL(curr, &ctx->objects, _, ctx_next)
 	{
 		if (curr->root)
 		{
@@ -57,7 +56,7 @@ void aem_gc_run(struct aem_gc_context *ctx)
 	}
 
 	// destruct all dead objects
-	for (struct aem_gc_object *curr = ctx->objects.ctx_next; curr != NULL; curr = curr->ctx_next)
+	AEM_LL2_FOR_ALL(curr, &ctx->objects, _, ctx_next)
 	{
 		// if it wasn't hit by the mark cycle, it's dead
 		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter))
@@ -71,26 +70,17 @@ void aem_gc_run(struct aem_gc_context *ctx)
 	}
 
 	// free all dead objects
-	for (struct aem_gc_object *prev = &ctx->objects; prev->ctx_next != NULL; /* increment is conditional at end of loop */)
+	AEM_LL_FILTER_ALL(curr, &ctx->objects, ctx_next)
 	{
-		struct aem_gc_object *curr = prev->ctx_next;
 		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter))
 		{
-			struct aem_gc_object *next = curr->ctx_next;
-			prev->ctx_next = next;
 
 			if (curr->vtbl->free != NULL)
 			{
 				curr->vtbl->free(curr, ctx);
 			}
 
-			// don't `prev = prev->ctx_next;`, since
-			// `prev->ctx_next` changed and its new value needs to
-			// be processed
-		}
-		else
-		{
-			prev = prev->ctx_next;
+			curr = NULL; // signal for curr to be removed
 		}
 	}
 }

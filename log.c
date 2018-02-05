@@ -1,3 +1,5 @@
+#include <ctype.h>
+
 #include "log.h"
 
 FILE *aem_log_fp = NULL;
@@ -34,6 +36,55 @@ char aem_log_level_letter(enum aem_log_level loglevel)
 		case AEM_LOG_DEBUG   : return 'd';
 		default              : return '?';
 	}
+}
+
+enum aem_log_level aem_log_level_parse(const char *p)
+{
+	const char *ps = p;
+
+	switch (tolower(*p))
+	{
+		case 'f': goto f_atal;
+		case 'b': goto b_ug;
+		case 's': goto s_ecurity;
+		case 'e': goto e_rror;
+		case 'w': goto w_arn;
+		case 'n': goto n_otice;
+		case 'i': goto i_nfo;
+		case 'd': goto d_ebug;
+		default : break;
+	}
+
+	aem_logf(AEM_LOG_ERROR, "unknown log level %s, default to debug\n", ps);
+
+	return AEM_LOG_DEBUG;
+
+f_atal:
+	// TODO: for each label, ensure p is prefix of remaining part, else warn
+	return AEM_LOG_FATAL;
+b_ug:
+	return AEM_LOG_BUG;
+s_ecurity:
+	return AEM_LOG_SECURITY;
+e_rror:
+	return AEM_LOG_ERROR;
+w_arn:
+	return AEM_LOG_WARN;
+n_otice:
+	return AEM_LOG_NOTICE;
+i_nfo:
+	return AEM_LOG_INFO;
+d_ebug:
+	return AEM_LOG_DEBUG;
+}
+
+enum aem_log_level aem_log_level_parse_set(const char *p)
+{
+	enum aem_log_level loglevel = aem_log_level_parse(p);
+
+	aem_log_level_curr = loglevel;
+
+	return loglevel;
 }
 
 int aem_logf(enum aem_log_level loglevel, const char *fmt, ...)

@@ -27,6 +27,9 @@ int aem_vdprintf(const char *fmt, va_list ap);
 const char *aem_log_level_describe(enum aem_log_level loglevel);
 char aem_log_level_letter(enum aem_log_level loglevel);
 
+enum aem_log_level aem_log_level_parse(const char *p);
+enum aem_log_level aem_log_level_parse_set(const char *p);
+
 #if AEM_LOGF_LOGLEVEL_WORD
 #define aem_logf_ctx(loglevel, fmt, ...) aem_logf((loglevel), "%s:%d(%s): %s: " fmt, __FILE__, __LINE__, __func__, aem_log_level_describe(loglevel), ##__VA_ARGS__)
 #else

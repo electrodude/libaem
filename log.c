@@ -40,6 +40,8 @@ char aem_log_level_letter(enum aem_log_level loglevel)
 
 enum aem_log_level aem_log_level_parse(const char *p)
 {
+	if (p == NULL) return AEM_LOG_DEBUG; // default to debug
+
 	const char *ps = p;
 
 	switch (tolower(*p))

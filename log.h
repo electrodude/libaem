@@ -16,19 +16,40 @@ enum aem_log_level
 	AEM_LOG_DEBUG,
 };
 
+
+// log file
+
+extern FILE *aem_log_fp; // public use is deprecated; use aem_log_{set,open,get}
+
+FILE *aem_log_fset(FILE *fp_new, int autoclose_new);
+
+static inline FILE *aem_log_stderr(void)
+{
+	return aem_log_fset(stderr, 0);
+}
+FILE *aem_log_fopen(const char *path_new);
+FILE *aem_log_fget(void);
+
+
+// log level
+
 extern enum aem_log_level aem_log_level_curr;
-
-extern FILE *aem_log_fp;
-
-int aem_logf(enum aem_log_level loglevel, const char *fmt, ...);
-int aem_dprintf(const char *fmt, ...);
-int aem_vdprintf(const char *fmt, va_list ap);
 
 const char *aem_log_level_describe(enum aem_log_level loglevel);
 char aem_log_level_letter(enum aem_log_level loglevel);
 
 enum aem_log_level aem_log_level_parse(const char *p);
-enum aem_log_level aem_log_level_parse_set(const char *p);
+static inline enum aem_log_level aem_log_level_parse_set(const char *p)
+{
+	return aem_log_level_curr = aem_log_level_parse(p);
+}
+
+
+// logging
+
+int aem_logf(enum aem_log_level loglevel, const char *fmt, ...);
+int aem_dprintf(const char *fmt, ...);
+int aem_vdprintf(const char *fmt, va_list ap);
 
 #if AEM_LOGF_LOGLEVEL_WORD
 #define aem_logf_ctx(loglevel, fmt, ...) aem_logf((loglevel), "%s:%d(%s): %s: " fmt, __FILE__, __LINE__, __func__, aem_log_level_describe(loglevel), ##__VA_ARGS__)

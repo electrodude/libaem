@@ -1,5 +1,5 @@
 *.o
 libaem.a
-libaem_test
 
+test/bin/*
 .deps

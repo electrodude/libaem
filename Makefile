@@ -9,6 +9,8 @@ LDFLAGS+=
 CFLAGS+=-O3
 LDFLAGS+=-O3
 
+CFLAGS+=-I./test/
+
 ifeq (,$(findstring Windows,${OS}))
         HOST_SYS:=$(shell uname -s)
 else
@@ -30,18 +32,29 @@ OBJECTS_LIBAEM_TEST=$(patsubst %.c,%.o,${SOURCES_LIBAEM_TEST})
 DEPDIR=.deps
 DEPFLAGS=-MD -MP -MF ${DEPDIR}/$*.d
 
-$(shell mkdir -p ${DEPDIR})
+TESTS=test_test \
+      test_test_utf8 \
+      test_test_childproc \
+      test_server \
+      test_client
+
+TESTS_BIN=$(patsubst test_%,test/bin/%,${TESTS})
+
+$(shell mkdir -p ${DEPDIR}/test)
+$(shell mkdir -p test/bin)
 
 all:	libaem.a
 
-test:	libaem_test
-	./libaem_test
+test:	${TESTS}
+
+test/bin/%:	test/%.o libaem.a
+	${LD} $^ ${LDFLAGS} -o $@
+
+test_%:	test/bin/%
+	cd test && ./bin/$* || rm ./bin/$*
 
 clean:
-	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} ${DEPDIR}/*.d libaem_test libaem.a
-
-libaem_test:	${OBJECTS_LIBAEM_TEST} libaem.a
-	${LD} $^ ${LDFLAGS} -o $@
+	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o ${TESTS_BIN} ${DEPDIR}/*.d ${DEPDIR}/test/*.d
 
 libaem.a:	${OBJECTS_LIBAEM}
 	${AR} $@ $^
@@ -53,5 +66,6 @@ libaem.a:	${OBJECTS_LIBAEM}
 .PHONY:	all test clean
 
 include $(wildcard ${DEPDIR}/*.d)
+include $(wildcard ${DEPDIR}/test/*.d)
 
 # vim: set ts=13 :

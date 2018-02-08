@@ -59,14 +59,14 @@ const char *aem_log_level_describe(enum aem_log_level loglevel)
 {
 	switch (loglevel)
 	{
-		case AEM_LOG_FATAL   : return "FATAL";
-		case AEM_LOG_BUG     : return "BUG";
-		case AEM_LOG_SECURITY: return "SECURITY";
-		case AEM_LOG_ERROR   : return "ERROR";
-		case AEM_LOG_WARN    : return "WARN";
-		case AEM_LOG_NOTICE  : return "NOTICE";
-		case AEM_LOG_INFO    : return "INFO";
-		case AEM_LOG_DEBUG   : return "DEBUG";
+		case AEM_LOG_FATAL   : return "fatal";
+		case AEM_LOG_BUG     : return "bug";
+		case AEM_LOG_SECURITY: return "security";
+		case AEM_LOG_ERROR   : return "error";
+		case AEM_LOG_WARN    : return "warn";
+		case AEM_LOG_NOTICE  : return "notice";
+		case AEM_LOG_INFO    : return "info";
+		case AEM_LOG_DEBUG   : return "debug";
 		default              : return "(unknown)";
 	}
 }
@@ -87,11 +87,30 @@ char aem_log_level_letter(enum aem_log_level loglevel)
 	}
 }
 
+enum aem_log_level aem_log_level_check_prefix(enum aem_log_level level, const char *in)
+{
+	const char *expect = aem_log_level_describe(level);
+
+	const char *p = in;
+	const char *p2 = expect;
+
+	// this should be a function that lives in stringslice or something
+	while (*p && *p2)
+	{
+		if (tolower(*p) != tolower(*p2))
+		{
+			aem_logf_ctx(AEM_LOG_WARN, "unknown log level %s, autocorrect to %s\n", in, expect);
+			break;
+		}
+		p++; p2++;
+	}
+
+	return level;
+}
+
 enum aem_log_level aem_log_level_parse(const char *p)
 {
 	if (p == NULL) return AEM_LOG_DEBUG; // default to debug
-
-	const char *ps = p;
 
 	switch (tolower(*p))
 	{
@@ -106,27 +125,26 @@ enum aem_log_level aem_log_level_parse(const char *p)
 		default : break;
 	}
 
-	aem_logf(AEM_LOG_ERROR, "unknown log level %s, default to debug\n", ps);
+	aem_logf_ctx(AEM_LOG_ERROR, "unknown log level %s, default to debug\n", p);
 
 	return AEM_LOG_DEBUG;
 
 f_atal:
-	// TODO: for each label, ensure p is prefix of remaining part, else warn
-	return AEM_LOG_FATAL;
+	return aem_log_level_check_prefix(AEM_LOG_FATAL, p);
 b_ug:
-	return AEM_LOG_BUG;
+	return aem_log_level_check_prefix(AEM_LOG_BUG, p);
 s_ecurity:
-	return AEM_LOG_SECURITY;
+	return aem_log_level_check_prefix(AEM_LOG_SECURITY, p);
 e_rror:
-	return AEM_LOG_ERROR;
+	return aem_log_level_check_prefix(AEM_LOG_ERROR, p);
 w_arn:
-	return AEM_LOG_WARN;
+	return aem_log_level_check_prefix(AEM_LOG_WARN, p);
 n_otice:
-	return AEM_LOG_NOTICE;
+	return aem_log_level_check_prefix(AEM_LOG_NOTICE, p);
 i_nfo:
-	return AEM_LOG_INFO;
+	return aem_log_level_check_prefix(AEM_LOG_INFO, p);
 d_ebug:
-	return AEM_LOG_DEBUG;
+	return aem_log_level_check_prefix(AEM_LOG_DEBUG, p);
 }
 
 

@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 #ifdef __unix__
-#include <unistd.h>
+#include <errno.h>
 #endif
 
 #include "log.h"
@@ -370,41 +370,39 @@ void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 }
 
 
-size_t aem_stringbuf_fread(struct aem_stringbuf *str, FILE *fp)
+size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 {
-	if (str == NULL) return 1;
+	if (str == NULL) return -1;
 
-	size_t n_read = fread(aem_stringbuf_end(str), 1, aem_stringbuf_available(str), fp);
+	aem_stringbuf_reserve(str, n);
 
-	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd\n", n_read, str->n, str->maxn);
+	size_t in = fread(aem_stringbuf_end(str), 1, n, fp);
 
-	str->n += n_read;
+	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd\n", in, str->n, str->maxn);
 
-	return n_read;
+	str->n += in;
+
+	return in;
 }
 
-int aem_stringbuf_file_read(struct aem_stringbuf *str, FILE *fp)
+int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp)
 {
-	if (str == NULL) return 1;
+	if (str == NULL) return -1;
 
+	ssize_t in;
 	do
 	{
-		aem_stringbuf_reserve(str, str->n > 4096 ? str->n : 4096);
+		in = aem_stringbuf_file_read(str, 4096, fp);
+	} while (in > 0 || (!feof(fp) && !ferror(fp)));
 
-		size_t n_read = aem_stringbuf_fread(str, fp);
-
-		if (n_read == 0)
-		{
-			if (feof(fp))
-			{
-				return 1;
-			}
-			else if (ferror(fp))
-			{
-				return -1;
-			}
-		}
-	} while (!feof(fp));
+	if (feof(fp))
+	{
+		return 1;
+	}
+	else if (ferror(fp))
+	{
+		return -1;
+	}
 
 	aem_stringbuf_shrinkwrap(str);
 
@@ -415,112 +413,61 @@ int aem_stringbuf_file_write(const struct aem_stringbuf *restrict str, FILE *fp)
 {
 	if (str == NULL) return 1;
 
-	const char *p  =  str->s;
-	const char *pe = &str->s[str->n];
+	struct aem_stringslice slice = aem_stringslice_new_str(str);
 
-	while (p < pe)
-	{
-		size_t n_written = fwrite(p, 1, pe - p, fp);
-
-		p += n_written;
-
-		if (n_written == 0)
-		{
-			if (ferror(fp))
-			{
-				return 1;
-			}
-		}
-	}
-
-	return 0;
+	return aem_stringslice_file_write(&slice, fp);
 }
 
 
 #ifdef __unix__
-int aem_stringbuf_fd_read(struct aem_stringbuf *str, int fd)
+ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 {
-	if (str == NULL) return 1;
-
-	ssize_t n_read;
-	do
-	{
-		aem_stringbuf_reserve(str, str->n > 4096 ? str->n : 4096);
-
-		n_read = read(fd, aem_stringbuf_end(str), aem_stringbuf_available(str));
-
-		//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd\n", n_read, str->n, str->maxn);
-
-		if (n_read == 0)
-		{
-			return 1;
-		}
-		else if (n_read < 0)
-		{
-			return -1;
-		}
-
-		str->n += n_read;
-
-	} while (n_read > 0);
-
-	aem_stringbuf_shrinkwrap(str);
-
-	return 0;
-}
-
-int aem_stringbuf_fd_read_n(struct aem_stringbuf *str, size_t n, int fd)
-{
-	if (str == NULL) return 1;
+	if (str == NULL) return -1;
 
 	aem_stringbuf_reserve(str, n);
 
-	ssize_t n_read;
+	ssize_t in = read(fd, aem_stringbuf_end(str), n);
+
+	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd\n", in, str->n, str->maxn);
+
+	if (in > 0)
+	{
+		str->n += in;
+	}
+
+	return 0;
+}
+
+int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
+{
+	if (str == NULL) return -1;
+
+	ssize_t in;
 	do
 	{
-		n_read = read(fd, aem_stringbuf_end(str), n);
+		in = aem_stringbuf_fd_read(str, 4096, fd);
+	} while (in > 0 || (in < 0 && errno == EINTR));
 
-		//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd\n", n_read, str->n, str->maxn);
-
-		if (n_read == 0)
-		{
-			return 1;
-		}
-		else if (n_read < 0)
-		{
-			return -1;
-		}
-
-		str->n += n_read;
-
-		n -= n_read;
-
-	} while (n_read > 0 && n > 0);
+	if (in == 0)
+	{
+		return 1;
+	}
+	else if (in < 0)
+	{
+		return -1;
+	}
 
 	aem_stringbuf_shrinkwrap(str);
 
 	return 0;
 }
 
-int aem_stringbuf_fd_write(const struct aem_stringbuf *restrict str, int fd)
+ssize_t aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd)
 {
 	if (str == NULL) return 1;
 
-	const char *p  =  str->s;
-	const char *pe = &str->s[str->n];
+	struct aem_stringslice slice = aem_stringslice_new_str(str);
 
-	while (p < pe)
-	{
-		ssize_t n_written = write(fd, p, pe - p);
-
-		p += n_written;
-
-		if (n_written < 0)
-		{
-			return 1;
-		}
-	}
-
-	return 0;
+	return aem_stringslice_fd_write(&slice, fd);
 }
 #endif

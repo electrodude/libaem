@@ -1,6 +1,10 @@
 #ifndef AEM_STRINGBUF_H
 #define AEM_STRINGBUF_H
 
+#ifdef __unix__
+#include <unistd.h>
+#endif
+
 #define AEM_STRINGBUF_DEBUG 0
 
 #if AEM_STRINGBUF_DEBUG
@@ -265,17 +269,15 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i);
 // Increase the size of the struct stringbuf if necessary
 void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c);
 
-size_t aem_stringbuf_fread(struct aem_stringbuf *str, FILE *fp);
-int aem_stringbuf_file_read(struct aem_stringbuf *str, FILE *fp);
-
+size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp);
+int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp);
 int aem_stringbuf_file_write(const struct aem_stringbuf *str, FILE *fp);
 
 
 #ifdef __unix__
-int aem_stringbuf_fd_read(struct aem_stringbuf *str, int fd);
-int aem_stringbuf_fd_read_n(struct aem_stringbuf *str, size_t n, int fd);
-
-int aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd);
+ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd);
+int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd);
+ssize_t aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd);
 #endif
 
 

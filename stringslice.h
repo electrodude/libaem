@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#ifdef __unix__
+#include <unistd.h>
+#endif
 
 struct aem_stringslice
 {
@@ -25,7 +28,13 @@ static inline struct aem_stringslice aem_stringslice_new_cstr(const char *p)
 
 #define aem_stringslice_new_sizeof(char_arr) aem_stringslice_new_len((char_arr), sizeof(char_arr))
 
-int aem_stringslice_file_write(const struct aem_stringslice *slice, FILE *fp);
+
+int aem_stringslice_file_write(struct aem_stringslice *slice, FILE *fp);
+
+#ifdef __unix__
+ssize_t aem_stringslice_fd_write(struct aem_stringslice *slice, int fd);
+#endif
+
 
 // Return true if stringslice length is non-zero
 static inline int aem_stringslice_ok(const struct aem_stringslice *slice)

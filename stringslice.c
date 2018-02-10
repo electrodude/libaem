@@ -1,33 +1,62 @@
 #include <stdlib.h>
 #include <ctype.h>
 
+#ifdef __unix__
+#include <errno.h>
+#endif
+
 #include "stringslice.h"
 
-int aem_stringslice_file_write(const struct aem_stringslice *slice, FILE *fp)
+int aem_stringslice_file_write(struct aem_stringslice *slice, FILE *fp)
 {
-	if (slice == NULL) return -1;
-	if (fp == NULL) return -1;
+	if (slice == NULL) return 1;
 
-	const char *p = slice->start;
-	const char *pe = slice->end;
-
-	while (p < pe)
+	while (aem_stringslice_ok(slice))
 	{
-		size_t n_written = fwrite(p, 1, pe - p, fp);
+		size_t n_written = fwrite(slice->start, 1, aem_stringslice_len(slice), fp);
 
-		p += n_written;
-
-		if (n_written == 0)
+		if (!n_written)
 		{
 			if (ferror(fp))
 			{
-				return -1;
+				return 1;
 			}
 		}
+
+		slice->start += n_written;
 	}
 
 	return 0;
 }
+
+#ifdef __unix__
+ssize_t aem_stringslice_fd_write(struct aem_stringslice *slice, int fd)
+{
+	if (slice == NULL) return -1;
+
+	ssize_t total = 0;
+
+	while (aem_stringslice_ok(slice))
+	{
+again:;
+		ssize_t out = write(fd, slice->start, aem_stringslice_len(slice));
+
+		if (out < 0)
+		{
+			if (errno == EINTR)
+			{
+				goto again;
+			}
+			return -1;
+		}
+
+		slice->start += out;
+		total += out;
+	}
+
+	return total;
+}
+#endif
 
 int aem_stringslice_match_ws(struct aem_stringslice *slice)
 {

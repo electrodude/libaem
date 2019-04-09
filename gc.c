@@ -62,7 +62,7 @@ void aem_gc_run(struct aem_gc_context *ctx)
 		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter))
 		{
 			aem_logf_ctx(AEM_LOG_DEBUG, "dtor %p(%s)\n", curr, curr->vtbl->name);
-			if (curr->vtbl->dtor != NULL)
+			if (curr->vtbl->dtor)
 			{
 				curr->vtbl->dtor(curr, ctx);
 			}
@@ -75,7 +75,7 @@ void aem_gc_run(struct aem_gc_context *ctx)
 		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter))
 		{
 
-			if (curr->vtbl->free != NULL)
+			if (curr->vtbl->free)
 			{
 				curr->vtbl->free(curr, ctx);
 			}
@@ -91,7 +91,7 @@ void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 
 	if (id < 0) return;
 
-	if (obj->vtbl->mark != NULL)
+	if (obj->vtbl->mark)
 	{
 		obj->vtbl->mark(obj, ctx);
 	}

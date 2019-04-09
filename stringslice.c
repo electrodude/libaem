@@ -9,7 +9,7 @@
 
 int aem_stringslice_file_write(struct aem_stringslice *slice, FILE *fp)
 {
-	if (slice == NULL) return 1;
+	if (!slice) return 1;
 
 	while (aem_stringslice_ok(slice))
 	{
@@ -32,7 +32,7 @@ int aem_stringslice_file_write(struct aem_stringslice *slice, FILE *fp)
 #ifdef __unix__
 ssize_t aem_stringslice_fd_write(struct aem_stringslice *slice, int fd)
 {
-	if (slice == NULL) return -1;
+	if (!slice) return -1;
 
 	ssize_t total = 0;
 
@@ -60,7 +60,7 @@ again:;
 
 int aem_stringslice_match_ws(struct aem_stringslice *slice)
 {
-	if (slice == NULL) return 0;
+	if (!slice) return 0;
 
 	int matched = 0;
 
@@ -75,7 +75,7 @@ int aem_stringslice_match_ws(struct aem_stringslice *slice)
 
 struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice)
 {
-	if (slice == NULL) return AEM_STRINGSLICE_EMPTY;
+	if (!slice) return AEM_STRINGSLICE_EMPTY;
 
 	struct aem_stringslice line;
 	line.start = slice->start;
@@ -89,7 +89,7 @@ struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice)
 
 struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice)
 {
-	if (slice == NULL) return AEM_STRINGSLICE_EMPTY;
+	if (!slice) return AEM_STRINGSLICE_EMPTY;
 
 	struct aem_stringslice line;
 	line.start = slice->start;
@@ -103,8 +103,8 @@ struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice)
 
 int aem_stringslice_match(struct aem_stringslice *slice, const char *s)
 {
-	if (slice == NULL) return 0;
-	if (s == NULL) return 1;
+	if (!slice) return 0;
+	if (!s) return 1;
 
 	const char *p2 = slice->start;
 
@@ -128,7 +128,7 @@ int aem_stringslice_match(struct aem_stringslice *slice, const char *s)
 
 int aem_stringslice_eq(struct aem_stringslice slice, const char *s)
 {
-	if (s == NULL) return 1;
+	if (!s) return 1;
 
 	while (aem_stringslice_ok(&slice) && *s != '\0') // while neither are finished
 	{
@@ -160,7 +160,7 @@ static inline int hex2nib(char c)
 
 int aem_stringslice_match_hexbyte(struct aem_stringslice *slice)
 {
-	if (slice == NULL) return -1;
+	if (!slice) return -1;
 
 	if (slice->start == slice->end || slice->start + 1 == slice->end) return -1;
 

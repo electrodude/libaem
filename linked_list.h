@@ -113,8 +113,8 @@
 	     (_next = _prev->next->next), \
 	     (curr = _prev->next) != (end); \
 	\
-	     curr != NULL ? (_prev = _prev->next /* advance */) \
-	                  : (_prev->next = _next /* remove curr */))
+	     curr ? (_prev = _prev->next /* advance */) \
+	          : (_prev->next = _next /* remove curr */))
 
 #define AEM_LL_FILTER_RANGE(curr, start, end, next) \
 	AEM_LL_FILTER_RANGE_TP(aem_typeof(*(start)), curr, (start), (end), next)

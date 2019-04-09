@@ -59,7 +59,7 @@ void aem_stack_dtor(struct aem_stack *stk);
 // Does nothing if stack is already the same size or smaller
 static inline void aem_stack_trunc(struct aem_stack *stk, size_t n)
 {
-	if (stk == NULL) return;
+	if (!stk) return;
 
 	if (stk->n < n) return;
 
@@ -69,7 +69,7 @@ static inline void aem_stack_trunc(struct aem_stack *stk, size_t n)
 // Reset stack size to 0
 static inline void aem_stack_reset(struct aem_stack *stk)
 {
-	if (stk == NULL) return;
+	if (!stk) return;
 
 	stk->n = 0;
 }

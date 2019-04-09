@@ -19,7 +19,7 @@ struct aem_stringbuf *aem_stringbuf_new_raw(void)
 {
 	struct aem_stringbuf *str = malloc(sizeof(*str));
 
-	if (str == NULL) return NULL;
+	if (!str) return NULL;
 
 	*str = AEM_STRINGBUF_EMPTY;
 
@@ -28,7 +28,7 @@ struct aem_stringbuf *aem_stringbuf_new_raw(void)
 
 struct aem_stringbuf *aem_stringbuf_init_prealloc(struct aem_stringbuf *str, size_t maxn)
 {
-	if (str == NULL) return NULL;
+	if (!str) return NULL;
 
 	str->n = 0;
 	str->maxn = maxn;
@@ -42,7 +42,7 @@ struct aem_stringbuf *aem_stringbuf_init_prealloc(struct aem_stringbuf *str, siz
 
 void aem_stringbuf_free(struct aem_stringbuf *str)
 {
-	if (str == NULL) return;
+	if (!str) return;
 	if (str->bad) return;
 
 	aem_stringbuf_dtor(str);
@@ -70,11 +70,11 @@ static inline void aem_stringbuf_storage_free(struct aem_stringbuf *str)
 
 void aem_stringbuf_dtor(struct aem_stringbuf *str)
 {
-	if (str == NULL) return;
+	if (!str) return;
 
 	str->n = 0;
 
-	if (str->s == NULL) return;
+	if (!str->s) return;
 
 	aem_stringbuf_storage_free(str);
 
@@ -84,7 +84,7 @@ void aem_stringbuf_dtor(struct aem_stringbuf *str)
 
 char *aem_stringbuf_release(struct aem_stringbuf *str)
 {
-	if (str == NULL) return NULL;
+	if (!str) return NULL;
 
 	aem_stringbuf_shrinkwrap(str);
 
@@ -119,7 +119,7 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 #endif
 		char *s_new = realloc(str->s, maxn_new);
 
-		if (s_new == NULL)
+		if (!s_new)
 		{
 			str->bad = 1;
 			return;
@@ -136,7 +136,7 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 
 		char *s_new = malloc(maxn_new);
 
-		if (s_new == NULL)
+		if (!s_new)
 		{
 			str->bad = 1;
 			return;
@@ -162,7 +162,7 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 
 char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 {
-	if (str == NULL) return NULL;
+	if (!str) return NULL;
 
 #if AEM_STRINGBUF_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p\n", aem_stringbuf_get(str));
@@ -173,7 +173,7 @@ char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 		size_t maxn_new = str->n + 1;
 		char *s_new = realloc(str->s, maxn_new);
 
-		if (s_new != NULL)
+		if (s_new)
 		{
 			str->s = s_new;
 			str->maxn = maxn_new;
@@ -185,10 +185,10 @@ char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 
 void aem_stringbuf_printf(struct aem_stringbuf *restrict str, const char *restrict fmt, ...)
 {
-	if (str == NULL) return;
+	if (!str) return;
 	if (str->bad) return;
 
-	if (fmt == NULL) return;
+	if (!fmt) return;
 
 	va_list argp;
 
@@ -210,7 +210,7 @@ void aem_stringbuf_printf(struct aem_stringbuf *restrict str, const char *restri
 /*
 char *aem_stringbuf_append_manual(struct aem_stringbuf *str, size_t len)
 {
-	if (str == NULL) return;
+	if (!str) return;
 
 	aem_stringbuf_reserve(str, len);
 	if (str->bad) return;
@@ -225,7 +225,7 @@ char *aem_stringbuf_append_manual(struct aem_stringbuf *str, size_t len)
 
 void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 {
-	if (str == NULL) return;
+	if (!str) return;
 	if (str->bad) return;
 
 	switch (c)
@@ -256,10 +256,10 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 
 void aem_stringbuf_append_stringslice_quote(struct aem_stringbuf *restrict str, const struct aem_stringslice *restrict slice)
 {
-	if (str == NULL) return;
+	if (!str) return;
 	if (str->bad) return;
 
-	if (slice == NULL) return;
+	if (!slice) return;
 
 #if AEM_STRINGBUF_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= quote(<slice>)\n", aem_stringbuf_get(str));
@@ -273,10 +273,10 @@ void aem_stringbuf_append_stringslice_quote(struct aem_stringbuf *restrict str, 
 
 int aem_stringbuf_append_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice)
 {
-	if (str == NULL) return 1;
+	if (!str) return 1;
 	if (str->bad) return 1;
 
-	if (slice == NULL) return 0;
+	if (!slice) return 0;
 
 	while (aem_stringslice_ok(slice))
 	{
@@ -332,7 +332,7 @@ int aem_stringbuf_append_unquote(struct aem_stringbuf *restrict str, struct aem_
 
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)
 {
-	if (str == NULL) return;
+	if (!str) return;
 
 	while (str->n < len && !str->bad)
 	{
@@ -342,7 +342,7 @@ void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)
 
 int aem_stringbuf_index(struct aem_stringbuf *str, size_t i)
 {
-	if (str == NULL) return -1;
+	if (!str) return -1;
 
 	if (i >= str->n)
 	{
@@ -357,7 +357,7 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i)
 
 void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 {
-	if (str == NULL) return;
+	if (!str) return;
 
 	if (i + 1 > str->n)
 	{
@@ -372,7 +372,7 @@ void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 
 size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 {
-	if (str == NULL) return -1;
+	if (!str) return -1;
 
 	aem_stringbuf_reserve(str, n);
 
@@ -387,7 +387,7 @@ size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 
 int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp)
 {
-	if (str == NULL) return -1;
+	if (!str) return -1;
 
 	ssize_t in;
 	do
@@ -411,7 +411,7 @@ int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp)
 
 int aem_stringbuf_file_write(const struct aem_stringbuf *restrict str, FILE *fp)
 {
-	if (str == NULL) return 1;
+	if (!str) return 1;
 
 	struct aem_stringslice slice = aem_stringslice_new_str(str);
 
@@ -422,7 +422,7 @@ int aem_stringbuf_file_write(const struct aem_stringbuf *restrict str, FILE *fp)
 #ifdef __unix__
 ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 {
-	if (str == NULL) return -1;
+	if (!str) return -1;
 
 	aem_stringbuf_reserve(str, n);
 
@@ -440,7 +440,7 @@ ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 
 int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
 {
-	if (str == NULL) return -1;
+	if (!str) return -1;
 
 	ssize_t in;
 	do
@@ -464,7 +464,7 @@ int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
 
 ssize_t aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd)
 {
-	if (str == NULL) return 1;
+	if (!str) return 1;
 
 	struct aem_stringslice slice = aem_stringslice_new_str(str);
 

@@ -15,7 +15,7 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 	FILE *fp_old = aem_log_fp;
 	aem_log_fp = fp_new;
 
-	if (aem_log_autoclose_curr && fp_old != NULL)
+	if (aem_log_autoclose_curr && fp_old)
 	{
 		fclose(fp_old);
 		fp_old = NULL;
@@ -28,16 +28,16 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 
 FILE *aem_log_fopen(const char *path_new)
 {
-	if (path_new == NULL) return NULL;
+	if (!path_new) return NULL;
 	FILE *fp_new = fopen(path_new, "a");
-	if (fp_new == NULL)
+	if (!fp_new)
 	{
 		return NULL;
 	}
 
 	FILE *fp_old = aem_log_fset(fp_new, 1);
 
-	if (fp_old == NULL)
+	if (!fp_old)
 	{
 		errno = 0; // TODO: find better way to signal success but no old logfile
 	}
@@ -110,7 +110,7 @@ enum aem_log_level aem_log_level_check_prefix(enum aem_log_level level, const ch
 
 enum aem_log_level aem_log_level_parse(const char *p)
 {
-	if (p == NULL) return AEM_LOG_DEBUG; // default to debug
+	if (!p) return AEM_LOG_DEBUG; // default to debug
 
 	switch (tolower(*p))
 	{
@@ -178,7 +178,7 @@ int aem_dprintf(const char *fmt, ...)
 
 int aem_vdprintf(const char *fmt, va_list ap)
 {
-	if (aem_log_fp == NULL) return 0;
+	if (!aem_log_fp) return 0;
 
 	int count = vfprintf(aem_log_fp, fmt, ap);
 

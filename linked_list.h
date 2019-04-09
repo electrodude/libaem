@@ -120,7 +120,7 @@
 	AEM_LL_FILTER_RANGE_TP(aem_typeof(*(start)), curr, (start), (end), next)
 
 #define AEM_LL_FILTER_ALL_TP(T, curr, chain, next) \
-	AEM_LL_FILTER_RANGE_TP(T, curr, (chain)->next, (chain), next)
+	AEM_LL_FILTER_RANGE_TP(T, curr, (chain), (chain), next)
 
 #define AEM_LL_FILTER_ALL(curr, chain, next) \
 	AEM_LL_FILTER_ALL_TP(aem_typeof(*(chain)->next), curr, (chain), next)

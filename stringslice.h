@@ -63,9 +63,11 @@ static inline int aem_stringslice_ungetc(struct aem_stringslice *slice)
 	return (unsigned char)*--slice->start;
 }
 
-// Get a UTF-8 codepoint
+// Get a UTF-8 rune
 // Implementation in utf8.c
-int aem_stringslice_get_utf8(struct aem_stringslice *slice);
+int aem_stringslice_get(struct aem_stringslice *slice);
+// Old deprecated name
+#define aem_stringslice_get_utf8 aem_stringslice_get
 
 int aem_stringslice_match_ws(struct aem_stringslice *slice);
 

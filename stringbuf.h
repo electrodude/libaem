@@ -140,9 +140,11 @@ char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str);
 // Append a character
 static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c);
 
-// Append a UTF-8 codepoint
+// Append a UTF-8 rune
 // Implementation in utf8.c
-int aem_stringbuf_put_utf8(struct aem_stringbuf *str, unsigned int c);
+int aem_stringbuf_put(struct aem_stringbuf *str, unsigned int c);
+// Old deprecated name
+#define aem_stringbuf_put_utf8 aem_stringbuf_put
 
 // Append a null-terminated string
 static inline void aem_stringbuf_puts(struct aem_stringbuf *str, const char *s);

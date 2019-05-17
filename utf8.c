@@ -1,7 +1,9 @@
 #include "stringslice.h"
 #include "stringbuf.h"
 
-int aem_stringbuf_put_utf8(struct aem_stringbuf *str, unsigned int c)
+// Functions to read and write UTF-8 codepoints (runes)
+
+int aem_stringbuf_put(struct aem_stringbuf *str, unsigned int c)
 {
 	if (c < 0x80)
 	{
@@ -50,7 +52,7 @@ int aem_stringbuf_put_utf8(struct aem_stringbuf *str, unsigned int c)
 	return 0;
 }
 
-int aem_stringslice_get_utf8(struct aem_stringslice *slice)
+int aem_stringslice_get(struct aem_stringslice *slice)
 {
 	const char *start = slice->start; // make backup of start
 

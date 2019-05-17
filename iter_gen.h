@@ -4,19 +4,19 @@
 /* Recursive data structure iteration helper
  *
  * Make any recursive structs you wish to iterate over contain an instance of
- * iter_gen, and initialize it with `aem_iter_gen_init(&your_obj->iter)`.  For
- * each recursive data structure you have, you should have a global master
- * instance of iter_gen, initialized with
- * `aem_iter_gen_init-master(&your_master).  Before iterating over a data
- * structure, call `aem_iter_gen_reset_master(&your_master)`.  Each time you
- * come across a node while iterating over your data structure, call
+ * `struct aem_iter_gen`, and initialize it with
+ * `aem_iter_gen_init(&your_obj->iter)`.  For each recursive data structure you
+ * have, you should have a global master instance of `struct iter_gen`,
+ * initialized with `aem_iter_gen_init-master(&your_master)`.  Before iterating
+ * over a data structure, call `aem_iter_gen_reset_master(&your_master)`.  Each
+ * time you come across a node while iterating over your data structure, call
  * `aem_iter_gen_id(&your_obj->iter, &your_master)` on it.  If it has not yet
  * been visited since the last call to
  * `aem_iter_gen_reset_master(&your_master)`, it will return an identifier
- * number >= 0 unique since the last call to aem_iter_gen_master_reset.
+ * number >= 0 unique since the last call to `aem_iter_gen_master_reset`.
  *
- * Be careful that you only ever use one master struct iter_gen for any given
- * data structure.  Otherwise, you may miss or repeat elements.
+ * Be careful that you only ever use one master `struct aem_iter_gen` for any
+ * given data structure.  Otherwise, you may miss or repeat elements.
  *
  * Two separate iterations (e.g. in different threads) must not be performed
  * over the same data structure at the same time; otherwise, elements will be

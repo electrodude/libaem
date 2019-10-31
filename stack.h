@@ -120,6 +120,10 @@ void *aem_stack_index(struct aem_stack *stk, size_t i);
 // Increase the size of the stack if necessary
 void aem_stack_assign(struct aem_stack *stk, size_t i, void *s);
 
+// Set the first NULL element from the bottom of the stack, and return the index
+// Increase the size of the stack if necessary
+size_t aem_stack_assign_empty(struct aem_stack *stk, void *s);
+
 
 // qsort a stack
 void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const void *p2));

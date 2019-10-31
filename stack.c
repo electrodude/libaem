@@ -277,6 +277,19 @@ void aem_stack_assign(struct aem_stack *stk, size_t i, void *s)
 	stk->s[i] = s;
 }
 
+size_t aem_stack_assign_empty(struct aem_stack *stk, void *s) {
+	for (size_t i = 0; i < stk->n; i++) {
+		if (!stk->s[i]) {
+			aem_stack_assign(stk, i, s);
+			return i;
+		}
+	}
+
+	size_t i = stk->n;
+	aem_stack_assign(stk, i, s);
+	return i;
+}
+
 
 void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const void *p2))
 {

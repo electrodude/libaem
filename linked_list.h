@@ -126,6 +126,12 @@
 	AEM_LL_FILTER_ALL_TP(aem_typeof(*(chain)->next), curr, (chain), next)
 
 
+// Empty a linked list
+// Calls provided destructor on first element until no elements remain.
+#define AEM_LL_DTOR(chain, next, dtor) \
+	do { while (!AEM_LL_EMPTY((chain), next)) { dtor((chain)->next); } } while (0)
+
+
 // Verify a doubly linked list
 
 #define AEM_LL2_VERIFY(chain, prev, next, assert) do { \

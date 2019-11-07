@@ -69,6 +69,18 @@ int aem_stringslice_get(struct aem_stringslice *slice);
 // Old deprecated name
 #define aem_stringslice_get_utf8 aem_stringslice_get
 
+// Get raw data
+// Reads `count` bytes into `buf`.  If fewer than `count` bytes are available,
+// does nothing and returns -1.
+static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void *buf, size_t count) {
+	if (aem_stringslice_len(slice) < count) return -1;
+
+	memcpy(buf, slice->start, count);
+	slice->start += count;
+
+	return 0;
+}
+
 int aem_stringslice_match_ws(struct aem_stringslice *slice);
 
 struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice);

@@ -96,13 +96,13 @@
 // Use this temporarily instead of AEM_LL_FOR_* until prev parameter is removed
 // Will become deprecated in favor of AEM_LL_FOR_* when prev parameter is removed
 #define AEM_LL2_FOR_RANGE_TP(T, curr, start, end, _, next) \
-        AEM_LL_FOR_RANGE_TP(T, curr, start, end, , next)
+	AEM_LL_FOR_RANGE_TP(T, curr, start, end, , next)
 #define AEM_LL2_FOR_RANGE(curr, start, end, _, next) \
-        AEM_LL_FOR_RANGE(curr, start, end, , next)
+	AEM_LL_FOR_RANGE(curr, start, end, , next)
 #define AEM_LL2_FOR_ALL_TP(T, curr, chain, _, next) \
-        AEM_LL_FOR_ALL_TP(T, curr, chain, , next)
+	AEM_LL_FOR_ALL_TP(T, curr, chain, , next)
 #define AEM_LL2_FOR_ALL(curr, chain, _, next) \
-        AEM_LL_FOR_ALL(curr, chain, , next)
+	AEM_LL_FOR_ALL(curr, chain, , next)
 
 
 // Iterate over a linked list, deleting an element if curr is set to NULL by the loop body
@@ -110,11 +110,11 @@
 #define AEM_LL_FILTER_RANGE_TP(T, curr, start, end, next) \
 	for (T *_prev = (start), *curr, *_next; \
 	\
-	     (_next = _prev->next->next), \
-	     (curr = _prev->next) != (end); \
+		(_next = _prev->next->next), \
+		(curr = _prev->next) != (end); \
 	\
-	     curr ? (_prev = _prev->next /* advance */) \
-	          : (_prev->next = _next /* remove curr */))
+		curr ? (_prev = _prev->next /* advance */) \
+		     : (_prev->next = _next /* remove curr */))
 
 #define AEM_LL_FILTER_RANGE(curr, start, end, next) \
 	AEM_LL_FILTER_RANGE_TP(aem_typeof(*(start)), curr, (start), (end), next)
@@ -129,18 +129,19 @@
 // Empty a linked list
 // Calls provided destructor on first element until no elements remain.
 #define AEM_LL_DTOR(chain, next, dtor) \
-	do { while (!AEM_LL_EMPTY((chain), next)) { dtor((chain)->next); } } while (0)
+	while (!AEM_LL_EMPTY((chain), next)) { \
+		dtor((chain)->next); \
+	} \
 
 
 // Verify a doubly linked list
 
-#define AEM_LL2_VERIFY(chain, prev, next, assert) do { \
+#define AEM_LL2_VERIFY(chain, prev, next, assert) \
 	AEM_LL_FOR_ALL(_curr, chain, prev, next) \
 	{ \
 		assert((_curr)->prev->next == (_curr)); \
 		assert((_curr)->next->prev == (_curr)); \
-	} \
-} while (0)
+	}
 
 // deprecated
 #define AEM_LL_VERIFY(chain, prev, next, assert) \

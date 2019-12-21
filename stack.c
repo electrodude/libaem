@@ -105,13 +105,14 @@ void *aem_stack_shrinkwrap(struct aem_stack *stk)
 	return stk->s;
 }
 
-void aem_stack_reserve(struct aem_stack *stk, size_t maxn)
+void aem_stack_reserve(struct aem_stack *stk, size_t len)
 {
 	if (!stk) return;
 
-	if (stk->maxn < maxn)
+	size_t n = stk->n + len;
+	if (stk->maxn < n)
 	{
-		aem_stack_grow(stk, maxn);
+		aem_stack_grow(stk, n*2);
 	}
 }
 
@@ -124,10 +125,7 @@ void aem_stack_push(struct aem_stack *stk, void *s)
 	aem_logf_ctx(AEM_LOG_DEBUG, "push %p\n", s);
 #endif
 
-	if (stk->maxn < stk->n + 1)
-	{
-		aem_stack_grow(stk, (stk->n + 1)*2);
-	}
+	aem_stack_reserve(stk, 1);
 
 	stk->s[stk->n++] = s;
 }
@@ -147,19 +145,15 @@ void aem_stack_pushn(struct aem_stack *restrict stk, size_t n, void **restrict e
 void aem_stack_append(struct aem_stack *restrict stk, struct aem_stack *restrict stk2)
 {
 	if (!stk) return;
-
 	if (!stk2) return;
 
-	size_t n = stk->n + stk2->n;
-	// make room for stk2
-	if (stk->maxn < n)
-	{
-		aem_stack_grow(stk, n*2);
-	}
+	size_t n2 = stk2->n;
 
-	memcpy(&stk->s[stk->n], stk2->s, stk2->n*sizeof(void*));
+	aem_stack_reserve(stk, n2);
 
-	stk->n = n;
+	memcpy(&stk->s[stk->n], stk2->s, n2*sizeof(void*));
+
+	stk->n += n2;
 }
 
 size_t aem_stack_transfer(struct aem_stack *restrict dest, struct aem_stack *restrict src, size_t n)

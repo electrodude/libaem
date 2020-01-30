@@ -126,11 +126,18 @@
 	AEM_LL_FILTER_ALL_TP(aem_typeof(*(chain)->next), curr, (chain), next)
 
 
+// Repeatedly look at the first element of a linked list until the list is empty.
+#define AEM_LL_WHILE_FIRST_TP(T, curr, chain, next) \
+	for (T *curr; (curr = (chain)->next) != (chain);)
+
+#define AEM_LL_WHILE_FIRST(curr, chain, next) \
+	AEM_LL_WHILE_FIRST_TP(aem_typeof(*(chain)->next), curr, (chain), next)
+
 // Empty a linked list
 // Calls provided destructor on first element until no elements remain.
 #define AEM_LL_DTOR(chain, next, dtor) \
-	while (!AEM_LL_EMPTY((chain), next)) { \
-		dtor((chain)->next); \
+	AEM_LL_WHILE_FIRST(_curr, (chain), next) { \
+		dtor(_curr); \
 	} \
 
 

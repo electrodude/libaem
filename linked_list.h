@@ -108,13 +108,13 @@
 // Iterate over a linked list, deleting an element if curr is set to NULL by the loop body
 
 #define AEM_LL_FILTER_RANGE_TP(T, curr, start, end, next) \
-	for (T *_prev = (start), *curr, *_next; \
+	for (T *aem_ll_prev = (start), *curr, *aem_ll_next; \
 	\
-		(_next = _prev->next->next), \
-		(curr = _prev->next) != (end); \
+		(aem_ll_next = aem_ll_prev->next->next), \
+		(curr = aem_ll_prev->next) != (end); \
 	\
-		curr ? (_prev = _prev->next /* advance */) \
-		     : (_prev->next = _next /* remove curr */))
+		curr ? (aem_ll_prev = aem_ll_prev->next /* advance */) \
+		     : (aem_ll_prev->next = aem_ll_next /* remove curr */))
 
 #define AEM_LL_FILTER_RANGE(curr, start, end, next) \
 	AEM_LL_FILTER_RANGE_TP(aem_typeof(*(start)), curr, (start), (end), next)
@@ -136,10 +136,9 @@
 // Empty a linked list
 // Calls provided destructor on first element until no elements remain.
 #define AEM_LL_DTOR(chain, next, dtor) \
-	AEM_LL_WHILE_FIRST(_curr, (chain), next) { \
-		dtor(_curr); \
-	} \
-
+	AEM_LL_WHILE_FIRST(aem_ll_curr, (chain), next) { \
+		(dtor)(aem_ll_curr); \
+	}
 
 // Verify a doubly linked list
 

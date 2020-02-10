@@ -56,13 +56,16 @@ const char *aem_log_level_describe(enum aem_log_level loglevel)
 {
 	switch (loglevel) {
 		case AEM_LOG_FATAL   : return "fatal";
-		case AEM_LOG_BUG     : return "bug";
 		case AEM_LOG_SECURITY: return "security";
+		case AEM_LOG_BUG     : return "bug";
+		case AEM_LOG_NYI     : return "unimplemented";
 		case AEM_LOG_ERROR   : return "error";
 		case AEM_LOG_WARN    : return "warn";
 		case AEM_LOG_NOTICE  : return "notice";
 		case AEM_LOG_INFO    : return "info";
 		case AEM_LOG_DEBUG   : return "debug";
+		case AEM_LOG_DEBUG2  : return "debug2";
+		case AEM_LOG_DEBUG3  : return "debug3";
 		default              : return "(unknown)";
 	}
 }
@@ -71,13 +74,16 @@ char aem_log_level_letter(enum aem_log_level loglevel)
 {
 	switch (loglevel) {
 		case AEM_LOG_FATAL   : return 'F';
-		case AEM_LOG_BUG     : return 'B';
 		case AEM_LOG_SECURITY: return 'S';
+		case AEM_LOG_BUG     : return 'B';
+		case AEM_LOG_NYI     : return 'U';
 		case AEM_LOG_ERROR   : return 'E';
 		case AEM_LOG_WARN    : return 'W';
 		case AEM_LOG_NOTICE  : return 'n';
 		case AEM_LOG_INFO    : return 'i';
 		case AEM_LOG_DEBUG   : return 'd';
+		case AEM_LOG_DEBUG2  : return '2';
+		case AEM_LOG_DEBUG3  : return '3';
 		default              : return '?';
 	}
 }
@@ -107,13 +113,16 @@ enum aem_log_level aem_log_level_parse(const char *p)
 
 	switch (tolower(*p)) {
 		case 'f': goto f_atal;
-		case 'b': goto b_ug;
 		case 's': goto s_ecurity;
+		case 'b': goto b_ug;
+		case 'u': goto u_nimplemented;
 		case 'e': goto e_rror;
 		case 'w': goto w_arn;
 		case 'n': goto n_otice;
 		case 'i': goto i_nfo;
 		case 'd': goto d_ebug;
+		case '2': goto d2;
+		case '3': goto d3;
 		default : break;
 	}
 
@@ -123,10 +132,12 @@ enum aem_log_level aem_log_level_parse(const char *p)
 
 f_atal:
 	return aem_log_level_check_prefix(AEM_LOG_FATAL, p);
-b_ug:
-	return aem_log_level_check_prefix(AEM_LOG_BUG, p);
 s_ecurity:
 	return aem_log_level_check_prefix(AEM_LOG_SECURITY, p);
+b_ug:
+	return aem_log_level_check_prefix(AEM_LOG_BUG, p);
+u_nimplemented:
+	return aem_log_level_check_prefix(AEM_LOG_NYI, p);
 e_rror:
 	return aem_log_level_check_prefix(AEM_LOG_ERROR, p);
 w_arn:
@@ -137,6 +148,10 @@ i_nfo:
 	return aem_log_level_check_prefix(AEM_LOG_INFO, p);
 d_ebug:
 	return aem_log_level_check_prefix(AEM_LOG_DEBUG, p);
+d2:
+	return AEM_LOG_DEBUG2;
+d3:
+	return AEM_LOG_DEBUG3;
 }
 
 

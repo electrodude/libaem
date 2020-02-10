@@ -5,14 +5,17 @@
 #include <stdio.h>
 
 enum aem_log_level {
-	AEM_LOG_FATAL,
-	AEM_LOG_BUG,
-	AEM_LOG_SECURITY,
-	AEM_LOG_ERROR,
-	AEM_LOG_WARN,
-	AEM_LOG_NOTICE,
-	AEM_LOG_INFO,
-	AEM_LOG_DEBUG,
+	AEM_LOG_FATAL,    // Fatal error: program execution must cease as a result.
+	AEM_LOG_SECURITY, // Security error: Occurrence of security error
+	AEM_LOG_BUG,      // Non-fatal bug: Occurrence of something which should never happen, but program execution may continue.
+	AEM_LOG_NYI,      // Use of unimplemented feature
+	AEM_LOG_ERROR,    // Non-fatal error
+	AEM_LOG_WARN,     // Warning: Probable misconfiguration, past or future errors likely, performance is bad, etc.
+	AEM_LOG_NOTICE,   // Noteworthy event
+	AEM_LOG_INFO,     // Misc. information
+	AEM_LOG_DEBUG,    // Debug info: Useless or trivial during normal execution
+	AEM_LOG_DEBUG2,   // Fine debug info: Painful levels of detail
+	AEM_LOG_DEBUG3,   // Very fine debug info: Probably drowns out all normal messages during normal execution
 };
 
 struct aem_log_module

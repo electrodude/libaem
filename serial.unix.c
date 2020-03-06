@@ -14,10 +14,8 @@ int aem_serial_open(struct aem_serial *ser, const char *device, int baud)
 again:;
 	ser->fd = open(device, O_RDWR | O_NOCTTY);
 
-	if (ser->fd < 0)
-	{
-		switch (errno)
-		{
+	if (ser->fd < 0) {
+		switch (errno) {
 			case EINTR: goto again;
 		}
 
@@ -26,8 +24,7 @@ again:;
 		return ser->fd;
 	}
 
-	if (baud >= 0)
-	{
+	if (baud >= 0) {
 		struct termios tio;
 		tcgetattr(ser->fd, &tio);
 		cfmakeraw(&tio);
@@ -35,12 +32,9 @@ again:;
 		tcsetattr(ser->fd, TCSADRAIN, &tio);
 	}
 
-	if (baud >= 0)
-	{
+	if (baud >= 0) {
 		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s baud %d: fd %d\n", device, baud, ser->fd);
-	}
-	else
-	{
+	} else {
 		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s: fd %d\n", device, ser->fd);
 	}
 
@@ -49,16 +43,13 @@ again:;
 
 int aem_serial_close(struct aem_serial *ser)
 {
-	if (ser->fd >= 0)
-	{
+	if (ser->fd >= 0) {
 		aem_logf_ctx(AEM_LOG_NOTICE, "close fd %d\n", ser->fd);
 
 again:;
 		int rc = close(ser->fd);
-		if (rc < 0)
-		{
-			switch (errno)
-			{
+		if (rc < 0) {
+			switch (errno) {
 				case EINTR: goto again;
 			}
 
@@ -86,10 +77,8 @@ size_t aem_serial_write(struct aem_serial *ser, struct aem_stringslice out)
 again:;
 	ssize_t n = write(ser->fd, out.start, aem_stringslice_len(&out));
 
-	if (n < 0)
-	{
-		switch (errno)
-		{
+	if (n < 0) {
+		switch (errno) {
 			case EINTR: goto again;
 		}
 
@@ -104,10 +93,8 @@ size_t aem_serial_read(struct aem_serial *ser, struct aem_stringbuf *in)
 again:;
 	ssize_t n = read(ser->fd, aem_stringbuf_end(in), aem_stringbuf_available(in));
 
-	if (n < 0)
-	{
-		switch (errno)
-		{
+	if (n < 0) {
+		switch (errno) {
 			case EINTR: goto again;
 		}
 
@@ -125,10 +112,8 @@ int aem_serial_getc(struct aem_serial *ser)
 again:;
 	ssize_t n = read(ser->fd, &c, 1);
 
-	if (n < 0)
-	{
-		switch (errno)
-		{
+	if (n < 0) {
+		switch (errno) {
 			case EINTR: goto again;
 		}
 

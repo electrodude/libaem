@@ -17,14 +17,12 @@
 // N.B.: The null terminator is not present on str->s except after calls to aem_stringbuf_get
 //  and functions that call it, such as aem_stringbuf_shrinkwrap and aem_stringbuf_release
 
-enum aem_stringbuf_storage
-{
+enum aem_stringbuf_storage {
 	AEM_STRINGBUF_STORAGE_HEAP = 0,
 	AEM_STRINGBUF_STORAGE_UNOWNED,
 };
 
-struct aem_stringbuf
-{
+struct aem_stringbuf {
 	char *s;          // pointer to buffer
 	size_t n;         // current length of string
 	                  //  (not counting null terminator)
@@ -324,8 +322,7 @@ static inline void aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
 {
 	size_t n = str->n + len;
 	// make room for new stuff and null terminator
-	if (str->maxn < n + 1)
-	{
+	if (str->maxn < n + 1) {
 		aem_stringbuf_grow(str, (n + 1)*2);
 	}
 }
@@ -370,8 +367,7 @@ static inline void aem_stringbuf_puts_limit(struct aem_stringbuf *restrict str, 
 	//aem_stringbuf_reserve(len);
 	if (str->bad) return;
 
-	for (; *s && str->n < len; s++)
-	{
+	for (; *s && str->n < len; s++) {
 		aem_stringbuf_putc(str, *s);
 	}
 }
@@ -394,15 +390,13 @@ static const char aem_stringbuf_putnum_digits[] = "0123456789abcdefghijklmnopqrs
 
 static inline void aem_stringbuf_putnum(struct aem_stringbuf *str, int base, int num)
 {
-	if (num < 0)
-	{
+	if (num < 0) {
 		aem_stringbuf_putc(str, '-');
 		num = -num;
 	}
 
 	int top = num / base;
-	if (top > 0)
-	{
+	if (top > 0) {
 		aem_stringbuf_putnum(str, top, base);
 	}
 	aem_stringbuf_putc(str, aem_stringbuf_putnum_digits[num % base]);

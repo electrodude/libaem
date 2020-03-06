@@ -24,8 +24,7 @@ void aem_gc_dtor(struct aem_gc_context *ctx)
 {
 	aem_gc_run(ctx);
 
-	if (!AEM_LL_EMPTY(&ctx->objects, ctx_next))
-	{
+	if (!AEM_LL_EMPTY(&ctx->objects, ctx_next)) {
 		aem_logf_ctx(AEM_LOG_BUG, "not all objects collected, leaking\n");
 	}
 }
@@ -47,36 +46,28 @@ void aem_gc_run(struct aem_gc_context *ctx)
 	aem_iter_gen_reset_master(&ctx->objects.iter);
 
 	// mark all roots
-	AEM_LL2_FOR_ALL(curr, &ctx->objects, _, ctx_next)
-	{
-		if (curr->root)
-		{
+	AEM_LL2_FOR_ALL(curr, &ctx->objects, _, ctx_next) {
+		if (curr->root) {
 			aem_gc_mark(curr, ctx);
 		}
 	}
 
 	// destruct all dead objects
-	AEM_LL2_FOR_ALL(curr, &ctx->objects, _, ctx_next)
-	{
+	AEM_LL2_FOR_ALL(curr, &ctx->objects, _, ctx_next) {
 		// if it wasn't hit by the mark cycle, it's dead
-		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter))
-		{
+		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter)) {
 			aem_logf_ctx(AEM_LOG_DEBUG, "dtor %p(%s)\n", curr, curr->vtbl->name);
-			if (curr->vtbl->dtor)
-			{
+			if (curr->vtbl->dtor) {
 				curr->vtbl->dtor(curr, ctx);
 			}
 		}
 	}
 
 	// free all dead objects
-	AEM_LL_FILTER_ALL(curr, &ctx->objects, ctx_next)
-	{
-		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter))
-		{
+	AEM_LL_FILTER_ALL(curr, &ctx->objects, ctx_next) {
+		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter)) {
 
-			if (curr->vtbl->free)
-			{
+			if (curr->vtbl->free) {
 				curr->vtbl->free(curr, ctx);
 			}
 
@@ -91,8 +82,7 @@ void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 
 	if (id < 0) return;
 
-	if (obj->vtbl->mark)
-	{
+	if (obj->vtbl->mark) {
 		obj->vtbl->mark(obj, ctx);
 	}
 }

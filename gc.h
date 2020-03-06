@@ -6,8 +6,7 @@
 struct aem_gc_object;
 struct aem_gc_context;
 
-struct aem_gc_vtbl
-{
+struct aem_gc_vtbl {
 	const char *name;
 
 	void (*free)(struct aem_gc_object *obj, struct aem_gc_context *ctx);
@@ -17,8 +16,7 @@ struct aem_gc_vtbl
 
 void aem_gc_free_default(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 
-struct aem_gc_object
-{
+struct aem_gc_object {
 	const struct aem_gc_vtbl *vtbl;
 
 	// singly linked list of instances belonging to the same aem_gc_context
@@ -30,8 +28,7 @@ struct aem_gc_object
 	size_t root;
 };
 
-struct aem_gc_context
-{
+struct aem_gc_context {
 	struct aem_gc_object objects;
 
 	// objects.iter is master iterator

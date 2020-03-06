@@ -15,8 +15,7 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 	FILE *fp_old = aem_log_fp;
 	aem_log_fp = fp_new;
 
-	if (aem_log_autoclose_curr && fp_old)
-	{
+	if (aem_log_autoclose_curr && fp_old) {
 		fclose(fp_old);
 		fp_old = NULL;
 	}
@@ -30,15 +29,13 @@ FILE *aem_log_fopen(const char *path_new)
 {
 	if (!path_new) return NULL;
 	FILE *fp_new = fopen(path_new, "a");
-	if (!fp_new)
-	{
+	if (!fp_new) {
 		return NULL;
 	}
 
 	FILE *fp_old = aem_log_fset(fp_new, 1);
 
-	if (!fp_old)
-	{
+	if (!fp_old) {
 		errno = 0; // TODO: find better way to signal success but no old logfile
 	}
 
@@ -57,8 +54,7 @@ enum aem_log_level aem_log_level_curr = AEM_LOG_NOTICE;
 
 const char *aem_log_level_describe(enum aem_log_level loglevel)
 {
-	switch (loglevel)
-	{
+	switch (loglevel) {
 		case AEM_LOG_FATAL   : return "fatal";
 		case AEM_LOG_BUG     : return "bug";
 		case AEM_LOG_SECURITY: return "security";
@@ -73,8 +69,7 @@ const char *aem_log_level_describe(enum aem_log_level loglevel)
 
 char aem_log_level_letter(enum aem_log_level loglevel)
 {
-	switch (loglevel)
-	{
+	switch (loglevel) {
 		case AEM_LOG_FATAL   : return 'F';
 		case AEM_LOG_BUG     : return 'B';
 		case AEM_LOG_SECURITY: return 'S';
@@ -95,10 +90,8 @@ enum aem_log_level aem_log_level_check_prefix(enum aem_log_level level, const ch
 	const char *p2 = expect;
 
 	// this should be a function that lives in stringslice or something
-	while (*p && *p2)
-	{
-		if (tolower(*p) != tolower(*p2))
-		{
+	while (*p && *p2) {
+		if (tolower(*p) != tolower(*p2)) {
 			aem_logf_ctx(AEM_LOG_WARN, "unknown log level %s, autocorrect to %s\n", in, expect);
 			break;
 		}
@@ -112,8 +105,7 @@ enum aem_log_level aem_log_level_parse(const char *p)
 {
 	if (!p) return AEM_LOG_DEBUG; // default to debug
 
-	switch (tolower(*p))
-	{
+	switch (tolower(*p)) {
 		case 'f': goto f_atal;
 		case 'b': goto b_ug;
 		case 's': goto s_ecurity;

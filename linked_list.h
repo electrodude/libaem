@@ -129,8 +129,7 @@
 // Verify a doubly linked list
 
 #define AEM_LL2_VERIFY(chain, prev, next, assert) do { \
-	AEM_LL_FOR_ALL(_curr, chain, prev, next) \
-	{ \
+	AEM_LL_FOR_ALL(_curr, chain, prev, next) { \
 		assert((_curr)->prev->next == (_curr)); \
 		assert((_curr)->next->prev == (_curr)); \
 	} \

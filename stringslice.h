@@ -7,8 +7,7 @@
 #include <unistd.h>
 #endif
 
-struct aem_stringslice
-{
+struct aem_stringslice {
 	const char *start;
 	const char *end;
 };

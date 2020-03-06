@@ -24,8 +24,7 @@
  * otherwise.
  */
 
-struct aem_iter_gen
-{
+struct aem_iter_gen {
 	int gen;
 	int id;
 };

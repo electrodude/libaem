@@ -4,8 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-enum aem_log_level
-{
+enum aem_log_level {
 	AEM_LOG_FATAL,
 	AEM_LOG_BUG,
 	AEM_LOG_SECURITY,

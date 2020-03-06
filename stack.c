@@ -33,8 +33,7 @@ struct aem_stack *aem_stack_init_v(struct aem_stack *stk, size_t n, ...)
 
 	aem_stack_init_prealloc(stk, n);
 
-	for (size_t i = 0; i < n; i++)
-	{
+	for (size_t i = 0; i < n; i++) {
 		aem_stack_push(stk, va_arg(ap, void*));
 	}
 
@@ -70,8 +69,7 @@ void aem_stack_dtor(struct aem_stack *stk)
 
 void **aem_stack_release(struct aem_stack *stk, size_t *n)
 {
-	if (!stk)
-	{
+	if (!stk) {
 		*n = 0;
 		return NULL;
 	}
@@ -109,8 +107,7 @@ void aem_stack_reserve(struct aem_stack *stk, size_t maxn)
 {
 	if (!stk) return;
 
-	if (stk->maxn < maxn)
-	{
+	if (stk->maxn < maxn) {
 		aem_stack_grow(stk, maxn);
 	}
 }
@@ -124,8 +121,7 @@ void aem_stack_push(struct aem_stack *stk, void *s)
 	aem_logf_ctx(AEM_LOG_DEBUG, "push %p\n", s);
 #endif
 
-	if (stk->maxn < stk->n + 1)
-	{
+	if (stk->maxn < stk->n + 1) {
 		aem_stack_grow(stk, (stk->n + 1)*2);
 	}
 
@@ -138,8 +134,7 @@ void aem_stack_pushn(struct aem_stack *restrict stk, size_t n, void **restrict e
 
 	if (!elements) return;
 
-	for (size_t i = 0; i < n; i++)
-	{
+	for (size_t i = 0; i < n; i++) {
 		aem_stack_push(stk, elements[i]);
 	}
 }
@@ -152,8 +147,7 @@ void aem_stack_append(struct aem_stack *restrict stk, struct aem_stack *restrict
 
 	size_t n = stk->n + stk2->n;
 	// make room for stk2
-	if (stk->maxn < n)
-	{
+	if (stk->maxn < n) {
 		aem_stack_grow(stk, n*2);
 	}
 
@@ -171,8 +165,7 @@ size_t aem_stack_transfer(struct aem_stack *restrict dest, struct aem_stack *res
 
 	size_t new_top = src->n - n;
 
-	for (size_t i = 0; i < n; i++)
-	{
+	for (size_t i = 0; i < n; i++) {
 		aem_stack_push(dest, src->s[new_top + i]);
 	}
 
@@ -185,8 +178,7 @@ void *aem_stack_pop(struct aem_stack *stk)
 {
 	if (!stk) return NULL;
 
-	if (stk->n <= 0)
-	{
+	if (stk->n <= 0) {
 #if AEM_STACK_DEBUG
 		aem_logf_ctx(AEM_LOG_DEBUG, "underflow\n");
 #endif
@@ -207,8 +199,7 @@ void *aem_stack_peek(struct aem_stack *stk)
 {
 	if (!stk) return NULL;
 
-	if (stk->n <= 0)
-	{
+	if (stk->n <= 0) {
 #if AEM_STACK_DEBUG
 		aem_logf_ctx(AEM_LOG_DEBUG, "underflow\n");
 #endif
@@ -229,8 +220,7 @@ void *aem_stack_index_end(struct aem_stack *stk, size_t i)
 
 	size_t i2 = stk->n - 1 - i;
 
-	if (i >= stk->n)
-	{
+	if (i >= stk->n) {
 #if AEM_STACK_DEBUG
 		aem_logf_ctx(AEM_LOG_DEBUG, "[-%zd = %zd] underflow\n", i, i2);
 #endif
@@ -249,8 +239,7 @@ void *aem_stack_index(struct aem_stack *stk, size_t i)
 {
 	if (!stk) return NULL;
 
-	if (i >= stk->n)
-	{
+	if (i >= stk->n) {
 		return NULL;
 	}
 #if AEM_STACK_DEBUG
@@ -264,12 +253,10 @@ void aem_stack_assign(struct aem_stack *stk, size_t i, void *s)
 {
 	if (!stk) return;
 
-	if (i + 1 > stk->n)
-	{
+	if (i + 1 > stk->n) {
 		stk->n = i + 1;
 
-		if (stk->n > stk->maxn)
-		{
+		if (stk->n > stk->maxn) {
 			aem_stack_grow(stk, stk->n);
 		}
 	}

@@ -15,22 +15,19 @@ int aem_serial_open(struct aem_serial *s, const char *device, int baud)
 			     0,
 			     0);
 
-	if (ser->fd == INVALID_HANDLE_VALUE)
-	{
+	if (ser->fd == INVALID_HANDLE_VALUE) {
 		aem_logf_ctx(AEM_LOG_ERROR, "failed to open tty %s\n", device);
 
 		return -1;
 	}
 
-	if (baud >= 0)
-	{
+	if (baud >= 0) {
 		DCB dcb;
 
 		FillMemory(&dcb, sizeof(dcb), 0);
 		dcb.DCBlength = sizeof(dcb);
 		// fix the baud later
-		if (!BuildCommDCB("115200,n,8,1", &dcb))
-		{
+		if (!BuildCommDCB("115200,n,8,1", &dcb)) {
 			aem_logf_ctx(AEM_LOG_ERROR, "BuildCommDCB(def, &dcb) failed");
 			fprintf(stderr, "BuildCommDCB failed\n");
 			CloseHandle(ser->fd);
@@ -39,20 +36,16 @@ int aem_serial_open(struct aem_serial *s, const char *device, int baud)
 
 		dcb.BaudRate = baud;
 
-		if (!SetCommState(ser->fd, &dcb))
-		{
+		if (!SetCommState(ser->fd, &dcb)) {
 			fprintf(stderr, "SetCommState failed\n");
 			CloseHandle(ser->fd);
 			return 1;
 		}
 	}
 
-	if (baud >= 0)
-	{
+	if (baud >= 0) {
 		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s baud %d\n", device, baud);
-	}
-	else
-	{
+	} else {
 		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s\n", device);
 	}
 
@@ -62,15 +55,12 @@ int aem_serial_open(struct aem_serial *s, const char *device, int baud)
 int aem_serial_close(struct aem_serial *s)
 {
 	aem_logf_ctx(AEM_LOG_WARN, "untested on Windows\n");
-	if (ser->fd != INVALID_HANDLE_VALUE)
-	{
+	if (ser->fd != INVALID_HANDLE_VALUE) {
 		aem_logf_ctx(AEM_LOG_NOTICE, "close fd\n");
 
 		CloseHandle(ser->fd);
 		ser->fd = INVALID_HANDLE_VALUE;
-	}
-	else
-	{
+	} else {
 		aem_logf_ctx(AEM_LOG_WARN, "not open\n");
 
 		return 0;
@@ -87,8 +77,7 @@ size_t aem_serial_write(struct aem_serial *s, struct aem_stringslice out)
 	aem_logf_ctx(AEM_LOG_WARN, "untested on Windows\n");
 
 	DWORD n;
-	if (!WriteFile(s->fd, out.start, aem_stringslice_len(&out), &n, NULL))
-	{
+	if (!WriteFile(s->fd, out.start, aem_stringslice_len(&out), &n, NULL)) {
 		return 0;
 	}
 
@@ -116,8 +105,7 @@ int aem_serial_getc(struct aem_serial *s)
 
 	unsigned char c;
 	DWORD n;
-	if (!ReadFile(s->fd, &c, 1, &n, NULL))
-	{
+	if (!ReadFile(s->fd, &c, 1, &n, NULL)) {
 		return -1;
 	}
 

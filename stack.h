@@ -6,8 +6,7 @@
 
 // Stack class
 
-struct aem_stack
-{
+struct aem_stack {
 	void **s;         // pointer to stack buffer
 	size_t n;         // current size of stack
 	size_t maxn;      // number of allocated slots

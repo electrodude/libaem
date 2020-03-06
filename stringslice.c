@@ -11,14 +11,11 @@ int aem_stringslice_file_write(struct aem_stringslice *slice, FILE *fp)
 {
 	if (!slice) return 1;
 
-	while (aem_stringslice_ok(slice))
-	{
+	while (aem_stringslice_ok(slice)) {
 		size_t n_written = fwrite(slice->start, 1, aem_stringslice_len(slice), fp);
 
-		if (!n_written)
-		{
-			if (ferror(fp))
-			{
+		if (!n_written) {
+			if (ferror(fp)) {
 				return 1;
 			}
 		}
@@ -36,15 +33,12 @@ ssize_t aem_stringslice_fd_write(struct aem_stringslice *slice, int fd)
 
 	ssize_t total = 0;
 
-	while (aem_stringslice_ok(slice))
-	{
+	while (aem_stringslice_ok(slice)) {
 again:;
 		ssize_t out = write(fd, slice->start, aem_stringslice_len(slice));
 
-		if (out < 0)
-		{
-			if (errno == EINTR)
-			{
+		if (out < 0) {
+			if (errno == EINTR) {
 				goto again;
 			}
 			return -1;
@@ -64,8 +58,7 @@ int aem_stringslice_match_ws(struct aem_stringslice *slice)
 
 	int matched = 0;
 
-	while (aem_stringslice_ok(slice) && isspace(*slice->start))
-	{
+	while (aem_stringslice_ok(slice) && isspace(*slice->start)) {
 		matched = 1;
 		slice->start++;
 	}
@@ -108,15 +101,12 @@ int aem_stringslice_match(struct aem_stringslice *slice, const char *s)
 
 	const char *p2 = slice->start;
 
-	while (*s)
-	{
-		if (p2 == slice->end)
-		{
+	while (*s) {
+		if (p2 == slice->end) {
 			return 0;
 		}
 
-		if (*p2++ != *s++)
-		{
+		if (*p2++ != *s++) {
 			return 0;
 		}
 	}
@@ -130,8 +120,7 @@ int aem_stringslice_eq(struct aem_stringslice slice, const char *s)
 {
 	if (!s) return 1;
 
-	while (aem_stringslice_ok(&slice) && *s != '\0') // while neither are finished
-	{
+	while (aem_stringslice_ok(&slice) && *s != '\0') { // while neither are finished
 		if (*slice.start++ != *s++) return 0; // unequal characters => no match
 	}
 
@@ -140,20 +129,13 @@ int aem_stringslice_eq(struct aem_stringslice slice, const char *s)
 
 static inline int hex2nib(char c)
 {
-	if (c >= '0' && c <= '9')
-	{
+	if (c >= '0' && c <= '9') {
 		return c - '0';
-	}
-	else if (c >= 'a' && c <= 'f')
-	{
+	} else if (c >= 'a' && c <= 'f') {
 		return c - 'a' + 0xA;
-	}
-	else if (c >= 'A' && c <= 'F')
-	{
+	} else if (c >= 'A' && c <= 'F') {
 		return c - 'A' + 0xA;
-	}
-	else
-	{
+	} else {
 		return -1;
 	}
 }

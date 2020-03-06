@@ -10,8 +10,7 @@
 #include "stringbuf.h"
 #include "stringslice.h"
 
-struct aem_serial
-{
+struct aem_serial {
 #ifndef _WIN32
 	int fd;
 #else

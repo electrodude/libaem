@@ -52,8 +52,7 @@ void aem_stringbuf_free(struct aem_stringbuf *str)
 
 static inline void aem_stringbuf_storage_free(struct aem_stringbuf *str)
 {
-	switch (str->storage)
-	{
+	switch (str->storage) {
 		case AEM_STRINGBUF_STORAGE_HEAP:
 			free(str->s);
 			break;
@@ -103,8 +102,7 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 	// if it's already big enough, don't do anything
 	if (str->maxn >= maxn_new) return;
 
-	if (str->fixed)
-	{
+	if (str->fixed) {
 		str->bad = 1;
 		return;
 	}
@@ -112,32 +110,27 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 #if 0
 	size_t maxn_old = str->maxn;
 #endif
-	if (str->storage == AEM_STRINGBUF_STORAGE_HEAP)
-	{
+	if (str->storage == AEM_STRINGBUF_STORAGE_HEAP) {
 #if AEM_STRINGBUF_DEBUG_ALLOC
 		aem_logf_ctx(AEM_LOG_DEBUG, "realloc: n %zd, maxn %zd -> %zd\n", str->n, str->maxn, maxn_new);
 #endif
 		char *s_new = realloc(str->s, maxn_new);
 
-		if (!s_new)
-		{
+		if (!s_new) {
 			str->bad = 1;
 			return;
 		}
 
 		str->s = s_new;
 		str->maxn = maxn_new;
-	}
-	else
-	{
+	} else {
 #if AEM_STRINGBUF_DEBUG_ALLOC
 		aem_logf_ctx(AEM_LOG_DEBUG, "to heap: n %zd, maxn %zd -> %zd\n", str->n, str->maxn, maxn_new);
 #endif
 
 		char *s_new = malloc(maxn_new);
 
-		if (!s_new)
-		{
+		if (!s_new) {
 			str->bad = 1;
 			return;
 		}
@@ -152,8 +145,7 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 	}
 
 #if 0
-	if (maxn_old)
-	{
+	if (maxn_old) {
 		str->bad = 1;
 	}
 #endif
@@ -168,13 +160,11 @@ char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p\n", aem_stringbuf_get(str));
 #endif
 
-	if (!str->fixed && str->storage == AEM_STRINGBUF_STORAGE_HEAP)
-	{
+	if (!str->fixed && str->storage == AEM_STRINGBUF_STORAGE_HEAP) {
 		size_t maxn_new = str->n + 1;
 		char *s_new = realloc(str->s, maxn_new);
 
-		if (s_new)
-		{
+		if (s_new) {
 			str->s = s_new;
 			str->maxn = maxn_new;
 		}
@@ -228,8 +218,7 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 	if (!str) return;
 	if (str->bad) return;
 
-	switch (c)
-	{
+	switch (c) {
 #define AEM_STRINGBUF_PUTQ_CASE(find, replace) \
 	case find: aem_stringbuf_puts(str, replace); break;
 		AEM_STRINGBUF_PUTQ_CASE('\n', "\\n")
@@ -241,12 +230,9 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 		AEM_STRINGBUF_PUTQ_CASE(' ' , "\\ ")
 #undef AEM_STRINGBUF_PUTQ_CASE
 		default:
-			if (c >= 32 && c < 127)
-			{
+			if (c >= 32 && c < 127) {
 				aem_stringbuf_putc(str, c);
-			}
-			else
-			{
+			} else {
 				aem_stringbuf_puts(str, "\\x");
 				aem_stringbuf_puthex(str, c);
 			}
@@ -265,8 +251,7 @@ void aem_stringbuf_append_stringslice_quote(struct aem_stringbuf *restrict str, 
 	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= quote(<slice>)\n", aem_stringbuf_get(str));
 #endif
 
-	for (const char *p = slice->start; p != slice->end; p++)
-	{
+	for (const char *p = slice->start; p != slice->end; p++) {
 		aem_stringbuf_putq(str, *p);
 	}
 }
@@ -278,18 +263,15 @@ int aem_stringbuf_append_unquote(struct aem_stringbuf *restrict str, struct aem_
 
 	if (!slice) return 0;
 
-	while (aem_stringslice_ok(slice))
-	{
+	while (aem_stringslice_ok(slice)) {
 		int c = aem_stringslice_getc(slice);
 
-		if (c == '\\')
-		{
+		if (c == '\\') {
 			int c2 = aem_stringslice_getc(slice);
 
 			if (c2 < 0) c2 = '\\'; // if no character after the backslash, just output the backslash
 
-			switch (c2)
-			{
+			switch (c2) {
 #define AEM_STRINGBUF_APPEND_UNQUOTE_CASE(find, replace) \
 	case find: aem_stringbuf_putc(str, replace); break;
 				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('n' , '\n');
@@ -298,13 +280,10 @@ int aem_stringbuf_append_unquote(struct aem_stringbuf *restrict str, struct aem_
 				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('0' , '\0');
 				case 'x':;
 					int b = aem_stringslice_match_hexbyte(slice);
-					if (b >= 0) // if valid hex byte, unescape it
-					{
+					if (b >= 0) { // if valid hex byte, unescape it
 						c2 = b;
 						aem_stringbuf_putc(str, b);
-					}
-					else
-					{
+					} else {
 						// else just put the unescaped 'x' without the backslash
 						aem_stringbuf_putc(str, c2);
 					}
@@ -315,13 +294,9 @@ int aem_stringbuf_append_unquote(struct aem_stringbuf *restrict str, struct aem_
 					break;
 #undef AEM_STRINGBUF_APPEND_UNQUOTE_CASE
 			}
-		}
-		else if (c > 32 && c < 127)
-		{
+		} else if (c > 32 && c < 127) {
 			aem_stringbuf_putc(str, c);
-		}
-		else
-		{
+		} else {
 			aem_stringslice_ungetc(slice); // reject unescaped character and return
 			return 0;
 		}
@@ -334,8 +309,7 @@ void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)
 {
 	if (!str) return;
 
-	while (str->n < len && !str->bad)
-	{
+	while (str->n < len && !str->bad) {
 		aem_stringbuf_putc(str, c);
 	}
 }
@@ -344,8 +318,7 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i)
 {
 	if (!str) return -1;
 
-	if (i >= str->n)
-	{
+	if (i >= str->n) {
 		return -1;
 	}
 #if AEM_STRINGBUF_DEBUG
@@ -359,8 +332,7 @@ void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 {
 	if (!str) return;
 
-	if (i + 1 > str->n)
-	{
+	if (i + 1 > str->n) {
 		str->n = i + 1;
 
 		aem_stringbuf_reserve(str, str->n + i);
@@ -390,17 +362,13 @@ int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp)
 	if (!str) return -1;
 
 	ssize_t in;
-	do
-	{
+	do {
 		in = aem_stringbuf_file_read(str, 4096, fp);
 	} while (in > 0 || (!feof(fp) && !ferror(fp)));
 
-	if (feof(fp))
-	{
+	if (feof(fp)) {
 		return 1;
-	}
-	else if (ferror(fp))
-	{
+	} else if (ferror(fp)) {
 		return -1;
 	}
 
@@ -430,8 +398,7 @@ ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 
 	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd\n", in, str->n, str->maxn);
 
-	if (in > 0)
-	{
+	if (in > 0) {
 		str->n += in;
 	}
 
@@ -443,17 +410,13 @@ int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
 	if (!str) return -1;
 
 	ssize_t in;
-	do
-	{
+	do {
 		in = aem_stringbuf_fd_read(str, 4096, fd);
 	} while (in > 0 || (in < 0 && errno == EINTR));
 
-	if (in == 0)
-	{
+	if (in == 0) {
 		return 1;
-	}
-	else if (in < 0)
-	{
+	} else if (in < 0) {
 		return -1;
 	}
 

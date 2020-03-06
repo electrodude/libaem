@@ -35,7 +35,7 @@ void aem_gc_register(struct aem_gc_object *obj, const struct aem_gc_vtbl *vtbl, 
 
 	aem_iter_gen_init(&obj->iter, &ctx->objects.iter);
 
-	obj->root = 0;
+	obj->refs = 1;
 
 	AEM_LL1_INSERT_AFTER(&ctx->objects, obj, ctx_next);
 }
@@ -47,7 +47,7 @@ void aem_gc_run(struct aem_gc_context *ctx)
 
 	// mark all roots
 	AEM_LL2_FOR_ALL(curr, &ctx->objects, _, ctx_next) {
-		if (curr->root) {
+		if (curr->refs) {
 			aem_gc_mark(curr, ctx);
 		}
 	}

@@ -25,7 +25,7 @@ struct aem_gc_object {
 
 	struct aem_iter_gen iter;
 
-	size_t root;
+	size_t refs;
 };
 
 struct aem_gc_context {

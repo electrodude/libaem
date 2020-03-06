@@ -50,7 +50,7 @@ FILE *aem_log_fget(void)
 
 // log level
 
-enum aem_log_level aem_log_level_curr = AEM_LOG_NOTICE;
+struct aem_log_module aem_log_module_default = {.loglevel = AEM_LOG_NOTICE};
 
 const char *aem_log_level_describe(enum aem_log_level loglevel)
 {
@@ -142,9 +142,9 @@ d_ebug:
 
 // logging
 
-int aem_logf(enum aem_log_level loglevel, const char *fmt, ...)
+int aem_logmf(struct aem_log_module *module, enum aem_log_level loglevel, const char *fmt, ...)
 {
-	if (loglevel > aem_log_level_curr) return 0;
+	if (loglevel > module->loglevel) return 0;
 
 	va_list ap;
 	va_start(ap, fmt);

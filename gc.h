@@ -1,6 +1,8 @@
 #ifndef AEM_GC_H
 #define AEM_GC_H
 
+#include <stddef.h>
+
 #include "iter_gen.h"
 
 struct aem_gc_object;

@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdarg.h>
 #include <string.h>
 
 // for vsnprintf
@@ -173,18 +172,18 @@ char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 	return aem_stringbuf_get(str);
 }
 
-void aem_stringbuf_printf(struct aem_stringbuf *restrict str, const char *restrict fmt, ...)
+void aem_stringbuf_vprintf(struct aem_stringbuf *restrict str, const char *restrict fmt, va_list argp)
 {
 	if (!str) return;
 	if (str->bad) return;
 
 	if (!fmt) return;
 
-	va_list argp;
+	va_list argp2;
 
-	va_start(argp, fmt);
-	size_t len = vsnprintf(NULL, 0, fmt, argp) + 2;
-	va_end(argp);
+	va_copy(argp2, argp);
+	size_t len = vsnprintf(NULL, 0, fmt, argp2) + 2;
+	va_end(argp2);
 
 #if AEM_STRINGBUF_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p: %s\n", str, fmt);
@@ -192,8 +191,14 @@ void aem_stringbuf_printf(struct aem_stringbuf *restrict str, const char *restri
 
 	aem_stringbuf_reserve(str, len);
 
-	va_start(argp, fmt);
 	str->n += vsnprintf(aem_stringbuf_end(str), aem_stringbuf_available(str), fmt, argp);
+}
+
+void aem_stringbuf_printf(struct aem_stringbuf *restrict str, const char *restrict fmt, ...)
+{
+	va_list argp;
+	va_start(argp, fmt);
+	aem_stringbuf_vprintf(str, fmt, argp);
 	va_end(argp);
 }
 

@@ -1,6 +1,7 @@
 #ifndef AEM_STRINGBUF_H
 #define AEM_STRINGBUF_H
 
+#include <stdarg.h>
 #ifdef __unix__
 #include <unistd.h>
 #endif
@@ -162,6 +163,7 @@ static inline void aem_stringbuf_putnum(struct aem_stringbuf *str, int base, int
 // Append printf-formatted text
 #define aem_stringbuf_putf(str, fmt, ...) aem_stringbuf_printf(str, fmt, __VA_ARGS__)
 #define aem_stringbuf_append_printf(str, fmt, ...) aem_stringbuf_printf(str, fmt, __VA_ARGS__)
+void aem_stringbuf_vprintf(struct aem_stringbuf *str, const char *fmt, va_list argp);
 void aem_stringbuf_printf(struct aem_stringbuf *str, const char *fmt, ...);
 
 /*

@@ -46,14 +46,14 @@ void aem_gc_run(struct aem_gc_context *ctx)
 	aem_iter_gen_reset_master(&ctx->objects.iter);
 
 	// mark all roots
-	AEM_LL2_FOR_ALL(curr, &ctx->objects, _, ctx_next) {
+	AEM_LL_FOR_ALL(curr, &ctx->objects, ctx_next) {
 		if (curr->refs) {
 			aem_gc_mark(curr, ctx);
 		}
 	}
 
 	// destruct all dead objects
-	AEM_LL2_FOR_ALL(curr, &ctx->objects, _, ctx_next) {
+	AEM_LL_FOR_ALL(curr, &ctx->objects, ctx_next) {
 		// if it wasn't hit by the mark cycle, it's dead
 		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter)) {
 			aem_logf_ctx(AEM_LOG_DEBUG, "dtor %p(%s)\n", curr, curr->vtbl->name);

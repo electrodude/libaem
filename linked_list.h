@@ -15,14 +15,10 @@
 #define AEM_LL1_INIT(chain, next) \
 	(chain)->next = (chain) \
 
-// deprecated
-#define AEM_LL_INIT(chain, prev, next) do { \
-	AEM_LL1_INIT((chain), prev); \
-	AEM_LL1_INIT((chain), next); \
+#define AEM_LL2_INIT(chain, name) do { \
+	AEM_LL1_INIT((chain), name##_prev); \
+	AEM_LL1_INIT((chain), name##_next); \
 } while (0)
-
-#define AEM_LL2_INIT(chain, name) \
-	AEM_LL_INIT((chain), name##_prev, name##_next)
 
 
 // Insert an item into a linked list
@@ -53,17 +49,10 @@
 #define AEM_LL2_INSERT_AFTER(chain, node, name) \
 	AEM_LL2_INSERT_AFTER_4((chain), (node), name##_prev, name##_next)
 
-// deprecated
-#define AEM_LL_INSERT_BEFORE(chain, node, prev, next) \
-	AEM_LL2_INSERT_BEFORE_4((chain), (node), prev, next)
-#define AEM_LL_INSERT_AFTER(chain, node, prev, next) \
-	AEM_LL2_INSERT_AFTER_4((chain), (node), prev, next)
-
 
 // Remove an item from a linked list
 
-// deprecated
-#define AEM_LL_REMOVE(node, prev, next) do { \
+#define AEM_LL2_REMOVE_EXPLICIT(node, prev, next) do { \
 	aem_typeof(node) _node = (node); \
 	\
 	(_node)->next->prev = (_node)->prev; \
@@ -73,36 +62,34 @@
 } while (0)
 
 #define AEM_LL2_REMOVE(node, name) \
-	AEM_LL_REMOVE((node), name##_prev, name##_next)
+	AEM_LL2_REMOVE_EXPLICIT(node, name##_prev, name##_next)
 
 #define AEM_LL_EMPTY(chain, next) ((chain)->next == (chain))
+#define AEM_LL2_EMPTY(chain, name) AEM_LL_EMPTY((chain), name##_next)
 
 
 // Iterate over a linked list
 
-// AEM_LL_FOR_* deprecated until prev parameter is removed
-#define AEM_LL_FOR_RANGE_TP(T, curr, start, end, prev, next) \
+#define AEM_LL_FOR_RANGE_TP(T, curr, start, end, next) \
 	for (T curr = (start); curr != (end); curr = curr->next)
 
-#define AEM_LL_FOR_RANGE(curr, start, end, prev, next) \
-	AEM_LL_FOR_RANGE_TP(aem_typeof(start), curr, (start), (end), prev, next)
+#define AEM_LL_FOR_RANGE(curr, start, end, next) \
+	AEM_LL_FOR_RANGE_TP(aem_typeof(start), curr, (start), (end), next)
 
-#define AEM_LL_FOR_ALL_TP(T, curr, chain, prev, next) \
-	AEM_LL_FOR_RANGE_TP(T, curr, (chain)->next, (chain), prev, next)
+#define AEM_LL_FOR_ALL_TP(T, curr, chain, next) \
+	AEM_LL_FOR_RANGE_TP(T, curr, (chain)->next, (chain), next)
 
-#define AEM_LL_FOR_ALL(curr, chain, prev, next) \
-	AEM_LL_FOR_ALL_TP(aem_typeof((chain)->next), curr, (chain), prev, next)
+#define AEM_LL_FOR_ALL(curr, chain, next) \
+	AEM_LL_FOR_ALL_TP(aem_typeof((chain)->next), curr, (chain), next)
 
-// Use this temporarily instead of AEM_LL_FOR_* until prev parameter is removed
-// Will become deprecated in favor of AEM_LL_FOR_* when prev parameter is removed
-#define AEM_LL2_FOR_RANGE_TP(T, curr, start, end, _, next) \
-	AEM_LL_FOR_RANGE_TP(T, curr, start, end, , next)
-#define AEM_LL2_FOR_RANGE(curr, start, end, _, next) \
-	AEM_LL_FOR_RANGE(curr, start, end, , next)
-#define AEM_LL2_FOR_ALL_TP(T, curr, chain, _, next) \
-	AEM_LL_FOR_ALL_TP(T, curr, chain, , next)
-#define AEM_LL2_FOR_ALL(curr, chain, _, next) \
-	AEM_LL_FOR_ALL(curr, chain, , next)
+#define AEM_LL2_FOR_RANGE_TP(T, curr, start, end, name) \
+	AEM_LL_FOR_RANGE_TP(T, curr, start, end, name##_next)
+#define AEM_LL2_FOR_RANGE(curr, start, end, name) \
+	AEM_LL_FOR_RANGE(curr, start, end, name##_next)
+#define AEM_LL2_FOR_ALL_TP(T, curr, chain, name) \
+	AEM_LL_FOR_ALL_TP(T, curr, chain, name##_next)
+#define AEM_LL2_FOR_ALL(curr, chain, name) \
+	AEM_LL_FOR_ALL(curr, chain, name##_next)
 
 
 // Iterate over a linked list, deleting an element if curr is set to NULL by the loop body
@@ -143,13 +130,9 @@
 // Verify a doubly linked list
 
 #define AEM_LL2_VERIFY(chain, prev, next, assert) \
-	AEM_LL_FOR_ALL(_curr, chain, prev, next) { \
+	AEM_LL_FOR_ALL(_curr, chain, next) { \
 		assert((_curr)->prev->next == (_curr)); \
 		assert((_curr)->next->prev == (_curr)); \
 	}
-
-// deprecated
-#define AEM_LL_VERIFY(chain, prev, next, assert) \
-	AEM_LL2_VERIFY((chain, prev, next, assert)
 
 #endif /* AEM_LINKED_LIST_H */

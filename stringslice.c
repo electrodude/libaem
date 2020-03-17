@@ -11,8 +11,8 @@ int aem_stringslice_file_write(struct aem_stringslice *slice, FILE *fp)
 {
 	if (!slice) return 1;
 
-	while (aem_stringslice_ok(slice)) {
-		size_t n_written = fwrite(slice->start, 1, aem_stringslice_len(slice), fp);
+	while (aem_stringslice_ok(*slice)) {
+		size_t n_written = fwrite(slice->start, 1, aem_stringslice_len(*slice), fp);
 
 		if (!n_written) {
 			if (ferror(fp)) {
@@ -33,9 +33,9 @@ ssize_t aem_stringslice_fd_write(struct aem_stringslice *slice, int fd)
 
 	ssize_t total = 0;
 
-	while (aem_stringslice_ok(slice)) {
+	while (aem_stringslice_ok(*slice)) {
 again:;
-		ssize_t out = write(fd, slice->start, aem_stringslice_len(slice));
+		ssize_t out = write(fd, slice->start, aem_stringslice_len(*slice));
 
 		if (out < 0) {
 			if (errno == EINTR) {
@@ -58,7 +58,7 @@ int aem_stringslice_match_ws(struct aem_stringslice *slice)
 
 	int matched = 0;
 
-	while (aem_stringslice_ok(slice) && isspace(*slice->start)) {
+	while (aem_stringslice_ok(*slice) && isspace(*slice->start)) {
 		matched = 1;
 		slice->start++;
 	}
@@ -73,7 +73,7 @@ struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice)
 	struct aem_stringslice line;
 	line.start = slice->start;
 
-	while (aem_stringslice_ok(slice) && !isspace(*slice->start)) slice->start++;
+	while (aem_stringslice_ok(*slice) && !isspace(*slice->start)) slice->start++;
 
 	line.end = slice->start;
 
@@ -87,7 +87,7 @@ struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice)
 	struct aem_stringslice line;
 	line.start = slice->start;
 
-	while (aem_stringslice_ok(slice) && !(*slice->start == '\n' || *slice->start == '\n')) slice->start++;
+	while (aem_stringslice_ok(*slice) && !(*slice->start == '\n' || *slice->start == '\n')) slice->start++;
 
 	line.end = slice->start;
 
@@ -120,11 +120,11 @@ int aem_stringslice_eq(struct aem_stringslice slice, const char *s)
 {
 	if (!s) return 1;
 
-	while (aem_stringslice_ok(&slice) && *s != '\0') { // while neither are finished
+	while (aem_stringslice_ok(slice) && *s != '\0') { // While neither are finished
 		if (*slice.start++ != *s++) return 0; // unequal characters => no match
 	}
 
-	return !aem_stringslice_ok(&slice) && *s == '\0'; // ensure both are finished
+	return !aem_stringslice_ok(slice) && *s == '\0'; // Ensure both are finished.
 }
 
 static inline int hex2nib(char c)

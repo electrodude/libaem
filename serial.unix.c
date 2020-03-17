@@ -75,7 +75,7 @@ int aem_serial_ok(struct aem_serial *ser)
 size_t aem_serial_write(struct aem_serial *ser, struct aem_stringslice out)
 {
 again:;
-	ssize_t n = write(ser->fd, out.start, aem_stringslice_len(&out));
+	ssize_t n = write(ser->fd, out.start, aem_stringslice_len(out));
 
 	if (n < 0) {
 		switch (errno) {

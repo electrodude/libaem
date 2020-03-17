@@ -36,21 +36,21 @@ ssize_t aem_stringslice_fd_write(struct aem_stringslice *slice, int fd);
 
 
 // Return true if stringslice length is non-zero
-static inline int aem_stringslice_ok(const struct aem_stringslice *slice)
+static inline int aem_stringslice_ok(struct aem_stringslice slice)
 {
-	return slice->start != slice->end;
+	return slice.start != slice.end;
 }
 
 // Return length of stringslice
-static inline size_t aem_stringslice_len(const struct aem_stringslice *slice)
+static inline size_t aem_stringslice_len(const struct aem_stringslice slice)
 {
-	return slice->end - slice->start;
+	return slice.end - slice.start;
 }
 
 // Get next byte from stringslice (-1 if end), advance to next byte
 static inline int aem_stringslice_getc(struct aem_stringslice *slice)
 {
-	if (!aem_stringslice_ok(slice)) return -1;
+	if (!aem_stringslice_ok(*slice)) return -1;
 
 	return (unsigned char)*slice->start++;
 }
@@ -69,10 +69,10 @@ int aem_stringslice_get(struct aem_stringslice *slice);
 #define aem_stringslice_get_utf8 aem_stringslice_get
 
 // Get raw data
-// Reads `count` bytes into `buf`.  If fewer than `count` bytes are available,
-// does nothing and returns -1.
+// Reads `count` bytes into `buf`.
+// If fewer than `count` bytes are available, does nothing and returns -1.
 static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void *buf, size_t count) {
-	if (aem_stringslice_len(slice) < count) return -1;
+	if (aem_stringslice_len(*slice) < count) return -1;
 
 	memcpy(buf, slice->start, count);
 	slice->start += count;

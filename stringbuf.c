@@ -202,22 +202,6 @@ void aem_stringbuf_printf(struct aem_stringbuf *restrict str, const char *restri
 	va_end(argp);
 }
 
-/*
-char *aem_stringbuf_append_manual(struct aem_stringbuf *str, size_t len)
-{
-	if (!str) return;
-
-	aem_stringbuf_reserve(str, len);
-	if (str->bad) return;
-
-	char *p = aem_stringbuf_end(str);
-
-	str->n += len;
-
-	return p;
-}
-*/
-
 void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 {
 	if (!str) return;
@@ -245,30 +229,29 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 	}
 }
 
-void aem_stringbuf_append_stringslice_quote(struct aem_stringbuf *restrict str, const struct aem_stringslice *restrict slice)
+void aem_stringbuf_putss_quote(struct aem_stringbuf *restrict str, struct aem_stringslice slice)
 {
 	if (!str) return;
 	if (str->bad) return;
-
-	if (!slice) return;
 
 #if AEM_STRINGBUF_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= quote(<slice>)\n", aem_stringbuf_get(str));
 #endif
 
-	for (const char *p = slice->start; p != slice->end; p++) {
-		aem_stringbuf_putq(str, *p);
+	while (aem_stringslice_ok(slice)) {
+		int c = aem_stringslice_getc(&slice);
+		aem_stringbuf_putq(str, c);
 	}
 }
 
-int aem_stringbuf_append_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice)
+int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice)
 {
 	if (!str) return 1;
 	if (str->bad) return 1;
 
 	if (!slice) return 0;
 
-	while (aem_stringslice_ok(slice)) {
+	while (aem_stringslice_ok(*slice)) {
 		int c = aem_stringslice_getc(slice);
 
 		if (c == '\\') {
@@ -313,6 +296,8 @@ int aem_stringbuf_append_unquote(struct aem_stringbuf *restrict str, struct aem_
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)
 {
 	if (!str) return;
+
+	aem_stringbuf_reserve(str, len);
 
 	while (str->n < len && !str->bad) {
 		aem_stringbuf_putc(str, c);

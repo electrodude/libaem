@@ -26,22 +26,6 @@ struct aem_stack *aem_stack_init_prealloc(struct aem_stack *stk, size_t maxn)
 	return stk;
 }
 
-struct aem_stack *aem_stack_init_v(struct aem_stack *stk, size_t n, ...)
-{
-	va_list ap;
-	va_start(ap, n);
-
-	aem_stack_init_prealloc(stk, n);
-
-	for (size_t i = 0; i < n; i++) {
-		aem_stack_push(stk, va_arg(ap, void*));
-	}
-
-	va_end(ap);
-
-	return stk;
-}
-
 void aem_stack_free(struct aem_stack *stk)
 {
 	if (!stk) return;
@@ -127,29 +111,31 @@ void aem_stack_push(struct aem_stack *stk, void *s)
 	stk->s[stk->n++] = s;
 }
 
-void aem_stack_pushn(struct aem_stack *restrict stk, size_t n, void **restrict elements)
+void aem_stack_pushn(struct aem_stack *restrict stk, size_t n, void **restrict s)
 {
 	if (!stk) return;
 
-	if (!elements) return;
+	if (!s) return;
 
-	for (size_t i = 0; i < n; i++) {
-		aem_stack_push(stk, elements[i]);
-	}
+	aem_stack_reserve(stk, n);
+
+	memcpy(&stk->s[stk->n], s, n*sizeof(void*));
+
+	stk->n += n;
 }
 
-void aem_stack_append(struct aem_stack *restrict stk, struct aem_stack *restrict stk2)
+void aem_stack_pushv(struct aem_stack *stk, size_t n, ...)
 {
-	if (!stk) return;
-	if (!stk2) return;
+	va_list ap;
+	va_start(ap, n);
 
-	size_t n2 = stk2->n;
+	aem_stack_reserve(stk, n);
 
-	aem_stack_reserve(stk, n2);
+	for (size_t i = 0; i < n; i++) {
+		aem_stack_push(stk, va_arg(ap, void*));
+	}
 
-	memcpy(&stk->s[stk->n], stk2->s, n2*sizeof(void*));
-
-	stk->n += n2;
+	va_end(ap);
 }
 
 size_t aem_stack_transfer(struct aem_stack *restrict dest, struct aem_stack *restrict src, size_t n)
@@ -161,10 +147,7 @@ size_t aem_stack_transfer(struct aem_stack *restrict dest, struct aem_stack *res
 
 	size_t new_top = src->n - n;
 
-	for (size_t i = 0; i < n; i++) {
-		aem_stack_push(dest, src->s[new_top + i]);
-	}
-
+	aem_stack_pushn(dest, n, src->s[new_top]);
 	aem_stack_trunc(src, new_top);
 
 	return n;
@@ -238,6 +221,7 @@ void *aem_stack_index(struct aem_stack *stk, size_t i)
 	if (i >= stk->n) {
 		return NULL;
 	}
+
 #if AEM_STACK_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "[%zd] = %p\n", i, stk->s[i]);
 #endif
@@ -272,7 +256,6 @@ size_t aem_stack_assign_empty(struct aem_stack *stk, void *s) {
 	aem_stack_assign(stk, i, s);
 	return i;
 }
-
 
 void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const void *p2))
 {

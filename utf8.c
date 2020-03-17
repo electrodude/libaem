@@ -75,7 +75,7 @@ int aem_stringslice_get(struct aem_stringslice *slice)
 	}
 
 	for (size_t i = 0; i < n; i++) {
-		if (!aem_stringslice_ok(slice)) return -1;
+		if (!aem_stringslice_ok(*slice)) return -1;
 
 		int c2 = aem_stringslice_getc(slice);
 		if (c2 < 0 || (c2 & 0xc0) != 0x80) {

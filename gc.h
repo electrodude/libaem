@@ -21,7 +21,7 @@ void aem_gc_free_default(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 struct aem_gc_object {
 	const struct aem_gc_vtbl *vtbl;
 
-	// singly linked list of instances belonging to the same aem_gc_context
+	// Singly linked list of instances belonging to the same aem_gc_context
 	// rooted in ctx->objects
 	struct aem_gc_object *ctx_next;
 

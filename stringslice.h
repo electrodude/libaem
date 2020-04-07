@@ -89,6 +89,8 @@ int aem_stringslice_match(struct aem_stringslice *slice, const char *s);
 
 int aem_stringslice_eq(struct aem_stringslice slice, const char *s);
 
+int aem_stringslice_cmp(struct aem_stringslice s0, struct aem_stringslice s1);
+
 int aem_stringslice_match_hexbyte(struct aem_stringslice *slice);
 
 #endif /* AEM_STRINGSLICE_H */

@@ -127,6 +127,17 @@ int aem_stringslice_eq(struct aem_stringslice slice, const char *s)
 	return !aem_stringslice_ok(slice) && *s == '\0'; // Ensure both are finished.
 }
 
+int aem_stringslice_cmp(struct aem_stringslice s0, struct aem_stringslice s1) {
+	size_t l0 = aem_stringslice_len(s0);
+	size_t l1 = aem_stringslice_len(s1);
+
+	int cmp = strncmp(s0.start, s1.start, l0 < l1 ? l0 : l1);
+	if (cmp)
+		return cmp;
+
+	return l1 - l0;
+}
+
 static inline int hex2nib(char c)
 {
 	if (c >= '0' && c <= '9') {

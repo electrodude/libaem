@@ -1,9 +1,12 @@
 #include <stdlib.h>
 
+#define aem_log_module_current (&gc_log_module)
 #include "log.h"
 #include "linked_list.h"
 
 #include "gc.h"
+
+static struct aem_log_module gc_log_module = {.loglevel = AEM_LOG_INFO};
 
 void aem_gc_free_default(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 {

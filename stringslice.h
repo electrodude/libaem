@@ -82,6 +82,7 @@ static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void 
 
 int aem_stringslice_match_ws(struct aem_stringslice *slice);
 
+struct aem_stringslice aem_stringslice_match_alnum(struct aem_stringslice *slice);
 struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice);
 struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice);
 
@@ -92,5 +93,6 @@ int aem_stringslice_eq(struct aem_stringslice slice, const char *s);
 int aem_stringslice_cmp(struct aem_stringslice s0, struct aem_stringslice s1);
 
 int aem_stringslice_match_hexbyte(struct aem_stringslice *slice);
+int aem_stringslice_match_int(struct aem_stringslice *slice, int base, int *out);
 
 #endif /* AEM_STRINGSLICE_H */

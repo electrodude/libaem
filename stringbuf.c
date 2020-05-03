@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -332,6 +333,13 @@ void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 }
 
 
+void aem_stringbuf_rtrim(struct aem_stringbuf *str) {
+	aem_assert(str);
+	while (str->n && isspace(str->s[str->n-1]))
+		str->n--;
+}
+
+
 size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 {
 	if (!str) return -1;
@@ -392,7 +400,7 @@ ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 		str->n += in;
 	}
 
-	return 0;
+	return in;
 }
 
 int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)

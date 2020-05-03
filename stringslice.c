@@ -1,5 +1,5 @@
-#include <stdlib.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 #ifdef __unix__
 #include <errno.h>
@@ -66,6 +66,19 @@ int aem_stringslice_match_ws(struct aem_stringslice *slice)
 	return matched;
 }
 
+struct aem_stringslice aem_stringslice_match_alnum(struct aem_stringslice *slice)
+{
+	if (!slice) return AEM_STRINGSLICE_EMPTY;
+
+	struct aem_stringslice line;
+	line.start = slice->start;
+
+	while (aem_stringslice_ok(*slice) && isalnum(*slice->start)) slice->start++;
+
+	line.end = slice->start;
+
+	return line;
+}
 struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice)
 {
 	if (!slice) return AEM_STRINGSLICE_EMPTY;
@@ -120,6 +133,7 @@ int aem_stringslice_eq(struct aem_stringslice slice, const char *s)
 {
 	if (!s) return 1;
 
+	// TODO: What is strncmp?
 	while (aem_stringslice_ok(slice) && *s != '\0') { // While neither are finished
 		if (*slice.start++ != *s++) return 0; // unequal characters => no match
 	}
@@ -168,4 +182,48 @@ int aem_stringslice_match_hexbyte(struct aem_stringslice *slice)
 	slice->start = p;
 
 	return c1 << 4 | c0;
+}
+
+int aem_stringslice_match_int(struct aem_stringslice *slice, int base, int *out) {
+	if (!slice) return -1;
+
+	int acc = 0;
+
+	struct aem_stringslice best = *slice;
+	struct aem_stringslice curr = *slice;
+
+	int neg = 0;
+	if (aem_stringslice_match(&curr, "-")) {
+		neg = 1;
+	}
+
+	while (aem_stringslice_ok(curr)) {
+		int c = aem_stringslice_get(&curr);
+		int digit;
+		if ('0' <= c && c <= '9') {
+			digit = c - '0';
+		} else if ('a' <= c && c <= 'z') {
+			digit = c - 'a' + 10;
+		} else if ('A' <= c && c <= 'Z') {
+			digit = c - 'A' + (base > 36 ? 36 : 10); // Be case-insensitive if base is low enough to not need both cases.
+		} else {
+			break;
+		}
+
+		acc = acc*base + digit;
+		best = curr;
+	}
+
+	// Return failure if we found no digits
+	if (best.start == slice->start)
+		return -1;
+
+	if (neg)
+		acc = -acc;
+
+	if (out)
+		*out = acc;
+	*slice = best;
+
+	return 0;
 }

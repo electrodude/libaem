@@ -1,6 +1,7 @@
 #ifndef AEM_STRINGBUF_H
 #define AEM_STRINGBUF_H
 
+#include <alloca.h>
 #include <stdarg.h>
 #ifdef __unix__
 #include <unistd.h>
@@ -50,9 +51,10 @@ struct aem_stringbuf {
 //  wasn't copied into a malloc()'d buffer.  You can ensure that it won't be
 //  copied into a malloc()'d buffer (instead, characters will just stop getting
 //  added when it gets full) if you set .fixed = 1.
+#define AEM_STRINGBUF_ALLOCA(_len) \
+	((struct aem_stringbuf){.s=alloca(_len), .n=0, .maxn = (_len), .storage = AEM_STRINGBUF_STORAGE_UNOWNED})
 #define AEM_STRINGBUF_ON_STACK(_name, _len) \
-	char _name##_stringbuf_data[_len]; \
-	struct aem_stringbuf _name = {.s=_name##_stringbuf_data, .n=0, .maxn = _len, .storage = AEM_STRINGBUF_STORAGE_UNOWNED};
+	struct aem_stringbuf _name = AEM_STRINGBUF_ALLOCA(_len);
 
 // Allocates a new stringbuf and initialize it to all zeros (sufficiently
 //  initialized for immediate use, see AEM_STRINGBUF_EMPTY).
@@ -144,6 +146,7 @@ void aem_stringbuf_printf(struct aem_stringbuf *str, const char *fmt, ...);
 
 // Append another stringbuf.
 static inline void aem_stringbuf_append(struct aem_stringbuf *str, const struct aem_stringbuf *str2);
+#define aem_stringbuf_concat aem_stringbuf_append
 
 // Append a character, escaping it if necessary.
 void aem_stringbuf_putq(struct aem_stringbuf *str, char c);
@@ -152,11 +155,8 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c);
 void aem_stringbuf_putss_quote(struct aem_stringbuf *str, struct aem_stringslice slice);
 
 // Append a stringbuf, escaping characters as necessary.
-static inline void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
-{
-	if (!str2) return;
-	aem_stringbuf_putss_quote(str, aem_stringslice_new_str(str2));
-}
+static inline void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2);
+#define aem_stringbuf_concat_quote aem_stringbuf_append_quote
 
 // Append a stringslice.
 static inline void aem_stringbuf_putss(struct aem_stringbuf *str, struct aem_stringslice slice)
@@ -188,6 +188,8 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i);
 // Set the i-th character from the beginning of the stringbuf.
 // Increases the size of the stringbuf if necessary.
 void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c);
+
+void aem_stringbuf_rtrim(struct aem_stringbuf *str);
 
 size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp);
 int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp);
@@ -304,6 +306,12 @@ static inline void aem_stringbuf_append(struct aem_stringbuf *str, const struct 
 {
 	if (!str2) return;
 	aem_stringbuf_putn(str, str2->n, str2->s);
+}
+
+static inline void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
+{
+	if (!str2) return;
+	aem_stringbuf_putss_quote(str, aem_stringslice_new_str(str2));
 }
 
 #endif /* AEM_STRINGBUF_H */

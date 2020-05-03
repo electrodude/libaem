@@ -235,19 +235,24 @@ void *aem_stack_index(struct aem_stack *stk, size_t i)
 	return stk->s[i];
 }
 
+void **aem_stack_index_p(struct aem_stack *stk, size_t i)
+{
+	if (!stk) return NULL;
+
+	while (stk->n < i+1) {
+		aem_stack_push(stk, NULL);
+	}
+
+	return &stk->s[i];
+}
+
 void aem_stack_assign(struct aem_stack *stk, size_t i, void *s)
 {
 	if (!stk) return;
 
-	if (i + 1 > stk->n) {
-		stk->n = i + 1;
+	void **p = aem_stack_index_p(stk, i);
 
-		if (stk->n > stk->maxn) {
-			aem_stack_grow(stk, stk->n);
-		}
-	}
-
-	stk->s[i] = s;
+	*p = s;
 }
 
 size_t aem_stack_assign_empty(struct aem_stack *stk, void *s) {

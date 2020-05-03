@@ -92,6 +92,10 @@ void *aem_stack_index_end(struct aem_stack *stk, size_t i);
 // Return the i-th element from the bottom of the stack, or NULL if out of range.
 void *aem_stack_index(struct aem_stack *stk, size_t i);
 
+// Return a pointer to the i-th element from the bottom of the stack.
+// If the specified index is invalid, push NULL until it is.
+void **aem_stack_index_p(struct aem_stack *stk, size_t i);
+
 // Set the i-th element from the bottom of the stack.
 // Increase the size of the stack if necessary
 void aem_stack_assign(struct aem_stack *stk, size_t i, void *s);

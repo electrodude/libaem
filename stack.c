@@ -268,6 +268,18 @@ size_t aem_stack_assign_empty(struct aem_stack *stk, void *s) {
 	return i;
 }
 
+void *aem_stack_remove(struct aem_stack *stk, size_t i) {
+	// Replace object with NULL
+	void *p = stk->s[i];
+	stk->s[i] = NULL;
+
+	// Decrease vector size as much as possible
+	while (stk->n && !stk->s[stk->n-1])
+		stk->n--;
+
+	return p;
+}
+
 void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const void *p2))
 {
 	qsort(stk->s, stk->n, sizeof(stk->s[0]), compar);

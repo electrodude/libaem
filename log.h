@@ -74,4 +74,6 @@ int aem_vdprintf(const char *fmt, va_list ap);
 #define aem_assert(condition) if (!(condition)) { aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s\n", #condition); abort(); }
 #endif
 
+#define aem_logf_ctx_once(loglevel, fmt, ...) do { static int _hits = 0; if (!_hits++) aem_logf_ctx((loglevel), "once: " fmt, ##__VA_ARGS__); } while (0)
+
 #endif /* AEM_LOG_H */

@@ -133,12 +133,12 @@ static inline void aem_stringbuf_puts_limit(struct aem_stringbuf *str, size_t le
 // Append a string that is n characters long
 static inline void aem_stringbuf_putn(struct aem_stringbuf *str, size_t n, const char *s);
 
-// Append a hex byte
-static inline void aem_stringbuf_puthex(struct aem_stringbuf *str, unsigned char byte);
-
 // Append an integer.
 #define aem_stringbuf_putnum aem_stringbuf_putint
-static inline void aem_stringbuf_putint(struct aem_stringbuf *str, int base, int num);
+void aem_stringbuf_putint(struct aem_stringbuf *str, int base, int num);
+
+// Append a hex byte
+void aem_stringbuf_puthex(struct aem_stringbuf *str, unsigned char byte);
 
 // Append printf-formatted text.
 void aem_stringbuf_vprintf(struct aem_stringbuf *str, const char *fmt, va_list argp);
@@ -278,28 +278,6 @@ static inline void aem_stringbuf_putn(struct aem_stringbuf *restrict str, size_t
 	memcpy(aem_stringbuf_end(str), s, n);
 
 	str->n += n;
-}
-
-static const char aem_stringbuf_putint_digits[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-static inline void aem_stringbuf_putint(struct aem_stringbuf *str, int base, int num)
-{
-	if (num < 0) {
-		aem_stringbuf_putc(str, '-');
-		num = -num;
-	}
-
-	int top = num / base;
-	if (top > 0) {
-		aem_stringbuf_putint(str, top, base);
-	}
-	aem_stringbuf_putc(str, aem_stringbuf_putint_digits[num % base]);
-}
-
-static inline void aem_stringbuf_puthex(struct aem_stringbuf *str, unsigned char byte)
-{
-	aem_stringbuf_putc(str, aem_stringbuf_putint_digits[(byte >> 4) & 0xF]);
-	aem_stringbuf_putc(str, aem_stringbuf_putint_digits[(byte     ) & 0xF]);
 }
 
 static inline void aem_stringbuf_append(struct aem_stringbuf *str, const struct aem_stringbuf *str2)

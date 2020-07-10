@@ -173,6 +173,26 @@ char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 	return aem_stringbuf_get(str);
 }
 
+static const char aem_stringbuf_putint_digits[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+void aem_stringbuf_putint(struct aem_stringbuf *str, int base, int num)
+{
+	if (num < 0) {
+		aem_stringbuf_putc(str, '-');
+		num = -num;
+	}
+
+	int top = num / base;
+	if (top > 0) {
+		aem_stringbuf_putint(str, top, base);
+	}
+	aem_stringbuf_putc(str, aem_stringbuf_putint_digits[num % base]);
+}
+void aem_stringbuf_puthex(struct aem_stringbuf *str, unsigned char byte)
+{
+	aem_stringbuf_putc(str, aem_stringbuf_putint_digits[(byte >> 4) & 0xF]);
+	aem_stringbuf_putc(str, aem_stringbuf_putint_digits[(byte     ) & 0xF]);
+}
+
 void aem_stringbuf_vprintf(struct aem_stringbuf *restrict str, const char *restrict fmt, va_list argp)
 {
 	if (!str) return;

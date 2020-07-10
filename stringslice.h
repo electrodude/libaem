@@ -79,6 +79,11 @@ static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void 
 
 	return 0;
 }
+#define AEM_STRINGSLICE_RD_TYPE(slice, T) ({ \
+	T out; \
+	aem_stringslice_read_data(slice, &out, sizeof(out)); \
+	out; \
+})
 
 int aem_stringslice_match_ws(struct aem_stringslice *slice);
 

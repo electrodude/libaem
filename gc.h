@@ -46,4 +46,8 @@ void aem_gc_run(struct aem_gc_context *ctx);
 void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 
 
+void aem_gc_ref(struct aem_gc_object *obj);
+void aem_gc_unref(struct aem_gc_object *obj);
+
+
 #endif /* AEM_GC_H */

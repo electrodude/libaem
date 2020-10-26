@@ -106,6 +106,9 @@ size_t aem_stack_assign_empty(struct aem_stack *stk, void *s);
 
 void *aem_stack_remove(struct aem_stack *stk, size_t i);
 
+int aem_stack_insert(struct aem_stack *stk, size_t i, void *p);
+int aem_stack_insert_end(struct aem_stack *stk, size_t i, void *p);
+
 // qsort a stack
 void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const void *p2));
 

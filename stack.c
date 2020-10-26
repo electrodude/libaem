@@ -280,6 +280,25 @@ void *aem_stack_remove(struct aem_stack *stk, size_t i) {
 	return p;
 }
 
+int aem_stack_insert(struct aem_stack *stk, size_t i, void *p) {
+	if (i > stk->n)
+		return 1;
+
+	aem_stack_reserve(stk, 1);
+	memmove(&stk->s[i+1], &stk->s[i], (stk->n - i)*sizeof(p));
+	stk->s[i] = p;
+	stk->n++;
+
+	return 0;
+}
+
+int aem_stack_insert_end(struct aem_stack *stk, size_t i, void *p) {
+	if (i > stk->n)
+		return 1;
+
+	return aem_stack_insert(stk, stk->n - i, p);
+}
+
 void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const void *p2))
 {
 	qsort(stk->s, stk->n, sizeof(stk->s[0]), compar);

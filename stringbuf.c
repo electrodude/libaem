@@ -183,6 +183,19 @@ char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 	return aem_stringbuf_get(str);
 }
 
+void aem_stringbuf_pop_front(struct aem_stringbuf *str, size_t n)
+{
+	aem_assert(str);
+
+	if (n >= str->n) {
+		aem_stringbuf_reset(str);
+		return;
+	}
+
+	memmove(str->s, &str->s[n], str->n - n);
+	str->n -= n;
+}
+
 static const char aem_stringbuf_putint_digits[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 void aem_stringbuf_putint(struct aem_stringbuf *str, int base, int num)
 {

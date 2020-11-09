@@ -22,3 +22,9 @@ AEM's personal C library
 
 * `aem_hash`: hash table
 * `aem_childproc`: child process manager
+* `aem_poll`: `poll(2)`-based event loop
+	* Works with `aem_net`.
+* `aem_net`: abstracted network interface
+	* Uses `aem_stream`.
+* `aem_stream`: data stream abstraction
+	* Includes utility stream transducers to e.g. split a stream into lines.

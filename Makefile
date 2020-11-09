@@ -17,11 +17,11 @@ else
         HOST_SYS=Windows
 endif
 
-SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c log.c gc.c
+SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c streams.c stream.c pmcrcu.c log.c gc.c
 ifeq (${HOST_SYS},Windows)
 SOURCES_LIBAEM+=serial.windows.c
 else
-SOURCES_LIBAEM+=serial.unix.c
+SOURCES_LIBAEM+=serial.unix.c net.c poll.c
 endif
 
 OBJECTS_LIBAEM=$(patsubst %.c,%.o,${SOURCES_LIBAEM})

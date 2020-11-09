@@ -2,6 +2,7 @@
 #define AEM_LOG_H
 
 #include <stdarg.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 enum aem_log_level {

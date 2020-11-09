@@ -118,6 +118,8 @@ static inline int aem_stringbuf_available(struct aem_stringbuf *str)
 // The null terminator is only there until the next time the string is modified
 char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str);
 
+// Removes characters from the beginning of a stringbuf.
+void aem_stringbuf_pop_front(struct aem_stringbuf *str, size_t n);
 
 // Append a character
 static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c);

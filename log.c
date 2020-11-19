@@ -27,7 +27,8 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 
 FILE *aem_log_fopen(const char *path_new)
 {
-	if (!path_new) return NULL;
+	if (!path_new)
+		return NULL;
 	FILE *fp_new = fopen(path_new, "a");
 	if (!fp_new) {
 		return NULL;
@@ -109,7 +110,8 @@ enum aem_log_level aem_log_level_check_prefix(enum aem_log_level level, const ch
 
 enum aem_log_level aem_log_level_parse(const char *p)
 {
-	if (!p) return AEM_LOG_DEBUG; // default to debug
+	if (!p)
+		return AEM_LOG_DEBUG; // default to debug
 
 	switch (tolower(*p)) {
 		case 'f': goto f_atal;
@@ -159,7 +161,8 @@ d3:
 
 int aem_logmf(struct aem_log_module *module, enum aem_log_level loglevel, const char *fmt, ...)
 {
-	if (loglevel > module->loglevel) return 0;
+	if (loglevel > module->loglevel)
+		return 0;
 
 	va_list ap;
 	va_start(ap, fmt);
@@ -185,7 +188,8 @@ int aem_dprintf(const char *fmt, ...)
 
 int aem_vdprintf(const char *fmt, va_list ap)
 {
-	if (!aem_log_fp) return 0;
+	if (!aem_log_fp)
+		return 0;
 
 	int count = vfprintf(aem_log_fp, fmt, ap);
 

@@ -175,9 +175,12 @@ void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c);
 // The pointer is only valid until the next call to aem_stringbuf_reserve or aem_stringbuf_shrinkwrap.
 static inline char *aem_stringbuf_get(struct aem_stringbuf *str)
 {
-	if (!str) return NULL;
-	if (!str->s) return NULL;
-	if (str->bad) return NULL;
+	if (!str)
+		return NULL;
+	if (!str->s)
+		return NULL;
+	if (str->bad)
+		return NULL;
 
 	str->s[str->n] = 0; // Null-terminate the string
 	                    //  (there is room already allocated)
@@ -216,7 +219,8 @@ static inline struct aem_stringslice aem_stringslice_new_str(const struct aem_st
 
 static inline int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
 {
-	if (!str) return 0;
+	if (!str)
+		return 0;
 
 	// make room for new stuff and null terminator
 	return aem_stringbuf_reserve_total(str, str->n + len + 1);
@@ -224,7 +228,8 @@ static inline int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
 
 static inline int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t len)
 {
-	if (!str) return 0;
+	if (!str)
+		return 0;
 
 	len++; // Add null terminator
 	if (str->maxn < len) {
@@ -237,24 +242,29 @@ static inline int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t 
 
 static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c)
 {
-	if (!str) return;
+	if (!str)
+		return;
 
 #if AEM_STRINGBUF_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "putc(\"%s\", '%c')\n", aem_stringbuf_get(str), c);
 #endif
 
 	aem_stringbuf_reserve(str, 1);
-	if (str->bad) return;
+	if (str->bad)
+		return;
 
 	str->s[str->n++] = c;
 }
 
 static inline void aem_stringbuf_puts(struct aem_stringbuf *restrict str, const char *restrict s)
 {
-	if (!str) return;
-	if (str->bad) return;
+	if (!str)
+		return;
+	if (str->bad)
+		return;
 
-	if (!s) return;
+	if (!s)
+		return;
 
 #if 0
 	for (;*s;s++)
@@ -268,12 +278,15 @@ static inline void aem_stringbuf_puts(struct aem_stringbuf *restrict str, const 
 
 static inline void aem_stringbuf_puts_limit(struct aem_stringbuf *restrict str, size_t len, const char *restrict s)
 {
-	if (!str) return;
+	if (!str)
+		return;
 
-	if (!s) return;
+	if (!s)
+		return;
 
 	//aem_stringbuf_reserve(len);
-	if (str->bad) return;
+	if (str->bad)
+		return;
 
 	for (; *s && str->n < len; s++) {
 		aem_stringbuf_putc(str, *s);
@@ -282,12 +295,15 @@ static inline void aem_stringbuf_puts_limit(struct aem_stringbuf *restrict str, 
 
 static inline void aem_stringbuf_putn(struct aem_stringbuf *restrict str, size_t n, const char *restrict s)
 {
-	if (!str) return;
+	if (!str)
+		return;
 
-	if (!s) return;
+	if (!s)
+		return;
 
 	aem_stringbuf_reserve(str, n);
-	if (str->bad) return;
+	if (str->bad)
+		return;
 
 	memcpy(aem_stringbuf_end(str), s, n);
 
@@ -296,13 +312,15 @@ static inline void aem_stringbuf_putn(struct aem_stringbuf *restrict str, size_t
 
 static inline void aem_stringbuf_append(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
 {
-	if (!str2) return;
+	if (!str2)
+		return;
 	aem_stringbuf_putn(str, str2->n, str2->s);
 }
 
 static inline void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
 {
-	if (!str2) return;
+	if (!str2)
+		return;
 	aem_stringbuf_putss_quote(str, aem_stringslice_new_str(str2));
 }
 

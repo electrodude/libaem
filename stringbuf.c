@@ -19,7 +19,8 @@ struct aem_stringbuf *aem_stringbuf_new_raw(void)
 {
 	struct aem_stringbuf *str = malloc(sizeof(*str));
 
-	if (!str) return NULL;
+	if (!str)
+		return NULL;
 
 	*str = AEM_STRINGBUF_EMPTY;
 
@@ -28,7 +29,8 @@ struct aem_stringbuf *aem_stringbuf_new_raw(void)
 
 struct aem_stringbuf *aem_stringbuf_init_prealloc(struct aem_stringbuf *str, size_t maxn)
 {
-	if (!str) return NULL;
+	if (!str)
+		return NULL;
 
 	str->n = 0;
 	str->maxn = maxn;
@@ -42,8 +44,10 @@ struct aem_stringbuf *aem_stringbuf_init_prealloc(struct aem_stringbuf *str, siz
 
 void aem_stringbuf_free(struct aem_stringbuf *str)
 {
-	if (!str) return;
-	if (str->bad) return;
+	if (!str)
+		return;
+	if (str->bad)
+		return;
 
 	aem_stringbuf_dtor(str);
 
@@ -69,11 +73,13 @@ static inline void aem_stringbuf_storage_free(struct aem_stringbuf *str)
 
 void aem_stringbuf_dtor(struct aem_stringbuf *str)
 {
-	if (!str) return;
+	if (!str)
+		return;
 
 	str->n = 0;
 
-	if (!str->s) return;
+	if (!str->s)
+		return;
 
 	aem_stringbuf_storage_free(str);
 
@@ -83,7 +89,8 @@ void aem_stringbuf_dtor(struct aem_stringbuf *str)
 
 char *aem_stringbuf_release(struct aem_stringbuf *str)
 {
-	if (!str) return NULL;
+	if (!str)
+		return NULL;
 
 	aem_stringbuf_shrinkwrap(str);
 
@@ -97,10 +104,12 @@ char *aem_stringbuf_release(struct aem_stringbuf *str)
 
 void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 {
-	if (str->bad) return;
+	if (str->bad)
+		return;
 
 	// if it's already big enough, don't do anything
-	if (str->maxn >= maxn_new) return;
+	if (str->maxn >= maxn_new)
+		return;
 
 	if (str->fixed) {
 		str->bad = 1;
@@ -154,7 +163,8 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 
 char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 {
-	if (!str) return NULL;
+	if (!str)
+		return NULL;
 
 #if AEM_STRINGBUF_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p\n", aem_stringbuf_get(str));
@@ -195,10 +205,13 @@ void aem_stringbuf_puthex(struct aem_stringbuf *str, unsigned char byte)
 
 void aem_stringbuf_vprintf(struct aem_stringbuf *restrict str, const char *restrict fmt, va_list argp)
 {
-	if (!str) return;
-	if (str->bad) return;
+	if (!str)
+		return;
+	if (str->bad)
+		return;
 
-	if (!fmt) return;
+	if (!fmt)
+		return;
 
 	va_list argp2;
 
@@ -225,8 +238,10 @@ void aem_stringbuf_printf(struct aem_stringbuf *restrict str, const char *restri
 
 void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 {
-	if (!str) return;
-	if (str->bad) return;
+	if (!str)
+		return;
+	if (str->bad)
+		return;
 
 	switch (c) {
 #define AEM_STRINGBUF_PUTQ_CASE(find, replace) \
@@ -252,8 +267,10 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 
 void aem_stringbuf_putss_quote(struct aem_stringbuf *restrict str, struct aem_stringslice slice)
 {
-	if (!str) return;
-	if (str->bad) return;
+	if (!str)
+		return;
+	if (str->bad)
+		return;
 
 #if AEM_STRINGBUF_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= quote(<slice>)\n", aem_stringbuf_get(str));
@@ -267,10 +284,13 @@ void aem_stringbuf_putss_quote(struct aem_stringbuf *restrict str, struct aem_st
 
 int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice)
 {
-	if (!str) return 1;
-	if (str->bad) return 1;
+	if (!str)
+		return 1;
+	if (str->bad)
+		return 1;
 
-	if (!slice) return 0;
+	if (!slice)
+		return 0;
 
 	while (aem_stringslice_ok(*slice)) {
 		int c = aem_stringslice_getc(slice);
@@ -278,7 +298,9 @@ int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_s
 		if (c == '\\') {
 			int c2 = aem_stringslice_getc(slice);
 
-			if (c2 < 0) c2 = '\\'; // if no character after the backslash, just output the backslash
+			// if no character after the backslash, just output the backslash
+			if (c2 < 0)
+				c2 = '\\';
 
 			switch (c2) {
 #define AEM_STRINGBUF_APPEND_UNQUOTE_CASE(find, replace) \
@@ -316,7 +338,8 @@ int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_s
 
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)
 {
-	if (!str) return;
+	if (!str)
+		return;
 
 	aem_stringbuf_reserve(str, len);
 
@@ -327,7 +350,8 @@ void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)
 
 int aem_stringbuf_index(struct aem_stringbuf *str, size_t i)
 {
-	if (!str) return -1;
+	if (!str)
+		return -1;
 
 	if (i >= str->n) {
 		return -1;
@@ -341,7 +365,8 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i)
 
 void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 {
-	if (!str) return;
+	if (!str)
+		return;
 
 	if (i + 1 > str->n) {
 		str->n = i + 1;
@@ -362,7 +387,8 @@ void aem_stringbuf_rtrim(struct aem_stringbuf *str) {
 
 size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 {
-	if (!str) return -1;
+	if (!str)
+		return -1;
 
 	aem_stringbuf_reserve(str, n);
 
@@ -377,7 +403,8 @@ size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 
 int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp)
 {
-	if (!str) return -1;
+	if (!str)
+		return -1;
 
 	ssize_t in;
 	do {
@@ -397,7 +424,8 @@ int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp)
 
 int aem_stringbuf_file_write(const struct aem_stringbuf *restrict str, FILE *fp)
 {
-	if (!str) return 1;
+	if (!str)
+		return 1;
 
 	struct aem_stringslice slice = aem_stringslice_new_str(str);
 
@@ -408,7 +436,8 @@ int aem_stringbuf_file_write(const struct aem_stringbuf *restrict str, FILE *fp)
 #ifdef __unix__
 ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 {
-	if (!str) return -1;
+	if (!str)
+		return -1;
 
 	aem_stringbuf_reserve(str, n);
 
@@ -425,7 +454,8 @@ ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 
 int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
 {
-	if (!str) return -1;
+	if (!str)
+		return -1;
 
 	ssize_t in;
 	do {
@@ -445,7 +475,8 @@ int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
 
 ssize_t aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd)
 {
-	if (!str) return 1;
+	if (!str)
+		return 1;
 
 	struct aem_stringslice slice = aem_stringslice_new_str(str);
 

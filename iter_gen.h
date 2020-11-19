@@ -56,7 +56,8 @@ static inline int aem_iter_gen_hit(struct aem_iter_gen *obj, struct aem_iter_gen
 
 static inline int aem_iter_gen_id(struct aem_iter_gen *obj, struct aem_iter_gen *master)
 {
-	if (obj->gen == master->gen) return -1;
+	if (obj->gen == master->gen)
+		return -1;
 
 	obj->gen = master->gen;
 

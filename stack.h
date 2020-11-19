@@ -126,23 +126,27 @@ void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const 
 /// Implementations of inline functions
 static inline void aem_stack_append(struct aem_stack *stk, struct aem_stack *stk2)
 {
-	if (!stk2) return;
+	if (!stk2)
+		return;
 
 	aem_stack_pushn(stk, stk2->n, stk2->s);
 }
 
 static inline void aem_stack_trunc(struct aem_stack *stk, size_t n)
 {
-	if (!stk) return;
+	if (!stk)
+		return;
 
-	if (stk->n < n) return;
+	if (stk->n < n)
+		return;
 
 	stk->n = n;
 }
 
 static inline void aem_stack_reset(struct aem_stack *stk)
 {
-	if (!stk) return;
+	if (!stk)
+		return;
 
 	stk->n = 0;
 }

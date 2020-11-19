@@ -83,7 +83,8 @@ void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 {
 	int id = aem_iter_gen_id(&obj->iter, &ctx->objects.iter);
 
-	if (id < 0) return;
+	if (id < 0)
+		return;
 
 	if (obj->vtbl->mark) {
 		obj->vtbl->mark(obj, ctx);

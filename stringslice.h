@@ -50,7 +50,8 @@ static inline size_t aem_stringslice_len(const struct aem_stringslice slice)
 // Get next byte from stringslice (-1 if end), advance to next byte
 static inline int aem_stringslice_getc(struct aem_stringslice *slice)
 {
-	if (!aem_stringslice_ok(*slice)) return -1;
+	if (!aem_stringslice_ok(*slice))
+		return -1;
 
 	return (unsigned char)*slice->start++;
 }
@@ -72,7 +73,8 @@ int aem_stringslice_get(struct aem_stringslice *slice);
 // Reads `count` bytes into `buf`.
 // If fewer than `count` bytes are available, does nothing and returns -1.
 static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void *buf, size_t count) {
-	if (aem_stringslice_len(*slice) < count) return -1;
+	if (aem_stringslice_len(*slice) < count)
+		return -1;
 
 	memcpy(buf, slice->start, count);
 	slice->start += count;

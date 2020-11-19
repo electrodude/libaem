@@ -8,7 +8,8 @@ struct aem_stack *aem_stack_alloc_raw(void)
 {
 	struct aem_stack *stk = malloc(sizeof(*stk));
 
-	if (!stk) return NULL;
+	if (!stk)
+		return NULL;
 
 	*stk = AEM_STACK_EMPTY;
 
@@ -17,7 +18,8 @@ struct aem_stack *aem_stack_alloc_raw(void)
 
 struct aem_stack *aem_stack_init_prealloc(struct aem_stack *stk, size_t maxn)
 {
-	if (!stk) return NULL;
+	if (!stk)
+		return NULL;
 
 	stk->n = 0;
 	stk->maxn = maxn;
@@ -28,7 +30,8 @@ struct aem_stack *aem_stack_init_prealloc(struct aem_stack *stk, size_t maxn)
 
 void aem_stack_free(struct aem_stack *stk)
 {
-	if (!stk) return;
+	if (!stk)
+		return;
 
 	aem_stack_dtor(stk);
 
@@ -37,13 +40,15 @@ void aem_stack_free(struct aem_stack *stk)
 
 void aem_stack_dtor(struct aem_stack *stk)
 {
-	if (!stk) return;
+	if (!stk)
+		return;
 
 	aem_stack_reset(stk);
 
 	stk->n = stk->maxn = 0;
 
-	if (!stk->s) return;
+	if (!stk->s)
+		return;
 
 	free(stk->s);
 
@@ -80,7 +85,8 @@ static inline void aem_stack_grow(struct aem_stack *stk, size_t maxn_new)
 
 void *aem_stack_shrinkwrap(struct aem_stack *stk)
 {
-	if (!stk) return NULL;
+	if (!stk)
+		return NULL;
 
 	aem_stack_grow(stk, stk->n);
 
@@ -89,14 +95,16 @@ void *aem_stack_shrinkwrap(struct aem_stack *stk)
 
 int aem_stack_reserve(struct aem_stack *stk, size_t len)
 {
-	if (!stk) return 0;
+	if (!stk)
+		return 0;
 
 	return aem_stack_reserve_total(stk, stk->n + len);
 }
 
 int aem_stack_reserve_total(struct aem_stack *stk, size_t maxn)
 {
-	if (!stk) return 0;
+	if (!stk)
+		return 0;
 
 	if (stk->maxn < maxn) {
 		aem_stack_grow(stk, maxn*2);
@@ -109,7 +117,8 @@ int aem_stack_reserve_total(struct aem_stack *stk, size_t maxn)
 
 void aem_stack_push(struct aem_stack *stk, void *s)
 {
-	if (!stk) return;
+	if (!stk)
+		return;
 
 #if AEM_STACK_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "push %p\n", s);
@@ -122,9 +131,11 @@ void aem_stack_push(struct aem_stack *stk, void *s)
 
 void aem_stack_pushn(struct aem_stack *restrict stk, size_t n, void **restrict s)
 {
-	if (!stk) return;
+	if (!stk)
+		return;
 
-	if (!s) return;
+	if (!s)
+		return;
 
 	aem_stack_reserve(stk, n);
 
@@ -149,10 +160,13 @@ void aem_stack_pushv(struct aem_stack *stk, size_t n, ...)
 
 size_t aem_stack_transfer(struct aem_stack *restrict dest, struct aem_stack *restrict src, size_t n)
 {
-	if (!dest) return 0;
-	if (!src) return 0;
+	if (!dest)
+		return 0;
+	if (!src)
+		return 0;
 
-	if (src->n < n) return 0;
+	if (src->n < n)
+		return 0;
 
 	size_t new_top = src->n - n;
 
@@ -164,7 +178,8 @@ size_t aem_stack_transfer(struct aem_stack *restrict dest, struct aem_stack *res
 
 void *aem_stack_pop(struct aem_stack *stk)
 {
-	if (!stk) return NULL;
+	if (!stk)
+		return NULL;
 
 	if (stk->n <= 0) {
 #if AEM_STACK_DEBUG
@@ -185,7 +200,8 @@ void *aem_stack_pop(struct aem_stack *stk)
 
 void *aem_stack_peek(struct aem_stack *stk)
 {
-	if (!stk) return NULL;
+	if (!stk)
+		return NULL;
 
 	if (stk->n <= 0) {
 #if AEM_STACK_DEBUG
@@ -204,7 +220,8 @@ void *aem_stack_peek(struct aem_stack *stk)
 
 void *aem_stack_index_end(struct aem_stack *stk, size_t i)
 {
-	if (!stk) return NULL;
+	if (!stk)
+		return NULL;
 
 	size_t i2 = stk->n - 1 - i;
 
@@ -225,7 +242,8 @@ void *aem_stack_index_end(struct aem_stack *stk, size_t i)
 
 void *aem_stack_index(struct aem_stack *stk, size_t i)
 {
-	if (!stk) return NULL;
+	if (!stk)
+		return NULL;
 
 	if (i >= stk->n) {
 		return NULL;
@@ -240,7 +258,8 @@ void *aem_stack_index(struct aem_stack *stk, size_t i)
 
 void **aem_stack_index_p(struct aem_stack *stk, size_t i)
 {
-	if (!stk) return NULL;
+	if (!stk)
+		return NULL;
 
 	while (stk->n < i+1) {
 		aem_stack_push(stk, NULL);
@@ -251,7 +270,8 @@ void **aem_stack_index_p(struct aem_stack *stk, size_t i)
 
 void aem_stack_assign(struct aem_stack *stk, size_t i, void *s)
 {
-	if (!stk) return;
+	if (!stk)
+		return;
 
 	void **p = aem_stack_index_p(stk, i);
 

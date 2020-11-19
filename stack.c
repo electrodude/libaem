@@ -87,20 +87,23 @@ void *aem_stack_shrinkwrap(struct aem_stack *stk)
 	return stk->s;
 }
 
-static void aem_stack_reserve2(struct aem_stack *stk, size_t n)
+int aem_stack_reserve(struct aem_stack *stk, size_t len)
 {
-	if (!stk) return;
+	if (!stk) return 0;
 
-	if (stk->maxn < n) {
-		aem_stack_grow(stk, n*2);
-	}
+	return aem_stack_reserve_total(stk, stk->n + len);
 }
 
-void aem_stack_reserve(struct aem_stack *stk, size_t len)
+int aem_stack_reserve_total(struct aem_stack *stk, size_t maxn)
 {
-	if (!stk) return;
+	if (!stk) return 0;
 
-	aem_stack_reserve2(stk, stk->n + len);
+	if (stk->maxn < maxn) {
+		aem_stack_grow(stk, maxn*2);
+		return 1;
+	}
+
+	return 0;
 }
 
 

@@ -101,7 +101,9 @@ static inline void aem_stringbuf_reset(struct aem_stringbuf *str)
 // Ensure that at least len bytes are allocated
 void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new);
 // Ensure that at least len + 1 bytes are available
-static inline void aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len);
+static inline int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len);
+// Ensure the total size of the buffer is at least len
+static inline int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t len);
 
 // Return the number of available allocated bytes
 static inline int aem_stringbuf_available(struct aem_stringbuf *str)
@@ -212,13 +214,25 @@ static inline struct aem_stringslice aem_stringslice_new_str(const struct aem_st
 	return aem_stringslice_new_len(str->s, str->n);
 }
 
-static inline void aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
+static inline int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
 {
-	size_t n = str->n + len;
+	if (!str) return 0;
+
 	// make room for new stuff and null terminator
-	if (str->maxn < n + 1) {
-		aem_stringbuf_grow(str, (n + 1)*2);
+	return aem_stringbuf_reserve_total(str, str->n + len + 1);
+}
+
+static inline int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t len)
+{
+	if (!str) return 0;
+
+	len++; // Add null terminator
+	if (str->maxn < len) {
+		aem_stringbuf_grow(str, len*2);
+		return 1;
 	}
+
+	return 0;
 }
 
 static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c)

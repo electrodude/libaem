@@ -58,8 +58,10 @@ void **aem_stack_release(struct aem_stack *stk, size_t *n);
 // realloc() internal buffer to be as small as possible
 void *aem_stack_shrinkwrap(struct aem_stack *stk);
 
-// Ensure there is space allocated for at least maxn elements
-void aem_stack_reserve(struct aem_stack *stk, size_t maxn);
+// Ensure there is space allocated for at least len more elements
+int aem_stack_reserve(struct aem_stack *stk, size_t len);
+// Ensure there is space allocated for a total of at least maxn elements
+int aem_stack_reserve_total(struct aem_stack *stk, size_t maxn);
 
 // Push an element onto the top of the stack
 void aem_stack_push(struct aem_stack *stk, void *s);
@@ -104,9 +106,17 @@ void aem_stack_assign(struct aem_stack *stk, size_t i, void *s);
 // Increase the size of the stack if necessary
 size_t aem_stack_assign_empty(struct aem_stack *stk, void *s);
 
+// Set the i-th element to NULL, and then remove any NULL elements at the end
+// of the stack.
+// Returns a pointer to the removed element.
 void *aem_stack_remove(struct aem_stack *stk, size_t i);
 
+// Inserts an element at position i.
+// Returns zero on success or non-zero if the position was invalid.
 int aem_stack_insert(struct aem_stack *stk, size_t i, void *p);
+
+// Inserts an element at the i-th position from the end.
+// Returns zero on success or non-zero if the position was invalid.
 int aem_stack_insert_end(struct aem_stack *stk, size_t i, void *p);
 
 // qsort a stack

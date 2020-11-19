@@ -12,8 +12,8 @@ int main(int argc, char **argv)
 {
 	int rc = 0;
 
-	aem_log_fp = stderr;
-	aem_log_level_curr = AEM_LOG_INFO;
+	aem_log_stderr();
+	aem_log_module_default.loglevel = AEM_LOG_DEBUG;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test start\n");
 

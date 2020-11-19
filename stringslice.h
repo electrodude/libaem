@@ -87,6 +87,10 @@ static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void 
 
 int aem_stringslice_match_ws(struct aem_stringslice *slice);
 
+// Consume a CR, CRLF, or LF at the current position.
+// Returns 1 for LF, 2 for CR, 3 for CRLF, or 0 on failure
+int aem_stringslice_match_newline(struct aem_stringslice *slice);
+
 struct aem_stringslice aem_stringslice_match_alnum(struct aem_stringslice *slice);
 struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice);
 struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice);

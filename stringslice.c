@@ -66,6 +66,25 @@ int aem_stringslice_match_ws(struct aem_stringslice *slice)
 	return matched;
 }
 
+int aem_stringslice_match_newline(struct aem_stringslice *slice)
+{
+	if (!slice) return 0;
+
+	int matched = 0;
+
+	if (aem_stringslice_ok(*slice) && *slice->start == '\r') {
+		slice->start++;
+		matched |= 2;
+	}
+
+	if (aem_stringslice_ok(*slice) && *slice->start == '\n') {
+		slice->start++;
+		matched |= 1;
+	}
+
+	return matched;
+}
+
 struct aem_stringslice aem_stringslice_match_alnum(struct aem_stringslice *slice)
 {
 	if (!slice) return AEM_STRINGSLICE_EMPTY;

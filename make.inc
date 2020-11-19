@@ -1,11 +1,10 @@
 # Include this in your main Makefile, e.g.
 #include aem/make.inc
 
-CFLAGS+=-std=c99 -Wall -Wextra
+# Must end with "aem"
+LIBAEM_DIR?=aem
 
-CFLAGS+=-I.
-
-LIBAEM_DIR=aem
+CFLAGS+=-I$(dir $(LIBAEM_DIR))
 
 LIBS+=$(LIBAEM_DIR)/libaem.a
 

@@ -33,7 +33,7 @@ DEPDIR=.deps
 DEPFLAGS=-MD -MP -MF ${DEPDIR}/$*.d
 
 TESTS=test_test \
-      test_test_utf8 \
+      test_utf8 \
       test_test_childproc \
       test_server \
       test_client

@@ -7,35 +7,38 @@ int aem_stringbuf_put(struct aem_stringbuf *str, unsigned int c)
 {
 	if (c < 0x80) {
 		aem_stringbuf_putc(str, c);
+		goto put0;
 	} else if (c < 0x800) {
 		aem_stringbuf_putc(str, 0xc0 | ((c >>  6) & 0x1f));
-		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		goto put1;
 	} else if (c < 0x10000) {
 		aem_stringbuf_putc(str, 0xe0 | ((c >> 12) & 0x0f));
-		aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		goto put2;
 	} else if (c < 0x200000) {
 		aem_stringbuf_putc(str, 0xf0 | ((c >> 18) & 0x07));
-		aem_stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		goto put3;
 	} else if (c < 0x4000000) {
 		aem_stringbuf_putc(str, 0xf8 | ((c >> 24) & 0x03));
-		aem_stringbuf_putc(str, 0x80 | ((c >> 18) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		goto put4;
 	} else if (c < 0x80000000) {
 		aem_stringbuf_putc(str, 0xfc | ((c >> 30) & 0x01));
-		aem_stringbuf_putc(str, 0x80 | ((c >> 24) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >> 18) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
-		aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+		goto put5;
 	}
 	else {
 		return -1;
 	}
+
+put5:
+	aem_stringbuf_putc(str, 0x80 | ((c >> 24) & 0x3f));
+put4:
+	aem_stringbuf_putc(str, 0x80 | ((c >> 18) & 0x3f));
+put3:
+	aem_stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
+put2:
+	aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
+put1:
+	aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
+put0:
 
 	return 0;
 }

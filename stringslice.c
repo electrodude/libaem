@@ -171,6 +171,20 @@ int aem_stringslice_eq(struct aem_stringslice slice, const char *s)
 	return !aem_stringslice_ok(slice) && *s == '\0'; // Ensure both are finished.
 }
 
+int aem_stringslice_eq_case(struct aem_stringslice slice, const char *s)
+{
+	if (!s)
+		return 1;
+
+	// TODO: What is strncasecmp?
+	while (aem_stringslice_ok(slice) && *s != '\0') { // While neither are finished
+		if (tolower(*slice.start++) != tolower(*s++)) // Unequal characters => no match
+			return 0;
+	}
+
+	return !aem_stringslice_ok(slice) && *s == '\0'; // Ensure both are finished.
+}
+
 int aem_stringslice_cmp(struct aem_stringslice s0, struct aem_stringslice s1) {
 	size_t l0 = aem_stringslice_len(s0);
 	size_t l1 = aem_stringslice_len(s1);

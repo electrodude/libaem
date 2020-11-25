@@ -99,7 +99,10 @@ struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice)
 
 int aem_stringslice_match(struct aem_stringslice *slice, const char *s);
 
+// Test whether a stringslice exactly matches the given C-string
 int aem_stringslice_eq(struct aem_stringslice slice, const char *s);
+// Case-insensitive version of the above
+int aem_stringslice_eq_case(struct aem_stringslice slice, const char *s);
 
 int aem_stringslice_cmp(struct aem_stringslice s0, struct aem_stringslice s1);
 

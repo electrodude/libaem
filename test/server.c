@@ -1,5 +1,6 @@
 #define _DEFAULT_SOURCE
 #include <errno.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -31,8 +32,6 @@ static int consume_line(struct aem_stream_sink_lines *sink, struct aem_stringsli
 	aem_stringbuf_puts(&out, "\n");
 	aem_logf_ctx(AEM_LOG_INFO, "%s", aem_stringbuf_get(&out));
 
-	aem_logf_ctx(AEM_LOG_INFO, "EOF\n");
-
 	struct aem_stringbuf *buf = aem_stream_source_getbuf(&conn->source);
 
 	if (!buf) {
@@ -46,6 +45,7 @@ static int consume_line(struct aem_stream_sink_lines *sink, struct aem_stringsli
 	aem_stringbuf_append(buf, &out);
 	if (flags & AEM_STREAM_FIN) {
 		conn->source.stream->flags |= AEM_STREAM_FIN;
+		aem_logf_ctx(AEM_LOG_INFO, "EOF\n");
 		aem_stringbuf_puts(buf, "EOF\n");
 	}
 
@@ -89,9 +89,11 @@ static int conn_provide(struct aem_stream_source *source, int flags)
 {
 	struct server_connection *conn = aem_container_of(source, struct server_connection, source);
 
+	// Move data along.
 	if (source->stream)
 		aem_stream_consume(source->stream);
 
+	// Propagate FIN or something.  Is this actually necessary?  If so, can it be somewhere else?
 	if (flags & AEM_STREAM_FIN) {
 		if (source->stream)
 			source->stream->flags |= AEM_STREAM_FIN;

@@ -298,12 +298,6 @@ again:;
 			evt->events |= POLLOUT;
 		}
 		aem_poll_mod(sock->poller, &sock->evt);
-	} else if (nread == 0) {
-		aem_logf_ctx(AEM_LOG_BUG, "send(%d) returned 0?\n", evt->fd);
-		evt->events &= ~POLLOUT;
-		aem_poll_mod(sock->poller, &sock->evt);
-		aem_stream_sink_detach(sink, AEM_STREAM_FIN);
-		return 1;
 	} else {
 		switch (errno) {
 			case EAGAIN:

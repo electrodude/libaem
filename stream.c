@@ -157,8 +157,7 @@ void aem_stream_sink_detach(struct aem_stream_sink *sink, int flags)
 
 		stream->flags |= flags;
 
-		if (stream->source)
-			aem_stream_provide(stream);
+		// We don't call aem_stream_consume or aem_stream_provide here in case we're already being called by consume() or provide().
 
 		stream->sink = NULL;
 		sink->stream = NULL;

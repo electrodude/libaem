@@ -41,7 +41,7 @@ int aem_stream_sink_lines_consume(struct aem_stream_sink *sink, struct aem_strin
 			aem_assert(lines->consume_line);
 			lines->consume_line(lines, line, flags_line);
 		} else {
-			aem_stringslice_get(&p);
+			aem_stringslice_getc(&p);
 		}
 	}
 

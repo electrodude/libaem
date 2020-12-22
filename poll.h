@@ -28,12 +28,19 @@ struct aem_poll_event {
 	 * resulting in `evt->revents` being completely cleared by the time it
 	 * returns.
 	 *
+	 * If the POLLHUP event is active, the callback must deregister the
+	 * event.  The event loop can't tell the difference between the
+	 * callback forgetting to deregister the event and the callback validly
+	 * closing and opening a new fd with the same number and reusing the
+	 * same event for it - this is a defect.
+	 *
 	 * Make this event struct a member of your own parent struct with
 	 * context, and use `aem_container_of` to find the parent object.
 	 *
 	 * This callback *must not* free the memory containing `evt` while
 	 * `aem_poll_poll(p)` is active.  Use <aem/pmcrcu.h> or a real RCU
-	 * implementation to free objects outside of `aem_poll_poll`.
+	 * implementation to ensure object freeing is postponed to occur
+	 * outside of `aem_poll_poll`.
 	 */
 	void (*on_event)(struct aem_poll *p, struct aem_poll_event *evt);
 	ssize_t i;
@@ -72,7 +79,9 @@ void aem_poll_mod(struct aem_poll *p, struct aem_poll_event *evt);
 
 struct pollfd *aem_poll_get_pollfd(struct aem_poll *p, struct aem_poll_event *evt);
 
+// Call poll(2) and process resulting events
 int aem_poll_poll(struct aem_poll *p);
-//struct aem_poll_event *aem_poll_next(struct aem_poll *p);
+// Send an artificial HUP to each event handler
+void aem_poll_hup_all(struct aem_poll *p);
 
 #endif /* AEM_POLL_H */

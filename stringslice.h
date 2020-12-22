@@ -89,13 +89,40 @@ static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void 
 
 int aem_stringslice_match_ws(struct aem_stringslice *slice);
 
+static inline int aem_stringslice_match_bom(struct aem_stringslice *slice)
+{
+	struct aem_stringslice p = *slice;
+	int c = aem_stringslice_get(&p);
+	if (c == 0xFEFF) {
+		*slice = p;
+		return 1;
+	}
+
+	return 0;
+}
+
 // Consume a CR, CRLF, or LF at the current position.
 // Returns 1 for LF, 2 for CR, 3 for CRLF, or 0 on failure
 int aem_stringslice_match_newline(struct aem_stringslice *slice);
 
 struct aem_stringslice aem_stringslice_match_alnum(struct aem_stringslice *slice);
 struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice);
+
+// Match a line, even if it's missing its line terminator.
 struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice);
+
+// Match a line, but fail if it has no line terminator unless finish is non-zero.
+//
+// This function is intended to be used when the input stringslice might not
+// contain all data yet - it can be called again whenever more data becomes
+// available, and it will only return a line and modify the input stringslice
+// when a complete line is available (unless finish is set).
+//
+// The `state` input should be initialized to zero and preserved across calls.
+// It is currently only used to ensure CRLF line terminators are treated as
+// only a single newline even when they're split across multiple partial
+// buffers fed to consecutive calls to this function.
+struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *slice, int *state, int finish);
 
 int aem_stringslice_match(struct aem_stringslice *slice, const char *s);
 

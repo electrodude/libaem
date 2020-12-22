@@ -27,20 +27,27 @@ struct aem_net_sock *aem_net_sock_init(struct aem_net_sock *sock)
 	aem_poll_event_init(&sock->evt);
 	sock->poller = NULL;
 
+	sock->rd_open = 0;
+	sock->wr_open = 0;
+
 	return sock;
 }
 
 void aem_net_sock_dtor(struct aem_net_sock *sock)
 {
 	aem_net_sock_stop(sock);
+
+	sock->poller = NULL;
 }
 
 void aem_net_sock_stop(struct aem_net_sock *sock)
 {
 	aem_assert(sock);
 
-	if (sock->poller)
+	if (sock->evt.i >= 0) {
+		aem_assert(sock->poller);
 		aem_poll_del(sock->poller, &sock->evt);
+	}
 
 	struct aem_poll_event *evt = &sock->evt;
 
@@ -51,8 +58,20 @@ void aem_net_sock_stop(struct aem_net_sock *sock)
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p: close(%d)\n", sock, evt->fd);
 
-	if (shutdown(evt->fd, SHUT_RDWR) < 0)
-		aem_logf_ctx(AEM_LOG_BUG, "shutdown(%d, SHUT_RDWR): %s\n", evt->fd, strerror(errno));
+	if (sock->rd_open || sock->wr_open) {
+		if (sock->rd_open && sock->wr_open) {
+			if (shutdown(evt->fd, SHUT_RDWR) < 0)
+				aem_logf_ctx(AEM_LOG_BUG, "shutdown(%d, SHUT_RDWR): %s\n", evt->fd, strerror(errno));
+		} else if (sock->rd_open) {
+			if (shutdown(evt->fd, SHUT_RD) < 0)
+				aem_logf_ctx(AEM_LOG_BUG, "shutdown(%d, SHUT_RD): %s\n", evt->fd, strerror(errno));
+		} else if (sock->wr_open) {
+			if (shutdown(evt->fd, SHUT_WR) < 0)
+				aem_logf_ctx(AEM_LOG_BUG, "shutdown(%d, SHUT_WR): %s\n", evt->fd, strerror(errno));
+		}
+	}
+	sock->rd_open = 0;
+	sock->wr_open = 0;
 
 	if (close(evt->fd) < 0)
 		aem_logf_ctx(AEM_LOG_BUG, "close(%d): %s\n", evt->fd, strerror(errno));
@@ -96,11 +115,14 @@ int aem_net_socket(struct aem_net_sock *sock, struct addrinfo *ai)
 
 	evt->fd = fd;
 
+	sock->rd_open = 1;
+	sock->wr_open = 1;
+
 	return 0;
 
 fail:
 	if (close(fd) < 0)
-		aem_logf_ctx(AEM_LOG_NYI, "close(%d): %s\n", evt->fd, strerror(errno));
+		aem_logf_ctx(AEM_LOG_BUG, "close(%d): %s\n", evt->fd, strerror(errno));
 fail_noclose:
 	return -1;
 }
@@ -167,7 +189,7 @@ int aem_net_sock_inet(struct aem_net_sock *sock, const char *node, const char *s
 fail:
 #if 0
 	if (close(evt->fd) < 0)
-		aem_logf_ctx(AEM_LOG_NYI, "close(%d): %s\n", evt->fd, strerror(errno));
+		aem_logf_ctx(AEM_LOG_BUG, "close(%d): %s\n", evt->fd, strerror(errno));
 	evt->fd = -1;
 #endif
 fail_noclose:
@@ -229,104 +251,163 @@ static int aem_net_on_rx(struct aem_stream_source *source, int flags)
 	struct aem_stream *stream = source->stream;
 	aem_assert(stream);
 
-	struct aem_stringbuf *out = &stream->buf;
-
-	// Make sure we have room in the buffer
-	aem_stringbuf_reserve(out, 4096);
-again:;
-	ssize_t nread = recv(evt->fd, aem_stringbuf_end(out), aem_stringbuf_available(out), MSG_DONTWAIT);
-
-	if (nread > 0) {
-		out->n += nread;
-		// TODO: if (nread == reserved), reserve more next time.
-		aem_logf_ctx(AEM_LOG_DEBUG, "recv(%d): got %zd bytes\n", evt->fd, nread);
-	} else if (nread == 0) {
-		aem_logf_ctx(AEM_LOG_DEBUG, "recv(%d): EOF\n", evt->fd);
+	if (!sock->rd_open) {
+		aem_assert(flags & AEM_STREAM_FIN);
 		evt->events &= ~POLLIN;
 		aem_poll_mod(sock->poller, &sock->evt);
 		aem_stream_source_detach(source, AEM_STREAM_FIN);
 		return 1;
+	}
+
+again:;
+	struct aem_stringbuf *out = aem_stream_provide_begin(source);
+	if (!out) {
+		// This probably can't really ever happen.
+		flags |= AEM_STREAM_FIN;
+		goto done;
+	}
+
+	if (out->n > 65536) {
+		aem_logf_ctx(AEM_LOG_WARN, "Waiting: buffer has %zd bytes\n", out->n);
+		aem_stream_provide_end(source);
+		goto done;
+	}
+
+	// Make sure we have room in the buffer
+	aem_stringbuf_reserve(out, 4096);
+	ssize_t nread = recv(evt->fd, aem_stringbuf_end(out), aem_stringbuf_available(out), MSG_DONTWAIT);
+	if (nread > 0)
+		out->n += nread;
+	aem_stream_provide_end(source);
+
+	if (nread > 0) {
+		// TODO: if (nread == reserved), reserve more next time.
+		aem_logf_ctx(AEM_LOG_DEBUG, "recv(%d): got %zd bytes\n", evt->fd, nread);
+	} else if (nread == 0) {
+		aem_logf_ctx(AEM_LOG_DEBUG, "recv(%d): EOF\n", evt->fd);
+		flags |= AEM_STREAM_FIN;
+		goto done;
 	} else {
 		switch (errno) {
 			case EAGAIN:
-				return 0;
+				goto done;
 			case EINTR:
 				goto again;
 			default:
-				aem_logf_ctx(AEM_LOG_ERROR, "recv(%d): %s\n", evt->fd, strerror(errno));
+				aem_logf_ctx(AEM_LOG_ERROR, "recv(%d): unexpected error: %s\n", evt->fd, strerror(errno));
 				break;
 		}
 		evt->events &= ~POLLIN;
 		aem_poll_mod(sock->poller, &sock->evt);
 	}
 
-	if (stream && (stream->flags & AEM_STREAM_FIN)) {
-		if (shutdown(evt->fd, SHUT_RD) < 0) {
-			aem_logf_ctx(AEM_LOG_NYI, "shutdown(%d, SHUT_RD): %s\n", evt->fd, strerror(errno));
+done:
+	if (flags & AEM_STREAM_FIN) {
+		if (sock->rd_open) {
+			if (shutdown(evt->fd, SHUT_RD) < 0) {
+				aem_logf_ctx(AEM_LOG_BUG, "shutdown(%d, SHUT_RD): %s\n", evt->fd, strerror(errno));
+			}
+			sock->rd_open = 0;
 		}
+		evt->events &= ~POLLIN;
+		aem_poll_mod(sock->poller, &sock->evt);
+		aem_stream_source_detach(source, AEM_STREAM_FIN);
 	}
 
-	aem_stream_consume(stream);
+	aem_stream_consume(stream, flags);
 
 	return 0;
 }
-static int aem_net_on_tx(struct aem_stream_sink *sink, struct aem_stringslice *in, int flags)
+static int aem_net_on_tx(struct aem_stream_sink *sink, int flags)
 {
 	aem_assert(sink);
-	aem_assert(in);
 
 	struct aem_net_conn *conn = aem_container_of(sink, struct aem_net_conn, tx);
 	struct aem_net_sock *sock = &conn->sock;
 	struct aem_poll_event *evt = &sock->evt;
 
-	if (!aem_stringslice_len(*in)) {
+	if (!sock->wr_open) {
+		aem_assert(flags & AEM_STREAM_FIN);
 		evt->events &= ~POLLOUT;
 		aem_poll_mod(sock->poller, &sock->evt);
+		aem_stream_sink_detach(sink, AEM_STREAM_FIN);
+		return 1;
+	}
+
+	struct aem_stringslice in = aem_stream_consume_begin(sink);
+
+	if (!aem_stringslice_ok(in)) {
+		evt->events &= ~POLLOUT;
+		aem_poll_mod(sock->poller, &sock->evt);
+	}
+
+	if (!in.start) {
+		// We don't need to call aem_stream_consume_end, since _begin failed.
 		return 0;
 	}
 
+	if (aem_stringslice_ok(in)) {
 again:;
-	ssize_t nread = send(evt->fd, in->start, aem_stringslice_len(*in), MSG_DONTWAIT | MSG_NOSIGNAL);
+		ssize_t nread = send(evt->fd, in.start, aem_stringslice_len(in), MSG_DONTWAIT | MSG_NOSIGNAL);
+		if (nread > 0)
+			in.start += nread;
+		aem_stream_consume_end(sink, in);
 
-	if (nread > 0) {
-		in->start += nread;
-		aem_logf_ctx(AEM_LOG_DEBUG, "send(%d) sent %zd bytes; %zd remain\n", evt->fd, nread, aem_stringslice_len(*in));
-		// Only request POLLOUT if we still have more to send.
-		if (aem_stringslice_ok(*in)) {
-			evt->events &= ~POLLOUT;
-		} else {
-			evt->events |= POLLOUT;
-		}
-		aem_poll_mod(sock->poller, &sock->evt);
-	} else {
-		switch (errno) {
-			case EAGAIN:
-				// TODO: Don't shutdown() until all data is sent
+		if (nread > 0) {
+			aem_logf_ctx(AEM_LOG_DEBUG, "send(%d) sent %zd bytes; %zd remain\n", evt->fd, nread, aem_stringslice_len(in));
+			// Only request POLLOUT if we still have more to send.
+			if (aem_stringslice_ok(in)) {
 				evt->events |= POLLOUT;
-				aem_poll_mod(sock->poller, &sock->evt);
-				goto done;
-			case EINTR:
-				goto again;
-			case EPIPE:
-				aem_logf_ctx(AEM_LOG_DEBUG, "fd %d: remote closed write end of connection\n", evt->fd);
-				evt->events &= ~POLLOUT;
-				aem_poll_mod(sock->poller, &sock->evt);
-				aem_stream_sink_detach(sink, AEM_STREAM_FIN);
-				goto done;
-			default:
-				aem_logf_ctx(AEM_LOG_ERROR, "send(%d): %s\n", evt->fd, strerror(errno));
-				// TODO: If we get lots of errors, cancel POLLOUT;
-				break;
+			}
+			// Don't clear POLLOUT yet in case we sent the whole
+			// buffer but more stuff would have been put in the
+			// buffer if it hadn't already been too full.
+			aem_poll_mod(sock->poller, &sock->evt);
+		} else {
+			switch (errno) {
+				case EAGAIN:
+					// TODO: Don't shutdown() until all data is sent
+					evt->events |= POLLOUT;
+					aem_poll_mod(sock->poller, &sock->evt);
+					goto done;
+				case EINTR:
+					goto again;
+				case EPIPE:
+				case ECONNRESET:
+					aem_logf_ctx(AEM_LOG_DEBUG, "fd %d: remote closed write end of connection: %s\n", evt->fd, strerror(errno));
+					sock->wr_open = 0;
+					evt->events &= ~POLLOUT;
+					aem_poll_mod(sock->poller, &sock->evt);
+					aem_stream_sink_detach(sink, AEM_STREAM_FIN);
+					goto done;
+				default:
+					aem_logf_ctx(AEM_LOG_ERROR, "send(%d): unexpected error: %s\n", evt->fd, strerror(errno));
+					// TODO: If we get lots of errors, cancel POLLOUT;
+					break;
+			}
 		}
+	} else {
+		aem_stream_consume_end(sink, in);
+		evt->events &= ~POLLOUT;
+		aem_poll_mod(sock->poller, &sock->evt);
+		goto done;
 	}
+
 done:
+
 	if (flags & AEM_STREAM_FIN) {
-		if (aem_stringslice_ok(*in)) {
-			aem_logf_ctx(AEM_LOG_WARN, "Destroying socket with %zd bytes still unsent!\n", aem_stringslice_len(*in));
+		if (aem_stringslice_ok(in)) {
+			aem_logf_ctx(AEM_LOG_WARN, "Destroying socket with %zd bytes still unsent!\n", aem_stringslice_len(in));
 		}
-		if (shutdown(evt->fd, SHUT_WR) < 0) {
-			aem_logf_ctx(AEM_LOG_NYI, "shutdown(%d, SHUT_WR): %s\n", evt->fd, strerror(errno));
+		if (sock->wr_open) {
+			if (shutdown(evt->fd, SHUT_WR) < 0) {
+				aem_logf_ctx(AEM_LOG_BUG, "shutdown(%d, SHUT_WR): %s\n", evt->fd, strerror(errno));
+			}
+			sock->wr_open = 0;
 		}
+		evt->events &= ~POLLOUT;
+		aem_poll_mod(sock->poller, &sock->evt);
+		aem_stream_sink_detach(sink, AEM_STREAM_FIN);
 	}
 
 	return 0;
@@ -339,25 +420,13 @@ static void aem_net_on_conn(struct aem_poll *p, struct aem_poll_event *evt)
 	struct aem_net_sock *sock = aem_container_of(evt, struct aem_net_sock, evt);
 	struct aem_net_conn *conn = aem_container_of(sock, struct aem_net_conn, sock);
 
+	int do_rx = 0;
+	int do_tx = 0;
 	if (aem_poll_event_check(evt, POLLIN)) {
-		if (conn->rx.stream) {
-			aem_stream_provide(conn->rx.stream);
-		} else {
-			aem_logf_ctx(AEM_LOG_DEBUG, "Removing POLLIN from fd %d due to disconnected stream\n", evt->fd);
-			evt->events &= ~POLLIN;
-			aem_poll_mod(sock->poller, &sock->evt);
-		}
+		do_rx = 1;
 	}
 	if (aem_poll_event_check(evt, POLLOUT)) {
-		if (conn->tx.stream) {
-			aem_stream_provide(conn->tx.stream);
-			// TODO: If there's nothing left to write, unregister for POLLOUT
-			aem_assert(!conn->tx.stream || (conn->tx.stream->buf.n || !(conn->sock.evt.events & POLLOUT)));
-		} else {
-			aem_logf_ctx(AEM_LOG_DEBUG, "Removing POLLOUT from fd %d due to disconnected stream\n", evt->fd);
-			evt->events &= ~POLLOUT;
-			aem_poll_mod(sock->poller, &sock->evt);
-		}
+		do_tx = 1;
 	}
 #ifdef HAVE_POLLRDHUP
 	if (aem_poll_event_check(evt, POLLRDHUP)) {
@@ -365,28 +434,47 @@ static void aem_net_on_conn(struct aem_poll *p, struct aem_poll_event *evt)
 		evt->events &= ~POLLIN;
 		evt->events &= ~POLLRDHUP;
 		aem_poll_mod(sock->poller, &sock->evt);
-		aem_stream_source_detach(&conn->rx, AEM_STREAM_FIN);
+		if (aem_stream_add_flags(conn->rx.stream, AEM_STREAM_FIN))
+			aem_logf_ctx(AEM_LOG_WARN, "fd %d has no rx stream\n", evt->fd);
+		sock->rd_open = 0;
+		do_rx = 1;
 	}
 #endif
 	if (aem_poll_event_check(evt, POLLHUP)) {
-		aem_logf_ctx(AEM_LOG_INFO, "fd %d has POLLHUP; closing\n", evt->fd);
-		aem_assert(conn->free);
-		conn->free(conn);
-	} else if (!(evt->events & (POLLIN | POLLOUT)) && !conn->rx.stream && !conn->tx.stream) {
-		// TODO: Only do this if *both sides are actually closed*
-		// TODO: This is wrong.  Just because we're closed for reading
-		// and we don't currently have anything to write doesn't mean
-		// the connection should be closed.
-		aem_logf_ctx(AEM_LOG_INFO, "fd %d has neither POLLIN nor POLLOUT; closing\n", evt->fd);
-		aem_assert(conn->free);
-		conn->free(conn);
+		aem_logf_ctx(AEM_LOG_DEBUG, "fd %d closed\n", evt->fd);
+		aem_poll_event_check(evt, POLLERR); // Eat any POLLERR
+		if (aem_stream_add_flags(conn->rx.stream, AEM_STREAM_FIN))
+			aem_logf_ctx(AEM_LOG_WARN, "fd %d has no rx stream; rd_open = %d\n", evt->fd, sock->rd_open);
+		if (aem_stream_add_flags(conn->tx.stream, AEM_STREAM_FIN))
+			aem_logf_ctx(AEM_LOG_WARN, "fd %d has no tx stream; wr_open = %d\n", evt->fd, sock->wr_open);
+		sock->rd_open = 0;
+		sock->wr_open = 0;
+		do_rx = 1;
+		do_tx = 1;
+	}
+	if (do_rx) {
+		if (conn->rx.stream) {
+			aem_stream_provide(conn->rx.stream, 0);
+		} else {
+			aem_logf_ctx(AEM_LOG_WARN, "Removing POLLIN from fd %d due to disconnected stream\n", evt->fd);
+			evt->events &= ~POLLIN;
+			aem_poll_mod(sock->poller, &sock->evt);
+		}
+	}
+	if (do_tx) {
+		if (conn->tx.stream) {
+			aem_stream_provide(conn->tx.stream, 0);
+		} else {
+			aem_logf_ctx(AEM_LOG_WARN, "Removing POLLOUT from fd %d due to disconnected stream\n", evt->fd);
+			evt->events &= ~POLLOUT;
+			aem_poll_mod(sock->poller, &sock->evt);
+		}
 	}
 }
 
 struct aem_net_conn *aem_net_conn_init(struct aem_net_conn *conn)
 {
 	aem_assert(conn);
-	aem_assert(conn->free);
 
 	aem_net_sock_init(&conn->sock);
 
@@ -401,6 +489,9 @@ struct aem_net_conn *aem_net_conn_init(struct aem_net_conn *conn)
 	evt->events |= POLLRDHUP;
 #endif
 	evt->on_event = aem_net_on_conn;
+
+	conn->sock.rd_open = 1;
+	conn->sock.wr_open = 1;
 
 	return conn;
 }
@@ -543,10 +634,10 @@ static void aem_net_on_accept(struct aem_poll *p, struct aem_poll_event *evt)
 			struct aem_net_conn *conn = server->conn_new(server, (struct sockaddr*)&addr, len);
 			if (!conn) {
 				if (shutdown(fd, SHUT_RDWR) < 0)
-					aem_logf_ctx(AEM_LOG_NYI, "shutdown(%d (rejected by server), SHUT_RDWR): %s\n", fd, strerror(errno));
+					aem_logf_ctx(AEM_LOG_BUG, "shutdown(%d (rejected by server callback), SHUT_RDWR): %s\n", fd, strerror(errno));
 
 				if (close(fd) < 0)
-					aem_logf_ctx(AEM_LOG_NYI, "close(%d (rejected by server)): %s\n", fd, strerror(errno));
+					aem_logf_ctx(AEM_LOG_BUG, "close(%d (rejected by server callback)): %s\n", fd, strerror(errno));
 
 				continue;
 			}
@@ -562,9 +653,15 @@ static void aem_net_on_accept(struct aem_poll *p, struct aem_poll_event *evt)
 			if (!conn->rx.stream)
 				aem_logf_ctx(AEM_LOG_WARN, "Probable bug: connection with no rx callback\n");
 
-			aem_stream_provide(conn->tx.stream);
+			aem_stream_provide(conn->tx.stream, 0);
 		} while (1);
 		done:;
+	}
+	if (aem_poll_event_check(evt, POLLHUP)) {
+		aem_net_sock_stop(sock);
+	}
+	if (aem_poll_event_check(evt, POLLERR)) {
+		aem_logf_ctx(AEM_LOG_ERROR, "fd %d: POLLERR\n", evt->fd);
 	}
 }
 

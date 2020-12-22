@@ -16,6 +16,18 @@ struct aem_poll_event *aem_poll_event_init(struct aem_poll_event *evt)
 	return evt;
 }
 
+static void aem_poll_event_verify(struct aem_poll *p, size_t i)
+{
+	struct pollfd *pollfd = &p->fds[i];
+	struct aem_poll_event *evt = p->evts[i];
+	aem_assert(evt);
+	aem_assert(evt->i >= 0);
+	aem_assert((size_t)evt->i == i);
+	aem_assert(evt->fd >= 0);
+	aem_assert(pollfd->fd == evt->fd);
+	aem_assert(pollfd->events == evt->events);
+}
+
 void aem_poll_init(struct aem_poll *p)
 {
 	aem_assert(p);
@@ -28,6 +40,9 @@ void aem_poll_init(struct aem_poll *p)
 void aem_poll_dtor(struct aem_poll *p)
 {
 	aem_assert(p);
+
+	//aem_poll_hup_all(p);
+
 	p->maxn = 0;
 	if (p->fds)
 		free(p->fds);
@@ -35,10 +50,17 @@ void aem_poll_dtor(struct aem_poll *p)
 		free(p->evts);
 }
 
-static void aem_poll_resize(struct aem_poll *p, size_t maxn)
+static void aem_poll_resize(struct aem_poll *p)
 {
 	aem_assert(p);
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p: resize from %zd to %zd\n", p, p->maxn, maxn);
+	// Try to have twice as many elements as necessary, but never fewer than 8.
+	size_t maxn = p->n*2;
+	if (maxn < 8)
+		maxn = 8;
+	if (maxn == p->maxn)
+		return;
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p: resize from %zd to %zd (%zd used)\n", p, p->maxn, maxn, p->n);
+	aem_assert(p->n+1 <= maxn); // Make sure we have room for at least one more.
 	p->maxn = maxn;
 	p->fds  = realloc(p->fds , p->maxn*sizeof(*p->fds ));
 	p->evts = realloc(p->evts, p->maxn*sizeof(*p->evts));
@@ -51,9 +73,10 @@ static void aem_poll_assign(struct aem_poll *p, struct aem_poll_event *evt)
 {
 	aem_assert(p);
 	aem_assert(evt);
-	aem_logf_ctx(AEM_LOG_DEBUG, "evt %p[%zd] = %p: fd %d\n", p, evt->i, evt, evt->fd);
+	aem_logf_ctx(AEM_LOG_DEBUG, "evt %p[%zd] := %p (fd %d)\n", p, evt->i, evt, evt->fd);
 
-	aem_assert(evt->i >= 0 && (size_t)evt->i < p->n);
+	aem_assert(evt->i >= 0);
+	aem_assert((size_t)evt->i < p->n);
 
 	size_t i = evt->i;
 	p->fds[i] = (struct pollfd){.fd = evt->fd, .events = evt->events, .revents = 0};
@@ -71,9 +94,7 @@ ssize_t aem_poll_add(struct aem_poll *p, struct aem_poll_event *evt)
 
 	// Increase array size if necessary.
 	if (p->n >= p->maxn) {
-		// Double the array size, but don't let it be smaller than 8.
-		size_t maxn = p->n*2;
-		aem_poll_resize(p, maxn >= 8 ? maxn : 8);
+		aem_poll_resize(p);
 	}
 	aem_assert(p->maxn);
 
@@ -93,30 +114,34 @@ int aem_poll_del(struct aem_poll *p, struct aem_poll_event *evt)
 	aem_assert(p);
 	aem_assert(evt);
 	aem_logf_ctx(AEM_LOG_DEBUG, "evt %p[%zd] = %p: fd %d\n", p, evt->i, evt, evt->fd);
-	if (evt->i == -1)
+	if (evt->i == -1) {
+		aem_logf_ctx(AEM_LOG_BUG, "Event %p (fd %d) not registered\n", evt, evt->fd);
 		return -1;
+	}
 
 	aem_assert(evt->i >= 0);
 	size_t i = evt->i;
 	aem_assert(i < p->n);
 	aem_assert(p->evts[i] == evt);
 
-	// Invalidate this event
+	// Mark this event as invalid.
 	evt->i = -1;
 
-	// Remove event from list
+	// Remove event from list.
 	if (i != p->n-1) { // Unless this already was the last one,
 		// Move last event into deleted event's position.
 		struct aem_poll_event *last = p->evts[p->n - 1];
-		aem_assert(last->i >= 0 && (size_t)last->i == p->n-1);
+		aem_assert(last);
+		aem_assert(last->i >= 0);
+		aem_assert((size_t)last->i == p->n-1);
 		last->i = i;
 		aem_poll_assign(p, last);
 	}
 
 	p->n--;
 
-	if (p->n && p->n*8 <= p->maxn) {
-		aem_poll_resize(p, p->n*2);
+	if (p->n*8 <= p->maxn) {
+		aem_poll_resize(p);
 	}
 
 	return 0;
@@ -124,13 +149,16 @@ int aem_poll_del(struct aem_poll *p, struct aem_poll_event *evt)
 
 void aem_poll_mod(struct aem_poll *p, struct aem_poll_event *evt)
 {
+	aem_assert(p);
 	aem_assert(evt);
 
 	// Must already be registered
 	if (evt->i < 0)
 		return;
 
-	aem_assert(p);
+	size_t i = evt->i;
+	aem_assert(i < p->n);
+	aem_assert(p->evts[i] == evt);
 
 	struct pollfd *pollfd = aem_poll_get_pollfd(p, evt);
 	pollfd->fd = evt->fd;
@@ -163,15 +191,12 @@ int aem_poll_poll(struct aem_poll *p)
 	aem_assert(p);
 	// Ensure all registrations are consistent
 	for (size_t i = 0; i < p->n; i++) {
-		struct pollfd *pollfd = &p->fds[i];
 		struct aem_poll_event *evt = p->evts[i];
-		aem_assert(evt);
-		aem_assert(evt->i >= 0 && (size_t)evt->i == i);
 		// If it's wrong, just fix it instead of complaining
+		//struct pollfd *pollfd = &p->fds[i];
 		//pollfd->fd = evt->fd;
 		//pollfd->events = evt->events;
-		aem_assert(pollfd->fd == evt->fd);
-		aem_assert(pollfd->events == evt->events);
+		aem_poll_event_verify(p, i);
 	}
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p: poll %zd events\n", p, p->n);
@@ -182,6 +207,7 @@ int aem_poll_poll(struct aem_poll *p)
 	if (rc < 0) {
 		// error
 		switch (errno) {
+			case EAGAIN:
 			case EINTR:
 				return rc;
 
@@ -199,12 +225,13 @@ int aem_poll_poll(struct aem_poll *p)
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%d pending events\n", rc);
 
-	int progress = 0;
+	int progress;
 	do {
+		progress = 0;
 		for (size_t i = 0; i < p->n; i++) {
 			struct pollfd *pollfd = &p->fds[i];
 			struct aem_poll_event *evt = p->evts[i];
-			aem_assert(pollfd->fd == evt->fd);
+			aem_poll_event_verify(p, i);
 			short revents = evt->revents = pollfd->revents;
 
 			if (!revents)
@@ -219,15 +246,17 @@ int aem_poll_poll(struct aem_poll *p)
 			if (revents & POLLNVAL)
 				aem_logf_ctx(AEM_LOG_BUG, "POLLNVAL on fd %d for poll %p, evt %zd\n", pollfd->fd, p, i);
 
-			aem_logf_ctx(AEM_LOG_DEBUG, "%p[%zd]: fd %d revents %x\n", p, i, pollfd->fd, revents);
+			aem_logf_ctx(AEM_LOG_DEBUG, "%p[%zd]: fd %d revents %#x\n", p, i, pollfd->fd, revents);
 
 			if (evt->on_event)
 				evt->on_event(p, evt);
 
+			// Ensure event isn't still registered after a POLLHUP
 			if ((revents & POLLHUP) && evt->i != -1) {
 				// TODO: Is ignoring or deregistering chronically ignored events trying too hard?
+				// TODO: This can have false positives if e.g. on POLLHUP, the callback deregisters its event, closes the fd, opens a new fd with the same number, and reregisters the event and it happens to get the same index.
 				aem_poll_del(p, evt);
-				aem_logf_ctx(AEM_LOG_BUG, "We unregistered fd %d for you due to POLLHUP because your buggy code forgot to do it itself.  Memory around (struct aem_poll_event*)%p was likely leaked.\n", evt->fd, evt);
+				aem_logf_ctx(AEM_LOG_BUG, "We deregistered fd %d for you due to POLLHUP because your buggy code forgot to do it itself.  The object containing (struct aem_poll_event*)%p was likely leaked.\n", evt->fd, evt);
 			}
 
 			if (evt->revents)
@@ -240,17 +269,14 @@ int aem_poll_poll(struct aem_poll *p)
 			// this, we ensure that the above `if (revents)
 			// continue;` statement won't let us re-process this
 			// event until the next poll.
-			evt->revents = 0;
+			pollfd->revents = evt->revents;
 
-			// Now we have the wonderful task of determining whether the
-			// event we just processed is no longer at the current position
-			// in the event list, in which case we have to adjust various
-			// things.
-
-			// Check that the event's registration is still
-			// consistent, unless it's no longer registered.
-			if (evt->i != -1)
+			// If the event is still registered, ensure it's
+			// consistent.
+			if (evt->i != -1) {
 				aem_assert(p->evts[evt->i] == evt);
+				aem_poll_event_verify(p, evt->i);
+			}
 
 			// If this slot no longer contains the event we just
 			// proccessed, try this slot again.  This won't cause a
@@ -259,7 +285,10 @@ int aem_poll_poll(struct aem_poll *p)
 			if (evt->i == -1 || (size_t)evt->i != i)
 				i--;
 		}
-		// If unprocessed events still remain, hopefully it's because the event list was shuffled around underneath us.  Try again until all events are processed (or until we somehow stop making progress, which would imply a bug).
+		// If unprocessed events still remain, hopefully it's because
+		// the event list was shuffled around underneath us.  Try again
+		// until all events are processed (or until we somehow stop
+		// making progress, which would imply a bug).
 	} while (rc > 0 && progress);
 
 	if (rc)
@@ -268,79 +297,39 @@ int aem_poll_poll(struct aem_poll *p)
 	return rc;
 }
 
-/*
-struct aem_poll_event *aem_poll_next(struct aem_poll *p)
+void aem_poll_hup_all(struct aem_poll *p)
 {
 	aem_assert(p);
-	if (!p->curr) {
-		aem_logf_ctx(AEM_LOG_DEBUG, "%p: poll %zd events\n", p, p->n);
-	again:;
-		int rc = poll(p->fds, p->n, -1);
-
-		if (rc < 0) {
-			int myerrno = errno;
-			switch (myerrno) {
-				case EINTR:
-					goto again;
-
-				default:
-					aem_logf_ctx(AEM_LOG_FATAL, "poll failed: %s\n", strerror(myerrno));
-					errno = myerrno;
-					return NULL;
-			}
-		}
-
-		if (rc <= 0)
-			return NULL;
-
-		p->curr = p->n;
-	} else {
-		size_t i = p->curr;
-
-		struct pollfd *pollfd = &p->fds[i];
+	// Ensure all registrations are consistent
+	for (size_t i = 0; i < p->n; i++) {
 		struct aem_poll_event *evt = p->evts[i];
-
-		pollfd->fd = evt->fd;
-		pollfd->events = evt->events;
+		// If it's wrong, just fix it instead of complaining
+		//struct pollfd *pollfd = &p->fds[i];
+		//pollfd->fd = evt->fd;
+		//pollfd->events = evt->events;
+		aem_poll_event_verify(p, i);
 	}
 
-	while (p->curr) {
-		size_t i = --p->curr;
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p: HUP all\n", p);
 
+	while (p->n) {
+		size_t i = p->n-1;
 		struct pollfd *pollfd = &p->fds[i];
 		struct aem_poll_event *evt = p->evts[i];
+		aem_poll_event_verify(p, i);
 
-		short revents = pollfd->revents;
+		aem_logf_ctx(AEM_LOG_DEBUG, "%p[%zd]: HUP fd %d\n", p, i, pollfd->fd);
 
-		// TODO: is ignoring or deregistering chronically ignored events trying too hard?
+		aem_assert(!evt->revents);
+		evt->revents |= POLLHUP;
 
-		if (revents & POLLNVAL) {
-			aem_logf_ctx(AEM_LOG_BUG, "POLLNVAL fd %d\n", pollfd->fd);
-			if (pollfd->fd != evt->fd) {
-				aem_logf_ctx(AEM_LOG_BUG, "inconsistent: pollfd->fd = %d, evt->fd = %d\n", pollfd->fd, evt->fd);
-				aem_logf_ctx(AEM_LOG_BUG, "always re-register an event via aem_poll_add(p, evt) after changing its fd\n");
-			} else {
-				aem_logf_ctx(AEM_LOG_BUG, "always deregister closed fds via aem_poll_del(p, evt)\n");
-				// aem_poll_del(p, evt);
-			}
+		if (evt->on_event) {
+			evt->on_event(p, evt);
+			aem_assert(evt->i == -1);
+		} else {
+			aem_logf_ctx(AEM_LOG_WARN, "%p[%zd]: fd %d has no on_event callback!\n", p, i, pollfd->fd);
 		}
 
-		if (revents) {
-			if (evt->on_event) {
-				aem_logf_ctx(AEM_LOG_DEBUG, "%p: i %zd fd %d revents %x internal\n", p, i, pollfd->fd, revents);
-				evt->revents = revents;
-				evt->on_event(p, evt);
-				if (evt->revents)
-					aem_logf_ctx(AEM_LOG_BUG, "unhandled revents %x\n", evt->revents);
-				pollfd->fd = evt->fd;
-				pollfd->events = evt->events;
-			} else {
-				aem_logf_ctx(AEM_LOG_DEBUG, "%p: i %zd fd %d revents %x external\n", p, i, pollfd->fd, revents);
-				return evt;
-			}
-		}
 	}
 
-	return NULL;
 }
-*/

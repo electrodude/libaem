@@ -21,13 +21,11 @@ void aem_stream_source_dtor(struct aem_stream_source *source, int flags)
 	if (!source)
 		return;
 
-	aem_stream_source_detach(source, flags);
-
 	source->provide = NULL;
 	aem_assert(!source->stream); // aem_stream_source_detach should have ensured this
 }
 
-struct aem_stream_sink *aem_stream_sink_init(struct aem_stream_sink *sink, int (*consume)(struct aem_stream_sink *sink, struct aem_stringslice *in, int flags))
+struct aem_stream_sink *aem_stream_sink_init(struct aem_stream_sink *sink, int (*consume)(struct aem_stream_sink *sink, int flags))
 {
 	aem_assert(sink);
 	aem_assert(consume);
@@ -42,47 +40,42 @@ void aem_stream_sink_dtor(struct aem_stream_sink *sink, int flags)
 	if (!sink)
 		return;
 
-	aem_stream_sink_detach(sink, flags);
-
 	sink->consume = NULL;
 	aem_assert(!sink->stream); // aem_stream_sink_detach should have ensured this
 }
 
 static struct aem_stream *aem_stream_new(void)
 {
-	struct aem_stream *buf = malloc(sizeof(*buf));
-	aem_assert(buf);
+	struct aem_stream *stream = malloc(sizeof(*stream));
+	aem_assert(stream);
 
-	aem_stringbuf_init(&buf->buf);
+	aem_stringbuf_init(&stream->buf);
 
-	buf->providing = 0;
-	buf->consuming = 0;
-	buf->flags = 0;
+	stream->state = AEM_STREAM_IDLE;
+	stream->flags = 0;
 
-	buf->source = NULL;
-	buf->sink = NULL;
+	stream->source = NULL;
+	stream->sink = NULL;
 
-	return buf;
+	return stream;
 }
-static void aem_stream_free_rcu(struct rcu_head *rcu_head)
+void aem_stream_free_rcu(struct rcu_head *rcu_head)
 {
-	struct aem_stream *buf = aem_container_of(rcu_head, struct aem_stream, rcu_head);
+	struct aem_stream *stream = aem_container_of(rcu_head, struct aem_stream, rcu_head);
 
-	aem_stringbuf_dtor(&buf->buf);
+	aem_stringbuf_dtor(&stream->buf);
 
-	free(buf);
+	free(stream);
 }
-void aem_stream_free(struct aem_stream *buf)
+void aem_stream_free(struct aem_stream *stream)
 {
-	if (!buf)
+	if (!stream)
 		return;
 
-	//aem_assert(!buf->lock);
+	aem_assert(!stream->source);
+	aem_assert(!stream->sink);
 
-	aem_assert(!buf->source);
-	aem_assert(!buf->sink);
-
-	call_rcu(&buf->rcu_head, aem_stream_free_rcu);
+	call_rcu(&stream->rcu_head, aem_stream_free_rcu);
 }
 
 /// Attach/detach
@@ -138,7 +131,7 @@ void aem_stream_source_detach(struct aem_stream_source *source, int flags)
 		stream->flags |= flags;
 
 		if (stream->sink)
-			aem_stream_consume(stream);
+			aem_stream_consume(stream, flags);
 
 		stream->source = NULL;
 		source->stream = NULL;
@@ -157,7 +150,8 @@ void aem_stream_sink_detach(struct aem_stream_sink *sink, int flags)
 
 		stream->flags |= flags;
 
-		// We don't call aem_stream_consume or aem_stream_provide here in case we're already being called by consume() or provide().
+		//if (stream->source)
+			//aem_stream_provide(stream, flags);
 
 		stream->sink = NULL;
 		sink->stream = NULL;
@@ -166,71 +160,126 @@ void aem_stream_sink_detach(struct aem_stream_sink *sink, int flags)
 	}
 }
 
-/// Stream data flow
-int aem_stream_provide(struct aem_stream *buf)
+int aem_stream_add_flags(struct aem_stream *stream, int flags)
 {
-	aem_assert(buf);
+	if (!stream)
+		return -1;
 
-	struct aem_stream_source *source = buf->source;
+	stream->flags |= flags;
+
+	return 0;
+}
+
+/// Stream data flow
+int aem_stream_provide(struct aem_stream *stream, int flags)
+{
+	aem_assert(stream);
+
+	struct aem_stream_source *source = stream->source;
 	aem_assert(source);
-	aem_assert(source->stream == buf);
+	aem_assert(source->stream == stream);
 	aem_assert(source->provide);
 
-	aem_assert(!buf->consuming);
-	aem_assert(!buf->providing);
-	buf->providing = 1;
+	stream->flags |= flags & AEM_STREAM_FIN;
 
-	int rc = source->provide(source, buf->flags);
-
-	buf->providing = 0;
+	int rc = source->provide(source, stream->flags | flags);
 
 	return rc;
 }
 
-int aem_stream_consume(struct aem_stream *buf)
+int aem_stream_consume(struct aem_stream *stream, int flags)
 {
-	aem_assert(buf);
+	aem_assert(stream);
 
-	struct aem_stream_sink *sink = buf->sink;
+	struct aem_stream_sink *sink = stream->sink;
 	aem_assert(sink);
-	aem_assert(sink->stream == buf);
+	aem_assert(sink->stream == stream);
 	aem_assert(sink->consume);
 
-	aem_assert(!buf->consuming);
-	buf->consuming = 1;
+	stream->flags |= flags & AEM_STREAM_FIN;
 
-	const struct aem_stringslice in_orig = aem_stringslice_new_str(&buf->buf);
-	struct aem_stringslice in = in_orig;
-
-	int rc = sink->consume(sink, &in, buf->flags);
-
-	// You can't just return some other unrelated stream
-	aem_assert(in.start >= in_orig.start);
-	aem_assert(in.end == in_orig.end);
-	struct aem_stringslice consumed = aem_stringslice_new(in_orig.start, in.start);
-
-	if ((buf->flags & AEM_STREAM_FIN) && aem_stringslice_len(in)) {
-		aem_logf_ctx(AEM_LOG_WARN, "Stream finished, but consume left %zd bytes unprocessed!\n", aem_stringslice_len(in));
-	}
-
-	size_t n_less = aem_stringslice_len(consumed);
-
-	aem_stringbuf_pop_front(&buf->buf, n_less);
-
-	buf->consuming = 0;
+	int rc = sink->consume(sink, stream->flags | flags);
 
 	return rc;
 }
 
 
-struct aem_stringbuf *aem_stream_source_getbuf(struct aem_stream_source *source)
+struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source)
 {
-	if (!source)
-		return NULL;
+	aem_assert(source);
 
 	struct aem_stream *stream = source->stream;
 	if (!stream)
 		return NULL;
 
+	aem_assert(stream);
+	aem_assert(stream->source == source);
+
+	aem_assert(stream->state == AEM_STREAM_IDLE);
+	stream->state = AEM_STREAM_PROVIDING;
+
 	return &stream->buf;
+}
+void aem_stream_provide_end(struct aem_stream_source *source)
+{
+	aem_assert(source);
+
+	struct aem_stream *stream = source->stream;
+	aem_assert(stream);
+	aem_assert(stream->source == source);
+
+	aem_assert(stream->state == AEM_STREAM_PROVIDING);
+	stream->state = AEM_STREAM_IDLE;
+}
+
+struct aem_stringslice aem_stream_consume_begin(struct aem_stream_sink *sink)
+{
+	aem_assert(sink);
+
+	struct aem_stream *stream = sink->stream;
+	if (!stream)
+		return AEM_STRINGSLICE_EMPTY;
+
+	aem_assert(stream);
+	aem_assert(stream->sink == sink);
+
+	aem_assert(stream->state == AEM_STREAM_IDLE);
+	stream->state = AEM_STREAM_CONSUMING;
+
+	return aem_stringslice_new_str(&stream->buf);
+}
+
+void aem_stream_consume_end(struct aem_stream_sink *sink, struct aem_stringslice s)
+{
+	aem_assert(sink);
+	struct aem_stream *stream = sink->stream;
+	aem_assert(stream);
+	aem_assert(stream->sink == sink);
+
+	struct aem_stringslice consumed = aem_stringslice_new(stream->buf.s, s.start);
+
+	size_t n_less = aem_stringslice_len(consumed);
+
+	aem_stringbuf_pop_front(&stream->buf, n_less);
+
+	if ((stream->flags & AEM_STREAM_FIN) && stream->buf.n) {
+		aem_logf_ctx(AEM_LOG_WARN, "Stream got FIN, but consume left %zd bytes unprocessed!\n", stream->buf.n);
+	}
+
+	aem_assert(stream->state == AEM_STREAM_CONSUMING);
+	stream->state = AEM_STREAM_IDLE;
+}
+void aem_stream_consume_cancel(struct aem_stream_sink *sink)
+{
+	aem_assert(sink);
+	struct aem_stream *stream = sink->stream;
+	aem_assert(stream);
+	aem_assert(stream->sink == sink);
+
+	if ((stream->flags & AEM_STREAM_FIN) && stream->buf.n) {
+		aem_logf_ctx(AEM_LOG_WARN, "Stream got FIN, but consume left %zd bytes unprocessed!\n", stream->buf.n);
+	}
+
+	aem_assert(stream->state == AEM_STREAM_CONSUMING);
+	stream->state = AEM_STREAM_IDLE;
 }

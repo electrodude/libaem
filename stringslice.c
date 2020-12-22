@@ -5,6 +5,8 @@
 #include <errno.h>
 #endif
 
+#include <aem/log.h>
+
 #include "stringslice.h"
 
 int aem_stringslice_file_write(struct aem_stringslice *slice, FILE *fp)
@@ -97,7 +99,8 @@ struct aem_stringslice aem_stringslice_match_alnum(struct aem_stringslice *slice
 	struct aem_stringslice line;
 	line.start = slice->start;
 
-	while (aem_stringslice_ok(*slice) && isalnum(*slice->start)) slice->start++;
+	while (aem_stringslice_ok(*slice) && isalnum(*slice->start))
+		slice->start++;
 
 	line.end = slice->start;
 
@@ -111,7 +114,8 @@ struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice)
 	struct aem_stringslice line;
 	line.start = slice->start;
 
-	while (aem_stringslice_ok(*slice) && !isspace(*slice->start)) slice->start++;
+	while (aem_stringslice_ok(*slice) && !isspace(*slice->start))
+		slice->start++;
 
 	line.end = slice->start;
 
@@ -123,14 +127,64 @@ struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice)
 	if (!slice)
 		return AEM_STRINGSLICE_EMPTY;
 
-	struct aem_stringslice line;
-	line.start = slice->start;
+	struct aem_stringslice line = *slice;
 
-	while (aem_stringslice_ok(*slice) && !(*slice->start == '\n' || *slice->start == '\n')) slice->start++;
+	while (aem_stringslice_ok(*slice) && !aem_stringslice_match_newline(slice))
+		slice->start++;
 
 	line.end = slice->start;
 
 	return line;
+}
+
+struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *slice, int *state, int finish)
+{
+	if (!slice)
+		return AEM_STRINGSLICE_EMPTY;
+
+	aem_assert(state);
+
+	struct aem_stringslice p = *slice;
+
+	struct aem_stringslice line = p;
+
+	// If the last character given to the previous invocation of this
+	// function was CR, and the first character of this one is LF, then
+	// skip the LF because it was part of the last line of the previous
+	// invocation, which was already processed.
+	if (*state && aem_stringslice_match(slice, "\n")) {
+		aem_logf_ctx(AEM_LOG_WARN, "Dropping missed LF from a CRLF split across a packet boundary\n");
+		*state = 0;
+	}
+
+	while (aem_stringslice_ok(p)) {
+		// Set potential line end, in case a newline is next.
+		line.end = p.start;
+
+		// Try to get a newline
+		int newline = aem_stringslice_match_newline(&p);
+		// If the last character of p was a CR, set the flag so we know
+		// to skip an LF at the beginning of the next call to this
+		// function.
+		*state = newline == 1 && !aem_stringslice_ok(p);
+		// If it was a newline, save our progress and return the line.
+		if (newline) {
+			*slice = p;
+
+			return line;
+		}
+
+		// It wasn't a newline, so it must be something else.
+		aem_stringslice_getc(&p);
+	}
+
+	if (finish) {
+		*slice = p;
+
+		return line;
+	}
+
+	return AEM_STRINGSLICE_EMPTY;
 }
 
 int aem_stringslice_match(struct aem_stringslice *slice, const char *s)

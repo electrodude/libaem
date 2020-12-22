@@ -12,6 +12,9 @@ struct aem_net_sock {
 	struct aem_poll_event evt;
 
 	struct aem_poll *poller;
+
+	char rd_open : 1;
+	char wr_open : 1;
 };
 
 // You must call sock->poller yourself before calling this.
@@ -33,8 +36,6 @@ struct aem_net_conn {
 
 	struct aem_stream_source rx;
 	struct aem_stream_sink tx;
-
-	void (*free)(struct aem_net_conn *conn);
 };
 
 struct aem_net_conn *aem_net_conn_init(struct aem_net_conn *conn);

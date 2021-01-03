@@ -1,13 +1,11 @@
 #ifndef AEM_LINKED_LIST_H
 #define AEM_LINKED_LIST_H
 
-#ifndef aem_typeof
-#define aem_typeof __typeof__
-#endif
-
 #ifndef aem_assert
 #include "log.h"
 #endif
+
+// Linked lists with sentinel nodes
 
 
 // Initialize a linked list
@@ -24,16 +22,16 @@
 // Insert an item into a linked list
 
 #define AEM_LL1_INSERT_AFTER(chain, node, next) do { \
-	aem_typeof(chain) _chain = (chain); \
-	aem_typeof(node ) _node  = (node ); \
+	__typeof__(chain) _chain = (chain); \
+	__typeof__(node ) _node  = (node ); \
 	\
 	(_node)->next = (_chain)->next; \
 	(_chain)->next = (_node); \
 } while (0)
 
 #define AEM_LL2_INSERT_BEFORE_4(chain, node, prev, next) do { \
-	aem_typeof(chain) _chain = (chain); \
-	aem_typeof(node ) _node  = (node ); \
+	__typeof__(chain) _chain = (chain); \
+	__typeof__(node ) _node  = (node ); \
 	\
 	(_node )->next       = (_chain); \
 	(_node )->prev       = (_chain)->prev; \
@@ -53,7 +51,7 @@
 // Remove an item from a linked list
 
 #define AEM_LL2_REMOVE_EXPLICIT(node, prev, next) do { \
-	aem_typeof(node) _node = (node); \
+	__typeof__(node) _node = (node); \
 	\
 	(_node)->next->prev = (_node)->prev; \
 	(_node)->prev->next = (_node)->next; \
@@ -74,13 +72,13 @@
 	for (T curr = (start); curr != (end); curr = curr->next)
 
 #define AEM_LL_FOR_RANGE(curr, start, end, next) \
-	AEM_LL_FOR_RANGE_TP(aem_typeof(start), curr, (start), (end), next)
+	AEM_LL_FOR_RANGE_TP(__typeof__(start), curr, (start), (end), next)
 
 #define AEM_LL_FOR_ALL_TP(T, curr, chain, next) \
 	AEM_LL_FOR_RANGE_TP(T, curr, (chain)->next, (chain), next)
 
 #define AEM_LL_FOR_ALL(curr, chain, next) \
-	AEM_LL_FOR_ALL_TP(aem_typeof((chain)->next), curr, (chain), next)
+	AEM_LL_FOR_ALL_TP(__typeof__((chain)->next), curr, (chain), next)
 
 #define AEM_LL2_FOR_RANGE_TP(T, curr, start, end, name) \
 	AEM_LL_FOR_RANGE_TP(T, curr, start, end, name##_next)
@@ -104,13 +102,13 @@
 		     : (aem_ll_prev->next = aem_ll_next /* remove curr */))
 
 #define AEM_LL_FILTER_RANGE(curr, start, end, next) \
-	AEM_LL_FILTER_RANGE_TP(aem_typeof(*(start)), curr, (start), (end), next)
+	AEM_LL_FILTER_RANGE_TP(__typeof__(*(start)), curr, (start), (end), next)
 
 #define AEM_LL_FILTER_ALL_TP(T, curr, chain, next) \
 	AEM_LL_FILTER_RANGE_TP(T, curr, (chain), (chain), next)
 
 #define AEM_LL_FILTER_ALL(curr, chain, next) \
-	AEM_LL_FILTER_ALL_TP(aem_typeof(*(chain)->next), curr, (chain), next)
+	AEM_LL_FILTER_ALL_TP(__typeof__(*(chain)->next), curr, (chain), next)
 
 
 // Repeatedly look at the first element of a linked list until the list is empty.
@@ -118,7 +116,7 @@
 	for (T *curr; (curr = (chain)->next) != (chain);)
 
 #define AEM_LL_WHILE_FIRST(curr, chain, next) \
-	AEM_LL_WHILE_FIRST_TP(aem_typeof(*(chain)->next), curr, (chain), next)
+	AEM_LL_WHILE_FIRST_TP(__typeof__(*(chain)->next), curr, (chain), next)
 
 // Empty a linked list
 // Calls provided destructor on first element until no elements remain.

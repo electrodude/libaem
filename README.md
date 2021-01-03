@@ -28,3 +28,16 @@ AEM's personal C library
 	* Uses `aem_stream`.
 * `aem_stream`: data stream abstraction
 	* Includes utility stream transducers to e.g. split a stream into lines.
+
+## License
+
+Unless otherwise specified, all files in this repository are licensed under the MIT license, found in the file [LICENSE](./LICENSE) in the root of this repository.
+
+The following files in this repository were not written by me (AEM) and may be subject to different licenses:
+- `debugbreak.h`: License and copyright at top of file.  Project repository [here](https://github.com/scottt/debugbreak).
+
+## FAQ
+
+### You're so conceited that you named a library after yourself?
+
+Well, at least there's [precedent](https://github.com/nothings/stb) for it.

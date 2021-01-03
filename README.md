@@ -35,6 +35,7 @@ Unless otherwise specified, all files in this repository are licensed under the 
 
 The following files in this repository were not written by me (AEM) and may be subject to different licenses:
 - `debugbreak.h`: License and copyright at top of file.  Project repository [here](https://github.com/scottt/debugbreak).
+- `order32.h`: Taken from [this StackOverflow answer](https://stackoverflow.com/a/2103095).
 
 ## FAQ
 

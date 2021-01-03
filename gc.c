@@ -92,12 +92,14 @@ void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 }
 
 
-void aem_gc_ref(struct aem_gc_object *obj) {
+void aem_gc_ref(struct aem_gc_object *obj)
+{
 	aem_assert(obj);
 	obj->refs++;
 }
 
-void aem_gc_unref(struct aem_gc_object *obj) {
+void aem_gc_unref(struct aem_gc_object *obj)
+{
 	aem_assert(obj);
 	aem_assert(obj->refs);
 	obj->refs--;

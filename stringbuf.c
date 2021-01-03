@@ -391,7 +391,8 @@ void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 }
 
 
-void aem_stringbuf_rtrim(struct aem_stringbuf *str) {
+void aem_stringbuf_rtrim(struct aem_stringbuf *str)
+{
 	aem_assert(str);
 	while (str->n && isspace(str->s[str->n-1]))
 		str->n--;

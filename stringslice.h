@@ -72,7 +72,8 @@ int aem_stringslice_get(struct aem_stringslice *slice);
 // Get raw data
 // Reads `count` bytes into `buf`.
 // If fewer than `count` bytes are available, does nothing and returns -1.
-static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void *buf, size_t count) {
+static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void *buf, size_t count)
+{
 	if (aem_stringslice_len(*slice) < count)
 		return -1;
 

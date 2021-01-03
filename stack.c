@@ -278,7 +278,8 @@ void aem_stack_assign(struct aem_stack *stk, size_t i, void *s)
 	*p = s;
 }
 
-size_t aem_stack_assign_empty(struct aem_stack *stk, void *s) {
+size_t aem_stack_assign_empty(struct aem_stack *stk, void *s)
+{
 	for (size_t i = 0; i < stk->n; i++) {
 		if (!stk->s[i]) {
 			aem_stack_assign(stk, i, s);
@@ -291,7 +292,8 @@ size_t aem_stack_assign_empty(struct aem_stack *stk, void *s) {
 	return i;
 }
 
-void *aem_stack_remove(struct aem_stack *stk, size_t i) {
+void *aem_stack_remove(struct aem_stack *stk, size_t i)
+{
 	// Replace object with NULL
 	void *p = stk->s[i];
 	stk->s[i] = NULL;
@@ -303,7 +305,8 @@ void *aem_stack_remove(struct aem_stack *stk, size_t i) {
 	return p;
 }
 
-int aem_stack_insert(struct aem_stack *stk, size_t i, void *p) {
+int aem_stack_insert(struct aem_stack *stk, size_t i, void *p)
+{
 	if (i > stk->n)
 		return 1;
 
@@ -315,7 +318,8 @@ int aem_stack_insert(struct aem_stack *stk, size_t i, void *p) {
 	return 0;
 }
 
-int aem_stack_insert_end(struct aem_stack *stk, size_t i, void *p) {
+int aem_stack_insert_end(struct aem_stack *stk, size_t i, void *p)
+{
 	if (i > stk->n)
 		return 1;
 

@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include <aem/aem.h>
+
 enum aem_log_level {
 	AEM_LOG_FATAL,    // Fatal error: program execution must cease as a result.
 	AEM_LOG_SECURITY, // Security error: Occurrence of security error
@@ -72,7 +74,33 @@ int aem_vdprintf(const char *fmt, va_list ap);
 #endif
 
 #ifndef aem_assert
-#define aem_assert(condition) if (!(condition)) { aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s\n", #condition); abort(); }
+#define aem_assert(condition) do { \
+	if (!(condition)) { \
+		aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s\n", #condition); \
+		aem_abort(); \
+	} \
+} while (0)
+#endif
+
+#ifndef aem_assert_msg
+#define aem_assert_msg(condition, msg) do { \
+	if (!(condition)) { \
+		aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s: %s\n", #condition, msg); \
+		aem_abort(); \
+	} \
+} while (0)
+#endif
+
+#ifndef aem_assert_eq
+#define aem_assert_eq(a, b) ({ \
+	__typeof__(a) _a = (a); \
+	__typeof__(b) _b = (b); \
+	if (_a != _b) { \
+		aem_logf_ctx(AEM_LOG_BUG, "equality failed: %s != %s\n", #a, #b); \
+		aem_abort(); \
+	} \
+	_a; \
+})
 #endif
 
 #define aem_logf_ctx_once(loglevel, fmt, ...) do { static int _hits = 0; if (!_hits++) aem_logf_ctx((loglevel), "once: " fmt, ##__VA_ARGS__); } while (0)

@@ -66,8 +66,6 @@ static inline int aem_stringslice_ungetc(struct aem_stringslice *slice)
 // Get a UTF-8 rune
 // Implementation in utf8.c
 int aem_stringslice_get(struct aem_stringslice *slice);
-// Old deprecated name
-#define aem_stringslice_get_utf8 aem_stringslice_get
 
 // Get raw data
 // Reads `count` bytes into `buf`.
@@ -135,6 +133,10 @@ int aem_stringslice_eq_case(struct aem_stringslice slice, const char *s);
 int aem_stringslice_cmp(struct aem_stringslice s0, struct aem_stringslice s1);
 
 int aem_stringslice_match_hexbyte(struct aem_stringslice *slice);
+// TODO: inconsistency: this function returns -1 on failure and 0 on success,
+// while most other functions in this file that only use their return value to
+// indicate status return 0 on failure and 1 on success.
+// Deprecated in favor of aem_stringslice_match_int_base.
 int aem_stringslice_match_int(struct aem_stringslice *slice, int base, int *out);
 
 #endif /* AEM_STRINGSLICE_H */

@@ -86,9 +86,9 @@ int process_data(struct server_connection *conn, int flags)
 	struct aem_stringbuf *out = aem_stream_provide_begin(&conn->source);
 
 	if (!out) {
-		aem_logf_ctx(AEM_LOG_BUG, "TX unconnected\n");
+		aem_logf_ctx(AEM_LOG_BUG, "TX disconnected\n");
 		rc = 1;
-		goto done_disconnected;
+		goto disconnected;
 	}
 	if (out->n > 65536) {
 		aem_logf_ctx(AEM_LOG_WARN, "fd %d: waiting: buffer has %zd bytes\n", conn->conn.sock.evt.fd, out->n);
@@ -132,7 +132,7 @@ done:
 
 	aem_stream_consume(conn->source.stream, flags);
 
-done_disconnected:
+disconnected:
 	if (flags & AEM_STREAM_FIN) {
 		aem_logf_ctx(AEM_LOG_INFO, "EOF\n");
 		conn_free(&conn->conn);

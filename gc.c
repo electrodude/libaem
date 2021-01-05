@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
 #define aem_log_module_current (&gc_log_module)
-#include "log.h"
-#include "linked_list.h"
+#include <aem/log.h>
+#include <aem/linked_list.h>
 
 #include "gc.h"
 
@@ -45,19 +45,19 @@ void aem_gc_register(struct aem_gc_object *obj, const struct aem_gc_vtbl *vtbl, 
 
 void aem_gc_run(struct aem_gc_context *ctx)
 {
-	// reset iterator master
+	// Reset iterator master
 	aem_iter_gen_reset_master(&ctx->objects.iter);
 
-	// mark all roots
+	// Mark all roots
 	AEM_LL_FOR_ALL(curr, &ctx->objects, ctx_next) {
 		if (curr->refs) {
 			aem_gc_mark(curr, ctx);
 		}
 	}
 
-	// destruct all dead objects
+	// Destruct all dead objects
 	AEM_LL_FOR_ALL(curr, &ctx->objects, ctx_next) {
-		// if it wasn't hit by the mark cycle, it's dead
+		// If it wasn't hit by the mark cycle, it's dead
 		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter)) {
 			aem_logf_ctx(AEM_LOG_DEBUG, "dtor %p(%s)\n", curr, curr->vtbl->name);
 			if (curr->vtbl->dtor) {
@@ -66,7 +66,7 @@ void aem_gc_run(struct aem_gc_context *ctx)
 		}
 	}
 
-	// free all dead objects
+	// Free all dead objects
 	AEM_LL_FILTER_ALL(curr, &ctx->objects, ctx_next) {
 		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter)) {
 

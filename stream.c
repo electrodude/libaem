@@ -51,11 +51,11 @@ static struct aem_stream *aem_stream_new(void)
 
 	aem_stringbuf_init(&stream->buf);
 
-	stream->state = AEM_STREAM_IDLE;
-	stream->flags = 0;
-
 	stream->source = NULL;
 	stream->sink = NULL;
+
+	stream->flags = 0;
+	stream->state = AEM_STREAM_IDLE;
 
 	return stream;
 }
@@ -79,7 +79,7 @@ void aem_stream_free(struct aem_stream *stream)
 }
 
 /// Attach/detach
-int aem_stream_connect(struct aem_stream_source *source, struct aem_stream_sink *sink)
+struct aem_stream *aem_stream_connect(struct aem_stream_source *source, struct aem_stream_sink *sink)
 {
 	aem_assert(source);
 	aem_assert(sink);
@@ -93,10 +93,10 @@ int aem_stream_connect(struct aem_stream_source *source, struct aem_stream_sink 
 	if (source->stream && sink->stream) {
 		if (source->stream == sink->stream)
 			// Already connected to each other
-			return 0;
+			return source->stream;
 		else
 			// Already connected to something else
-			return -1;
+			return NULL;
 	} else if (source->stream) {
 		// The source already has a stream - use that
 		stream = source->stream;
@@ -116,7 +116,7 @@ int aem_stream_connect(struct aem_stream_source *source, struct aem_stream_sink 
 	stream->source = source;
 	stream->sink = sink;
 
-	return 0;
+	return stream;
 }
 
 void aem_stream_source_detach(struct aem_stream_source *source, int flags)

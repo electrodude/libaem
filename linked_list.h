@@ -2,7 +2,7 @@
 #define AEM_LINKED_LIST_H
 
 #ifndef aem_assert
-#include "log.h"
+#include <aem/log.h>
 #endif
 
 // Linked lists with sentinel nodes

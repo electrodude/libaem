@@ -171,7 +171,7 @@ int aem_logmf(struct aem_log_module *module, enum aem_log_level loglevel, const 
 
 	va_end(ap);
 
-#ifdef AEM_DEBUG
+#ifdef AEM_BREAK_ON_BUG
 	if (loglevel <= AEM_LOG_BUG)
 		aem_break();
 #endif

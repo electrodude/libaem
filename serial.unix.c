@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include <termios.h>
 
-#include "log.h"
+#include <aem/log.h>
 
 #include "serial.h"
 

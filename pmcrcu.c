@@ -20,7 +20,7 @@ void aem_pmcrcu_call_rcu(struct aem_pmcrcu_rcu_head *head,
 
 	head->func = func;
 
-#if 0
+#if AEM_DEBUG
 	// Make sure this rcu_head isn't already enqueued.
 	AEM_LL_FOR_RANGE(curr, aem_pmcrcu_head, NULL, next) {
 		aem_assert(curr != head);

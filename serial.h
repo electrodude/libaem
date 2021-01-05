@@ -7,8 +7,8 @@
 #include <windows.h>
 #endif
 
-#include "stringbuf.h"
-#include "stringslice.h"
+#include <aem/stringbuf.h>
+#include <aem/stringslice.h>
 
 struct aem_serial {
 #ifndef _WIN32

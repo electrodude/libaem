@@ -27,12 +27,12 @@ enum aem_stream_state {
 struct aem_stream {
 	struct aem_stringbuf buf;
 
-	int flags;
-
 	struct aem_stream_source *source;
 	struct aem_stream_sink *sink;
 
 	struct rcu_head rcu_head;
+
+	int flags;
 
 	// Used to ensure that consume() never calls provide(), and that the
 	// stream is never simultaneously active more than once in the same
@@ -47,7 +47,7 @@ struct aem_stream_sink *aem_stream_sink_init(struct aem_stream_sink *sink, int (
 void aem_stream_sink_dtor(struct aem_stream_sink *sink, int flags);
 
 /// Attach/detach
-int aem_stream_connect(struct aem_stream_source *source, struct aem_stream_sink *sink);
+struct aem_stream *aem_stream_connect(struct aem_stream_source *source, struct aem_stream_sink *sink);
 
 // These must not be called from within aem_stream_{provide,consume}_{begin,end,cancel} pairs.
 void aem_stream_source_detach(struct aem_stream_source *source, int flags);

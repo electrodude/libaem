@@ -190,7 +190,7 @@ void *aem_stack_pop(struct aem_stack *stk)
 	if (!stk)
 		return NULL;
 
-	if (stk->n <= 0) {
+	if (!stk->n) {
 #if AEM_STACK_DEBUG
 		aem_logf_ctx(AEM_LOG_DEBUG, "underflow\n");
 #endif
@@ -269,7 +269,9 @@ void **aem_stack_index_p(struct aem_stack *stk, size_t i)
 {
 	aem_assert(stk);
 
-	while (stk->n < i+1) {
+	//aem_stack_reserve_total(stk, i+1)
+	// Push NULLs until i is a valid index.
+	while (i >= stk->n) {
 		aem_stack_push(stk, NULL);
 	}
 
@@ -289,14 +291,11 @@ size_t aem_stack_assign_empty(struct aem_stack *stk, void *s)
 {
 	aem_assert(stk);
 
-	for (size_t i = 0; i < stk->n; i++) {
-		if (!stk->s[i]) {
-			aem_stack_assign(stk, i, s);
-			return i;
-		}
-	}
+	// Skip over elements until we find one that's NULL (or nonexistent)
+	size_t i = 0;
+	while (aem_stack_index(stk, i))
+		i++;
 
-	size_t i = stk->n;
 	aem_stack_assign(stk, i, s);
 	return i;
 }
@@ -312,7 +311,8 @@ void *aem_stack_remove(struct aem_stack *stk, size_t i)
 	void *p = stk->s[i];
 	stk->s[i] = NULL;
 
-	// Decrease vector size as much as possible
+	// Decrease vector size as much as possible.
+	// Pop all trailing NULL elements.
 	while (stk->n && !stk->s[stk->n-1])
 		stk->n--;
 

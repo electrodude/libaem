@@ -225,7 +225,7 @@ static inline int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
 {
 	aem_assert(str);
 
-	// make room for new stuff and null terminator
+	// Make room for new stuff and null terminator
 	return aem_stringbuf_reserve_total(str, str->n + len + 1);
 }
 

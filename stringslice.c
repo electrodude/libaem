@@ -249,6 +249,7 @@ int aem_stringslice_cmp(struct aem_stringslice s0, struct aem_stringslice s1)
 	return l1 - l0;
 }
 
+// Could be a lookup table
 static inline int hex2nib(char c)
 {
 	if (c >= '0' && c <= '9') {
@@ -312,6 +313,9 @@ int aem_stringslice_match_int(struct aem_stringslice *slice, int base, int *out)
 		} else {
 			break;
 		}
+
+		if (digit >= base) // Invalid digit
+			break;
 
 		acc = acc*base + digit;
 		best = curr;

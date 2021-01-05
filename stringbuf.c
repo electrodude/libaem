@@ -9,8 +9,6 @@
 #include <errno.h>
 #endif
 
-#include "log.h"
-
 #include "stringbuf.h"
 
 #define AEM_STRINGBUF_DEBUG_ALLOC 0
@@ -19,8 +17,10 @@ struct aem_stringbuf *aem_stringbuf_new_raw(void)
 {
 	struct aem_stringbuf *str = malloc(sizeof(*str));
 
-	if (!str)
+	if (!str) {
+		aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed: %s\n", strerror(errno));
 		return NULL;
+	}
 
 	*str = AEM_STRINGBUF_EMPTY;
 
@@ -56,8 +56,10 @@ void aem_stringbuf_free(struct aem_stringbuf *str)
 
 static inline void aem_stringbuf_storage_free(struct aem_stringbuf *str)
 {
+	aem_assert(str);
 	switch (str->storage) {
 		case AEM_STRINGBUF_STORAGE_HEAP:
+			aem_assert(str->s);
 			free(str->s);
 			break;
 
@@ -78,10 +80,8 @@ void aem_stringbuf_dtor(struct aem_stringbuf *str)
 
 	str->n = 0;
 
-	if (!str->s)
-		return;
-
-	aem_stringbuf_storage_free(str);
+	if (str->s)
+		aem_stringbuf_storage_free(str);
 
 	str->s = NULL;
 	str->maxn = 0;
@@ -104,6 +104,8 @@ char *aem_stringbuf_release(struct aem_stringbuf *str)
 
 void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 {
+	aem_assert(str);
+
 	if (str->bad)
 		return;
 
@@ -280,8 +282,8 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 
 void aem_stringbuf_putss_quote(struct aem_stringbuf *restrict str, struct aem_stringslice slice)
 {
-	if (!str)
-		return;
+	aem_assert(str);
+
 	if (str->bad)
 		return;
 
@@ -351,8 +353,7 @@ int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_s
 
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)
 {
-	if (!str)
-		return;
+	aem_assert(str);
 
 	aem_stringbuf_reserve(str, len);
 
@@ -378,8 +379,7 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i)
 
 void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 {
-	if (!str)
-		return;
+	aem_assert(str);
 
 	if (i + 1 > str->n) {
 		str->n = i + 1;
@@ -394,6 +394,7 @@ void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
 void aem_stringbuf_rtrim(struct aem_stringbuf *str)
 {
 	aem_assert(str);
+
 	while (str->n && isspace(str->s[str->n-1]))
 		str->n--;
 }
@@ -401,8 +402,12 @@ void aem_stringbuf_rtrim(struct aem_stringbuf *str)
 
 size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 {
-	if (!str)
+	aem_assert(str);
+
+	if (!fp) {
+		aem_logf_ctx(AEM_LOG_ERROR, "fp == NULL!");
 		return -1;
+	}
 
 	aem_stringbuf_reserve(str, n);
 
@@ -417,8 +422,12 @@ size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 
 int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp)
 {
-	if (!str)
+	aem_assert(str);
+
+	if (!fp) {
+		aem_logf_ctx(AEM_LOG_ERROR, "fp == NULL!");
 		return -1;
+	}
 
 	ssize_t in;
 	do {
@@ -438,20 +447,27 @@ int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp)
 
 int aem_stringbuf_file_write(const struct aem_stringbuf *restrict str, FILE *fp)
 {
-	if (!str)
+	if (!str) {
+		aem_logf_ctx(AEM_LOG_ERROR, "str == NULL!");
 		return 1;
+	}
+
+	if (!fp) {
+		aem_logf_ctx(AEM_LOG_ERROR, "fp == NULL!");
+		return -1;
+	}
 
 	struct aem_stringslice slice = aem_stringslice_new_str(str);
 
-	return aem_stringslice_file_write(&slice, fp);
+	return aem_stringslice_file_write(slice, fp);
 }
 
 
 #ifdef __unix__
 ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 {
-	if (!str)
-		return -1;
+	aem_assert(str);
+	aem_assert(fd >= 0);
 
 	aem_stringbuf_reserve(str, n);
 
@@ -468,8 +484,8 @@ ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 
 int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
 {
-	if (!str)
-		return -1;
+	aem_assert(str);
+	aem_assert(fd >= 0);
 
 	ssize_t in;
 	do {
@@ -489,11 +505,11 @@ int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
 
 ssize_t aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd)
 {
-	if (!str)
-		return 1;
+	aem_assert(str);
+	aem_assert(fd >= 0);
 
 	struct aem_stringslice slice = aem_stringslice_new_str(str);
 
-	return aem_stringslice_fd_write(&slice, fd);
+	return aem_stringslice_fd_write(slice, fd);
 }
 #endif

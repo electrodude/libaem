@@ -9,11 +9,9 @@
 
 #define AEM_STRINGBUF_DEBUG 0
 
-#if AEM_STRINGBUF_DEBUG
-#include "log.h"
-#endif
+#include <aem/log.h>
 
-#include "stringslice.h"
+#include <aem/stringslice.h>
 
 // String builder class
 // N.B.: The null terminator is not present on str->s except after calls to aem_stringbuf_get
@@ -86,6 +84,7 @@ char *aem_stringbuf_release(struct aem_stringbuf *str);
 // Get a pointer to the end of a string
 static inline char *aem_stringbuf_end(struct aem_stringbuf *str)
 {
+	aem_assert(str);
 	return &str->s[str->n];
 }
 
@@ -94,6 +93,7 @@ static inline char *aem_stringbuf_end(struct aem_stringbuf *str)
 // nor shrinks the allocated size of the internal buffer.
 static inline void aem_stringbuf_reset(struct aem_stringbuf *str)
 {
+	aem_assert(str);
 	str->n = 0;
 	str->bad = 0;
 }
@@ -108,6 +108,7 @@ static inline int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t 
 // Return the number of available allocated bytes
 static inline int aem_stringbuf_available(struct aem_stringbuf *str)
 {
+	aem_assert(str);
 	return str->maxn - str->n - 1;
 }
 
@@ -216,13 +217,13 @@ ssize_t aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd);
 // Really belongs in stringslice.h, but can't because inline and dereferencing pointer to incomplete type.
 static inline struct aem_stringslice aem_stringslice_new_str(const struct aem_stringbuf *str)
 {
+	aem_assert(str);
 	return aem_stringslice_new_len(str->s, str->n);
 }
 
 static inline int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
 {
-	if (!str)
-		return 0;
+	aem_assert(str);
 
 	// make room for new stuff and null terminator
 	return aem_stringbuf_reserve_total(str, str->n + len + 1);
@@ -230,8 +231,7 @@ static inline int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
 
 static inline int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t len)
 {
-	if (!str)
-		return 0;
+	aem_assert(str);
 
 	len++; // Add null terminator
 	if (str->maxn < len) {
@@ -244,8 +244,7 @@ static inline int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t 
 
 static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c)
 {
-	if (!str)
-		return;
+	aem_assert(str);
 
 #if AEM_STRINGBUF_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "putc(\"%s\", '%c')\n", aem_stringbuf_get(str), c);
@@ -260,8 +259,8 @@ static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c)
 
 static inline void aem_stringbuf_puts(struct aem_stringbuf *restrict str, const char *restrict s)
 {
-	if (!str)
-		return;
+	aem_assert(str);
+
 	if (str->bad)
 		return;
 
@@ -280,8 +279,7 @@ static inline void aem_stringbuf_puts(struct aem_stringbuf *restrict str, const 
 
 static inline void aem_stringbuf_puts_limit(struct aem_stringbuf *restrict str, size_t len, const char *restrict s)
 {
-	if (!str)
-		return;
+	aem_assert(str);
 
 	if (!s)
 		return;
@@ -297,11 +295,11 @@ static inline void aem_stringbuf_puts_limit(struct aem_stringbuf *restrict str, 
 
 static inline void aem_stringbuf_putn(struct aem_stringbuf *restrict str, size_t n, const char *restrict s)
 {
-	if (!str)
+	if (!n)
 		return;
 
-	if (!s)
-		return;
+	aem_assert(str);
+	aem_assert(s);
 
 	aem_stringbuf_reserve(str, n);
 	if (str->bad)
@@ -314,15 +312,14 @@ static inline void aem_stringbuf_putn(struct aem_stringbuf *restrict str, size_t
 
 static inline void aem_stringbuf_append(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
 {
-	if (!str2)
-		return;
+	aem_assert(str2);
+
 	aem_stringbuf_putn(str, str2->n, str2->s);
 }
 
 static inline void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
 {
-	if (!str2)
-		return;
+	aem_assert(str);
 	aem_stringbuf_putss_quote(str, aem_stringslice_new_str(str2));
 }
 

@@ -28,10 +28,10 @@ static inline struct aem_stringslice aem_stringslice_new_cstr(const char *p)
 #define aem_stringslice_new_sizeof(char_arr) aem_stringslice_new_len((char_arr), sizeof(char_arr))
 
 
-int aem_stringslice_file_write(struct aem_stringslice *slice, FILE *fp);
+int aem_stringslice_file_write(struct aem_stringslice slice, FILE *fp);
 
 #ifdef __unix__
-ssize_t aem_stringslice_fd_write(struct aem_stringslice *slice, int fd);
+ssize_t aem_stringslice_fd_write(struct aem_stringslice slice, int fd);
 #endif
 
 

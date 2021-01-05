@@ -4,6 +4,8 @@
 // for size_t
 #include <stddef.h>
 
+#include <aem/log.h>
+
 // Stack class
 
 struct aem_stack {
@@ -53,7 +55,7 @@ static inline void aem_stack_reset(struct aem_stack *stk);
 // Destroy given stack, returning its internal buffer and writing the number of
 //  elements to n
 // The caller assumes responsibilty for free()ing the returned buffer.
-void **aem_stack_release(struct aem_stack *stk, size_t *n);
+void **aem_stack_release(struct aem_stack *stk, size_t *n_p);
 
 // realloc() internal buffer to be as small as possible
 void *aem_stack_shrinkwrap(struct aem_stack *stk);
@@ -126,8 +128,7 @@ void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const 
 /// Implementations of inline functions
 static inline void aem_stack_append(struct aem_stack *stk, struct aem_stack *stk2)
 {
-	if (!stk2)
-		return;
+	aem_assert(stk2);
 
 	aem_stack_pushn(stk, stk2->n, stk2->s);
 }

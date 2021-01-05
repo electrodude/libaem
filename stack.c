@@ -1,6 +1,9 @@
-#include <stdlib.h>
+#include <errno.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
+
+#include <aem/log.h>
 
 #include "stack.h"
 
@@ -8,8 +11,10 @@ struct aem_stack *aem_stack_alloc_raw(void)
 {
 	struct aem_stack *stk = malloc(sizeof(*stk));
 
-	if (!stk)
+	if (!stk) {
+		aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed: %s\n", strerror(errno));
 		return NULL;
+	}
 
 	*stk = AEM_STACK_EMPTY;
 
@@ -56,19 +61,21 @@ void aem_stack_dtor(struct aem_stack *stk)
 }
 
 
-void **aem_stack_release(struct aem_stack *stk, size_t *n)
+void **aem_stack_release(struct aem_stack *stk, size_t *n_p)
 {
 	if (!stk) {
-		*n = 0;
+		if (n_p)
+			*n_p = 0;
 		return NULL;
 	}
 
 	aem_stack_shrinkwrap(stk);
 
 	void **s = stk->s;
-	*n = stk->n;
-
 	free(stk);
+
+	if (n_p)
+		*n_p = stk->n;
 
 	return s;
 }
@@ -76,6 +83,8 @@ void **aem_stack_release(struct aem_stack *stk, size_t *n)
 
 static inline void aem_stack_grow(struct aem_stack *stk, size_t maxn_new)
 {
+	aem_assert(stk);
+
 #if AEM_STACK_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "realloc: %zd, %zd -> %zd\n", stk->n, stk->maxn, maxn_new);
 #endif
@@ -95,16 +104,14 @@ void *aem_stack_shrinkwrap(struct aem_stack *stk)
 
 int aem_stack_reserve(struct aem_stack *stk, size_t len)
 {
-	if (!stk)
-		return 0;
+	aem_assert(stk);
 
 	return aem_stack_reserve_total(stk, stk->n + len);
 }
 
 int aem_stack_reserve_total(struct aem_stack *stk, size_t maxn)
 {
-	if (!stk)
-		return 0;
+	aem_assert(stk);
 
 	if (stk->maxn < maxn) {
 		aem_stack_grow(stk, maxn*2);
@@ -117,8 +124,7 @@ int aem_stack_reserve_total(struct aem_stack *stk, size_t maxn)
 
 void aem_stack_push(struct aem_stack *stk, void *s)
 {
-	if (!stk)
-		return;
+	aem_assert(stk);
 
 #if AEM_STACK_DEBUG
 	aem_logf_ctx(AEM_LOG_DEBUG, "push %p\n", s);
@@ -131,11 +137,11 @@ void aem_stack_push(struct aem_stack *stk, void *s)
 
 void aem_stack_pushn(struct aem_stack *restrict stk, size_t n, void **restrict s)
 {
-	if (!stk)
+	if (!n)
 		return;
 
-	if (!s)
-		return;
+	aem_assert(stk);
+	aem_assert(s);
 
 	aem_stack_reserve(stk, n);
 
@@ -146,6 +152,8 @@ void aem_stack_pushn(struct aem_stack *restrict stk, size_t n, void **restrict s
 
 void aem_stack_pushv(struct aem_stack *stk, size_t n, ...)
 {
+	aem_assert(stk);
+
 	va_list ap;
 	va_start(ap, n);
 
@@ -160,10 +168,11 @@ void aem_stack_pushv(struct aem_stack *stk, size_t n, ...)
 
 size_t aem_stack_transfer(struct aem_stack *restrict dest, struct aem_stack *restrict src, size_t n)
 {
-	if (!dest)
+	if (!n)
 		return 0;
-	if (!src)
-		return 0;
+
+	aem_assert(dest);
+	aem_assert(src);
 
 	if (src->n < n)
 		return 0;
@@ -258,8 +267,7 @@ void *aem_stack_index(struct aem_stack *stk, size_t i)
 
 void **aem_stack_index_p(struct aem_stack *stk, size_t i)
 {
-	if (!stk)
-		return NULL;
+	aem_assert(stk);
 
 	while (stk->n < i+1) {
 		aem_stack_push(stk, NULL);
@@ -270,8 +278,7 @@ void **aem_stack_index_p(struct aem_stack *stk, size_t i)
 
 void aem_stack_assign(struct aem_stack *stk, size_t i, void *s)
 {
-	if (!stk)
-		return;
+	aem_assert(stk);
 
 	void **p = aem_stack_index_p(stk, i);
 
@@ -280,6 +287,8 @@ void aem_stack_assign(struct aem_stack *stk, size_t i, void *s)
 
 size_t aem_stack_assign_empty(struct aem_stack *stk, void *s)
 {
+	aem_assert(stk);
+
 	for (size_t i = 0; i < stk->n; i++) {
 		if (!stk->s[i]) {
 			aem_stack_assign(stk, i, s);
@@ -294,6 +303,11 @@ size_t aem_stack_assign_empty(struct aem_stack *stk, void *s)
 
 void *aem_stack_remove(struct aem_stack *stk, size_t i)
 {
+	aem_assert(stk);
+
+	if (i >= stk->n)
+		return NULL;
+
 	// Replace object with NULL
 	void *p = stk->s[i];
 	stk->s[i] = NULL;
@@ -307,6 +321,8 @@ void *aem_stack_remove(struct aem_stack *stk, size_t i)
 
 int aem_stack_insert(struct aem_stack *stk, size_t i, void *p)
 {
+	aem_assert(stk);
+
 	if (i > stk->n)
 		return 1;
 
@@ -320,6 +336,8 @@ int aem_stack_insert(struct aem_stack *stk, size_t i, void *p)
 
 int aem_stack_insert_end(struct aem_stack *stk, size_t i, void *p)
 {
+	aem_assert(stk);
+
 	if (i > stk->n)
 		return 1;
 
@@ -328,5 +346,7 @@ int aem_stack_insert_end(struct aem_stack *stk, size_t i, void *p)
 
 void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const void *p2))
 {
+	aem_assert(stk);
+
 	qsort(stk->s, stk->n, sizeof(stk->s[0]), compar);
 }

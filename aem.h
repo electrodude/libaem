@@ -29,4 +29,7 @@
 
 #endif /* AEM_DEBUG */
 
+#define AEM_STRINGIFY(s) #s
+#define AEM_STRINGIFY2(s) AEM_STRINGIFY(s)
+
 #endif /* AEM_H */

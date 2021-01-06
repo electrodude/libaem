@@ -164,7 +164,7 @@ struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *
 		// If the last character of p was a CR, set the flag so we know
 		// to skip an LF at the beginning of the next call to this
 		// function.
-		*state = newline == 1 && !aem_stringslice_ok(p);
+		*state = newline == 2 && !aem_stringslice_ok(p);
 		// If it was a newline, save our progress and return the line.
 		if (newline) {
 			*slice = p;

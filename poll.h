@@ -79,6 +79,11 @@ void aem_poll_mod(struct aem_poll *p, struct aem_poll_event *evt);
 
 struct pollfd *aem_poll_get_pollfd(struct aem_poll *p, struct aem_poll_event *evt);
 
+// Debug functions
+struct aem_stringbuf;
+void aem_poll_print_event_bits(struct aem_stringbuf *out, short revents);
+void aem_poll_event_dump(const struct aem_poll_event *evt, struct aem_stringbuf *out);
+
 // Call poll(2) and process resulting events
 int aem_poll_poll(struct aem_poll *p);
 // Send an artificial HUP to each event handler

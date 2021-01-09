@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <aem/stringbuf.h>
+
 #include "poll.h"
 
 struct aem_poll_event *aem_poll_event_init(struct aem_poll_event *evt)
@@ -12,6 +14,7 @@ struct aem_poll_event *aem_poll_event_init(struct aem_poll_event *evt)
 
 	evt->fd = -1;
 	evt->events = 0;
+	evt->revents = 0;
 
 	return evt;
 }
@@ -152,7 +155,7 @@ void aem_poll_mod(struct aem_poll *p, struct aem_poll_event *evt)
 	aem_assert(p);
 	aem_assert(evt);
 
-	// Must already be registered
+	// Only makes sense if event is already registered.
 	if (evt->i < 0)
 		return;
 
@@ -185,10 +188,11 @@ struct pollfd *aem_poll_get_pollfd(struct aem_poll *p, struct aem_poll_event *ev
 	return pollfd;
 }
 
-
-int aem_poll_poll(struct aem_poll *p)
+#ifdef AEM_DEBUG
+static void aem_poll_verify(struct aem_poll *p)
 {
 	aem_assert(p);
+
 	// Ensure all registrations are consistent
 	for (size_t i = 0; i < p->n; i++) {
 		struct aem_poll_event *evt = p->evts[i];
@@ -197,7 +201,54 @@ int aem_poll_poll(struct aem_poll *p)
 		//pollfd->fd = evt->fd;
 		//pollfd->events = evt->events;
 		aem_poll_event_verify(p, i);
+		if (!evt->events) {
+			struct aem_stringbuf out = AEM_STRINGBUF_ALLOCA(256);
+			aem_poll_event_dump(evt, &out);
+			aem_logf_ctx(AEM_LOG_WARN, "Unhandled revents %#x on event %zd (%s)\n", evt->revents, i, aem_stringbuf_get(&out));
+			aem_stringbuf_dtor(&out);
+		}
 	}
+}
+#endif
+
+void aem_poll_print_event_bits(struct aem_stringbuf *out, short revents)
+{
+	int first = 1;
+
+#define APPEND_REVENTS_STR(name) if (revents & name) { if (!first) aem_stringbuf_puts(out, " | "); first = 0; aem_stringbuf_puts(out, #name); revents &= ~name; }
+	APPEND_REVENTS_STR(POLLIN)
+	APPEND_REVENTS_STR(POLLPRI)
+	APPEND_REVENTS_STR(POLLOUT)
+#ifdef POLLRDHUP
+	APPEND_REVENTS_STR(POLLRDHUP)
+#endif
+	APPEND_REVENTS_STR(POLLERR)
+	APPEND_REVENTS_STR(POLLHUP)
+	APPEND_REVENTS_STR(POLLNVAL)
+#undef APPEND_REVENTS_STR
+
+	if (revents) { if (!first) aem_stringbuf_puts(out, " | "); first = 0; aem_stringbuf_printf(out, "%#x", revents); }
+	if (first) {
+		aem_stringbuf_puts(out, "0");
+	}
+}
+
+void aem_poll_event_dump(const struct aem_poll_event *evt, struct aem_stringbuf *out)
+{
+	aem_stringbuf_printf(out, "fd %d: events = ", evt->fd);
+	aem_poll_print_event_bits(out, evt->events);
+	aem_stringbuf_puts(out, ", revents = ");
+	aem_poll_print_event_bits(out, evt->revents);
+}
+
+
+int aem_poll_poll(struct aem_poll *p)
+{
+	aem_assert(p);
+
+#ifdef AEM_DEBUG
+	aem_poll_verify(p);
+#endif
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p: poll %zd events\n", p, p->n);
 
@@ -259,21 +310,29 @@ int aem_poll_poll(struct aem_poll *p)
 				aem_logf_ctx(AEM_LOG_BUG, "We deregistered fd %d for you due to POLLHUP because your buggy code forgot to do it itself.  The object containing (struct aem_poll_event*)%p was likely leaked.\n", evt->fd, evt);
 			}
 
-			if (evt->revents)
-				aem_logf_ctx(AEM_LOG_BUG, "unhandled revents %x on event %zd (fd %d)\n", evt->revents, i, evt->fd);
+			if (evt->revents) {
+				struct aem_stringbuf out = AEM_STRINGBUF_ALLOCA(256);
+				aem_poll_event_dump(evt, &out);
+				aem_logf_ctx(AEM_LOG_BUG, "Unhandled revents %#x on event %zd (%s)\n", evt->revents, i, aem_stringbuf_get(&out));
+				aem_stringbuf_dtor(&out);
+			}
 
-			// Ensure we don't get stuck in an infinite loop when
-			// some idiot writes an event handler that, in a single
-			// call, both swaps itself with the next event in the
-			// list *and* leaves events unhandled.  By clearing
-			// this, we ensure that the above `if (revents)
-			// continue;` statement won't let us re-process this
-			// event until the next poll.
-			pollfd->revents = evt->revents;
 
-			// If the event is still registered, ensure it's
-			// consistent.
+			// Only do this stuff if the event is still registered.
 			if (evt->i != -1) {
+				// Get it again in case evt->i changes or p->fds is moved by realloc().
+				pollfd = &p->fds[evt->i];
+
+				// Ensure we don't get stuck in an infinite loop when
+				// some idiot writes an event handler that, in a single
+				// call, both swaps itself with the next event in the
+				// list *and* leaves events unhandled.  By clearing
+				// this, we ensure that the above `if (revents)
+				// continue;` statement won't let us re-process this
+				// event until the next poll.
+				pollfd->revents = evt->revents;
+
+				// Ensure event is still constent
 				aem_assert(p->evts[evt->i] == evt);
 				aem_poll_event_verify(p, evt->i);
 			}
@@ -282,6 +341,9 @@ int aem_poll_poll(struct aem_poll *p)
 			// proccessed, try this slot again.  This won't cause a
 			// problem if this was the last event because p->n
 			// would also have been decremented.
+			// It can't hurt to process the same event twice,
+			// assuming evt->revents was cleared the first time
+			// through.
 			if (evt->i == -1 || (size_t)evt->i != i)
 				i--;
 		}
@@ -300,15 +362,8 @@ int aem_poll_poll(struct aem_poll *p)
 void aem_poll_hup_all(struct aem_poll *p)
 {
 	aem_assert(p);
-	// Ensure all registrations are consistent
-	for (size_t i = 0; i < p->n; i++) {
-		struct aem_poll_event *evt = p->evts[i];
-		// If it's wrong, just fix it instead of complaining
-		//struct pollfd *pollfd = &p->fds[i];
-		//pollfd->fd = evt->fd;
-		//pollfd->events = evt->events;
-		aem_poll_event_verify(p, i);
-	}
+
+	aem_poll_verify(p);
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p: HUP all\n", p);
 
@@ -318,13 +373,17 @@ void aem_poll_hup_all(struct aem_poll *p)
 		struct aem_poll_event *evt = p->evts[i];
 		aem_poll_event_verify(p, i);
 
-		aem_logf_ctx(AEM_LOG_DEBUG, "%p[%zd]: HUP fd %d\n", p, i, pollfd->fd);
+		struct aem_stringbuf out = AEM_STRINGBUF_ALLOCA(256);
+		aem_poll_event_dump(evt, &out);
+		aem_logf_ctx(AEM_LOG_DEBUG, "%p[%zd]: HUP %s\n", p, i, aem_stringbuf_get(&out));
+		aem_stringbuf_dtor(&out);
 
 		aem_assert(!evt->revents);
 		evt->revents |= POLLHUP;
 
 		if (evt->on_event) {
 			evt->on_event(p, evt);
+			// Assert that it deregistered itself.
 			aem_assert(evt->i == -1);
 		} else {
 			aem_logf_ctx(AEM_LOG_WARN, "%p[%zd]: fd %d has no on_event callback!\n", p, i, pollfd->fd);

@@ -8,14 +8,20 @@
 #include <aem/net.h>
 #include <aem/pmcrcu.h>
 
+int should_exit;
+
 struct server_connection
 {
 	struct aem_net_conn conn;
+
+	struct aem_stringbuf name;
 
 	struct aem_stream_sink sink;
 	struct aem_stream_source source;
 
 	struct rcu_head rcu_head;
+
+	int (*process_data)(struct server_connection *conn, struct aem_stringbuf *out, struct aem_stringslice *in, int flags);
 
 	int line_state;
 };
@@ -28,9 +34,10 @@ static void conn_free_rcu(struct rcu_head *rcu_head)
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p\n", conn);
 
-	aem_stream_sink_dtor(&conn->sink, AEM_STREAM_FIN);
-	aem_stream_source_dtor(&conn->source, AEM_STREAM_FIN);
+	aem_stream_sink_dtor(&conn->sink);
+	aem_stream_source_dtor(&conn->source);
 	aem_net_conn_dtor(&conn->conn);
+	aem_stringbuf_dtor(&conn->name);
 
 	free(conn);
 }
@@ -40,97 +47,120 @@ static void conn_free(struct aem_net_conn *sock)
 
 	struct server_connection *conn = aem_container_of(sock, struct server_connection, conn);
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p: fd %d\n", conn, conn->conn.sock.evt.fd);
+	aem_logf_ctx(AEM_LOG_DEBUG, "%s: fd %d\n", aem_stringbuf_get(&conn->name), conn->conn.sock.evt.fd);
 
-	aem_stream_sink_detach(&conn->sink, AEM_STREAM_FIN);
-	aem_stream_source_detach(&conn->source, AEM_STREAM_FIN);
+	aem_stream_sink_detach(&conn->sink);
+	aem_stream_source_detach(&conn->source);
 
 	aem_net_sock_stop(&conn->conn.sock);
 
 	call_rcu(&conn->rcu_head, conn_free_rcu);
 }
 
-static int consume_line(struct server_connection *conn, struct aem_stringbuf *out, struct aem_stringslice line, int flags)
+static int process_data(struct server_connection *conn, struct aem_stringbuf *out, struct aem_stringslice *in, int flags)
 {
 	aem_assert(conn);
 	aem_assert(out);
+	aem_assert(in);
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p: %zd bytes, flags %d\n", conn, aem_stringslice_len(line), flags);
+	if (!aem_stringslice_ok(*in))
+		return 0;
 
-	struct aem_stringbuf msg = {0};
-	aem_stringbuf_puts(&msg, "Line: ");
-	aem_stringbuf_putss_quote(&msg, line);
-	aem_stringbuf_puts(&msg, "\n");
-	aem_logf_ctx(AEM_LOG_INFO, "%s", aem_stringbuf_get(&msg));
+	int rc = 0;
+
+	struct aem_stringslice curr = *in;
+	struct aem_stringslice line = aem_stringslice_match_line_multi(&curr, &conn->line_state, flags & AEM_STREAM_FIN);
+
+	aem_logf_ctx(AEM_LOG_DEBUG2, "%s: line %zd bytes, flags %d\n", aem_stringbuf_get(&conn->name), aem_stringslice_len(line), flags);
+
+	if (line.start) {
+		struct aem_stringbuf msg = {0};
+
+		aem_stringbuf_puts(&msg, "Line: ");
+		aem_stringbuf_putss_quote(&msg, line);
+		aem_stringbuf_puts(&msg, "\n");
+
+		//aem_logf_ctx(AEM_LOG_INFO, "%s", aem_stringbuf_get(&msg));
+		aem_stringbuf_append(out, &msg);
+
+		aem_stringbuf_dtor(&msg);
+	} else if (aem_stringslice_ok(*in)) {
+		rc |= AEM_STREAM_NEED_MORE;
+	}
 
 	aem_assert(conn->source.stream);
 	// Fails if writing side is closed.
 	if (!conn->source.stream->sink)
 		aem_logf_ctx(AEM_LOG_WARN, "TX closed\n");
 
-	aem_stringbuf_append(out, &msg);
 	if (flags & AEM_STREAM_FIN) {
 		aem_stringbuf_puts(out, "EOF\n");
 	}
 
-	aem_stringbuf_dtor(&msg);
+	if (aem_stringslice_eq(line, "shutdown"))
+		should_exit = 1;
 
-	return 0;
+	if (aem_stringslice_eq(line, "crash"))
+		aem_abort();
+
+	*in = curr;
+
+	return rc;
 }
-int process_data(struct server_connection *conn, int flags)
-{
-	aem_assert(conn);
 
-	int rc = 0;
+static int conn_consume(struct aem_stream_sink *sink)
+{
+	aem_assert(sink);
+	aem_assert(sink->stream);
+
+	int flags = sink->flags;
+
+	struct server_connection *conn = aem_container_of(sink, struct server_connection, sink);
+
+	int flags_source = 0;
 
 	struct aem_stringbuf *out = aem_stream_provide_begin(&conn->source);
 
 	if (!out) {
 		aem_logf_ctx(AEM_LOG_BUG, "TX disconnected\n");
-		rc = 1;
+		flags_source = AEM_STREAM_FIN;
 		goto disconnected;
 	}
-	if (out->n > 65536) {
-		aem_logf_ctx(AEM_LOG_WARN, "fd %d: waiting: buffer has %zd bytes\n", conn->conn.sock.evt.fd, out->n);
-		aem_stream_provide_end(&conn->source);
-		rc = 1;
-		goto done;
-	}
-
-	struct aem_stream_sink *sink = &conn->sink;
 
 	struct aem_stringslice in = aem_stream_consume_begin(sink);
 	if (!in.start)
-		return 0;
+		return flags_source;
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "%zd bytes, flags %d\n", aem_stringslice_len(in), flags);
+	aem_logf_ctx(AEM_LOG_DEBUG2, "%zd bytes, flags %d\n", aem_stringslice_len(in), flags);
 
-	for (;;) {
+	while (aem_stringslice_ok(in)) {
 		struct aem_stringslice in_prev = in;
-		struct aem_stringslice line = aem_stringslice_match_line_multi(&in, &conn->line_state, flags & AEM_STREAM_FIN);
-		if (!aem_stringslice_ok(line))
-			break;
 
-		int rc = consume_line(conn, out, line, flags & ~AEM_STREAM_FIN);
-		aem_logf_ctx(AEM_LOG_DEBUG, "line: %zd bytes; rc %d\n", aem_stringslice_len(line), rc);
+		aem_assert(conn->process_data);
+		int rc = conn->process_data(conn, out, &in, flags);
+
+		if (!rc) {
+			aem_assert(in.start != in_prev.start); // Callback didn't make progress without excuse.
+		}
+
+		aem_logf_ctx(AEM_LOG_DEBUG3, "%zd bytes remain; rc %d\n", aem_stringslice_len(in), rc);
+
 		if (rc) {
-			// Restore line if callback didn't want it.
-			in = in_prev;
+			flags_source = rc;
 			break;
 		}
-		if (!aem_stringslice_ok(line))
-			break;
+	}
 
+	if (flags & AEM_STREAM_FIN) {
+		aem_assert(conn->process_data);
+		int rc2 = conn->process_data(conn, out, &in, flags);
 	}
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "done: %zd bytes remain\n", aem_stringslice_len(in));
 
 	aem_stream_consume_end(sink, in);
 
-done:
 	aem_stream_provide_end(&conn->source);
-
-	aem_stream_consume(conn->source.stream, flags);
 
 disconnected:
 	if (flags & AEM_STREAM_FIN) {
@@ -138,30 +168,16 @@ disconnected:
 		conn_free(&conn->conn);
 	}
 
-	return rc;
+	return flags_source;
 }
-
-static int conn_consume(struct aem_stream_sink *sink, int flags)
-{
-	aem_assert(sink);
-	aem_assert(sink->stream);
-
-	struct server_connection *conn = aem_container_of(sink, struct server_connection, sink);
-
-	return process_data(conn, flags);
-}
-static int conn_provide(struct aem_stream_source *source, int flags)
+static int conn_provide(struct aem_stream_source *source)
 {
 	aem_assert(source);
 	aem_assert(source->stream);
 
 	struct server_connection *conn = aem_container_of(source, struct server_connection, source);
 
-	struct aem_stream_sink *upstream = &conn->sink;
-
-	aem_assert(upstream);
-
-	aem_stream_provide(upstream->stream, flags);
+	aem_stream_flow(conn->sink.stream, source->flags);
 
 	return 0;
 }
@@ -173,6 +189,9 @@ static struct aem_net_conn *conn_new(struct aem_net_server *server, struct socka
 		return NULL;
 	}
 
+	aem_stringbuf_init(&conn->name);
+
+	conn->process_data = process_data;
 	conn->line_state = 0;
 	aem_net_conn_init(&conn->conn);
 	aem_stream_sink_init(&conn->sink, conn_consume);
@@ -202,9 +221,11 @@ static void conn_setup(struct aem_net_conn *sock, struct aem_net_server *server,
 			switch (addr->sa_family) {
 				case AF_INET:
 					aem_logf_ctx(AEM_LOG_INFO, "srv %p, fd %d: %s:%s\n", server, conn->conn.sock.evt.fd, host, serv);
+					aem_stringbuf_printf(&conn->name, "%s:%s", host, serv);
 					break;
 				case AF_INET6:
 					aem_logf_ctx(AEM_LOG_INFO, "srv %p, fd %d: [%s]:%s\n", server, conn->conn.sock.evt.fd, host, serv);
+					aem_stringbuf_printf(&conn->name, "[%s]:%s", host, serv);
 					break;
 			}
 			break;
@@ -234,7 +255,7 @@ int main(int argc, char **argv)
 	aem_log_stderr();
 
 	const char *bind_path = "localhost";
-	const char *service = NULL;
+	const char *service = "12345";
 	int unix = 0;
 
 	int opt;
@@ -263,6 +284,8 @@ int main(int argc, char **argv)
 	struct aem_poll poller;
 	aem_poll_init(&poller);
 
+	should_exit = 0;
+
 	struct aem_net_server srv;
 
 	aem_net_server_init(&srv);
@@ -274,6 +297,8 @@ int main(int argc, char **argv)
 
 	while (poller.n) {
 		aem_poll_poll(&poller);
+		if (should_exit)
+			aem_poll_hup_all(&poller);
 		synchronize_rcu(); // Call deferred destructors.
 	}
 

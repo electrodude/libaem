@@ -144,7 +144,8 @@ struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *
 
 	struct aem_stringslice p = *slice;
 
-	struct aem_stringslice line = p;
+	// Initialize line to be an empty slice at the beginning of the input slice.
+	struct aem_stringslice line = {.start = p.start, .end = p.start};
 
 	// If the last character given to the previous invocation of this
 	// function was CR, and the first character of this one is LF, then
@@ -161,28 +162,31 @@ struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *
 
 		// Try to get a newline
 		int newline = aem_stringslice_match_newline(&p);
-		// If the last character of p was a CR, set the flag so we know
-		// to skip an LF at the beginning of the next call to this
+		// If we found a CR newline at the end of the input, it's
+		// possible it's really part of a CRLF split across multiple
+		// invocations of this function, so note this situation so we
+		// can deal with it at the beginning of the next call to this
 		// function.
 		*state = newline == 2 && !aem_stringslice_ok(p);
-		// If it was a newline, save our progress and return the line.
-		if (newline) {
-			*slice = p;
-
-			return line;
-		}
+		// If we found a newline, save our progress and return the line.
+		if (newline)
+			goto return_line;
 
 		// It wasn't a newline, so it must be something else.
 		aem_stringslice_getc(&p);
 	}
 
-	if (finish) {
-		*slice = p;
-
-		return line;
-	}
+	// Return the incomplete line anyway if this will be the final call to
+	// this function.
+	if (finish)
+		goto return_line;
 
 	return AEM_STRINGSLICE_EMPTY;
+
+return_line:
+	*slice = p;
+
+	return line;
 }
 
 int aem_stringslice_match(struct aem_stringslice *slice, const char *s)

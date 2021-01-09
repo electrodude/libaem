@@ -109,9 +109,7 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 	if (str->bad)
 		return;
 
-	// if it's already big enough, don't do anything
-	if (str->maxn >= maxn_new)
-		return;
+	aem_assert(maxn_new >= str->n+1);
 
 	if (str->fixed) {
 		str->bad = 1;

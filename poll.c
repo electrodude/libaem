@@ -363,7 +363,9 @@ void aem_poll_hup_all(struct aem_poll *p)
 {
 	aem_assert(p);
 
+#ifdef AEM_DEBUG
 	aem_poll_verify(p);
+#endif
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p: HUP all\n", p);
 

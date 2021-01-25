@@ -270,7 +270,7 @@ static int aem_net_on_rx(struct aem_stream_source *source)
 	if (!aem_stream_should_provide(source))
 		goto cancel;
 
-	struct aem_stringbuf *out = aem_stream_provide_begin(source);
+	struct aem_stringbuf *out = aem_stream_provide_begin(source, 0);
 	aem_assert(out);
 
 	if (out->n > 65536)

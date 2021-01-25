@@ -39,11 +39,6 @@ struct aem_stream_sink {
 	int flags;
 };
 
-enum aem_stream_state {
-	AEM_STREAM_IDLE = 0,
-	AEM_STREAM_PROVIDING,
-	AEM_STREAM_CONSUMING,
-};
 struct aem_stream {
 	struct aem_stringbuf buf;
 
@@ -52,10 +47,11 @@ struct aem_stream {
 
 	struct rcu_head rcu_head;
 
-	// Used to ensure that consume() never calls provide(), and that the
-	// stream is never simultaneously active more than once in the same
-	// direction.
-	enum aem_stream_state state;
+	// Used to ensure that the stream is only ever in consume or provide
+	// mode, and used to ensure nested providing doesn't get out of hand.
+	// Positive: providing
+	// Negative: consuming
+	int state;
 };
 
 /// Constructor/destructor
@@ -77,7 +73,7 @@ int aem_stream_flow(struct aem_stream *stream, int flags);
 size_t aem_stream_avail(struct aem_stream *stream);
 
 int aem_stream_should_provide(struct aem_stream_source *source);
-struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source);
+struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source, int nest);
 void aem_stream_provide_end(struct aem_stream_source *source);
 
 struct aem_stringslice aem_stream_consume_begin(struct aem_stream_sink *sink);

@@ -119,7 +119,7 @@ static int conn_consume(struct aem_stream_sink *sink)
 
 	int flags_source = 0;
 
-	struct aem_stringbuf *out = aem_stream_provide_begin(&conn->source);
+	struct aem_stringbuf *out = aem_stream_provide_begin(&conn->source, 0);
 
 	if (!out) {
 		aem_logf_ctx(AEM_LOG_BUG, "TX disconnected\n");

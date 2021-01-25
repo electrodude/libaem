@@ -67,7 +67,7 @@ static struct aem_stream *aem_stream_new(void)
 	stream->source = NULL;
 	stream->sink = NULL;
 
-	stream->state = AEM_STREAM_IDLE;
+	stream->state = 0;
 
 	return stream;
 }
@@ -104,7 +104,7 @@ struct aem_stream *aem_stream_connect(struct aem_stream_source *source, struct a
 	struct aem_stream *stream = NULL;
 	if (source->stream && sink->stream) {
 		if (source->stream == sink->stream) {
-			aem_assert(stream->state == AEM_STREAM_IDLE);
+			aem_assert(!stream->state);
 			// Already connected to each other
 			return source->stream;
 		} else {
@@ -130,7 +130,7 @@ struct aem_stream *aem_stream_connect(struct aem_stream_source *source, struct a
 	stream->source = source;
 	stream->sink = sink;
 
-	aem_assert(stream->state == AEM_STREAM_IDLE);
+	aem_assert(!stream->state);
 
 	return stream;
 }
@@ -151,7 +151,7 @@ void aem_stream_source_detach(struct aem_stream_source *source)
 	if (stream->sink)
 		aem_stream_consume(stream, AEM_STREAM_FIN);
 
-	aem_assert(stream->state == AEM_STREAM_IDLE);
+	aem_assert(!stream->state);
 
 	stream->source = NULL;
 	source->stream = NULL;
@@ -173,7 +173,7 @@ void aem_stream_sink_detach(struct aem_stream_sink *sink)
 	if (stream->source)
 		stream->source->flags |= AEM_STREAM_FIN;
 
-	aem_assert(stream->state == AEM_STREAM_IDLE);
+	aem_assert(!stream->state);
 
 	stream->sink = NULL;
 	sink->stream = NULL;
@@ -279,12 +279,12 @@ int aem_stream_should_provide(struct aem_stream_source *source)
 	aem_assert(stream);
 	aem_assert(stream->source == source);
 
-	if (stream->state != AEM_STREAM_IDLE)
+	if (stream->state)
 		return 0;
 
 	return !stream->buf.n || (source->flags & AEM_STREAM_NEED_MORE);
 }
-struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source)
+struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source, int nest)
 {
 	aem_assert(source);
 
@@ -292,16 +292,21 @@ struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source)
 	if (!stream)
 		return NULL;
 
-	if (stream->state == AEM_STREAM_PROVIDING) {
-		aem_logf_ctx(AEM_LOG_WARN, "Nested stream provide!\n");
+	if (!nest && stream->state > 0) {
+		aem_logf_ctx(AEM_LOG_BUG, "Nested stream provide!\n");
 		return NULL;
 	}
 
 	aem_assert(stream);
 	aem_assert(stream->source == source);
 
-	aem_assert(stream->state == AEM_STREAM_IDLE);
-	stream->state = AEM_STREAM_PROVIDING;
+	// Ensure no consumes are active
+	aem_assert(stream->state >= 0);
+	// One more provide is now active
+	stream->state++;
+
+	// Don't let things get out of hand
+	aem_assert(stream->state < 256);
 
 	return &stream->buf;
 }
@@ -313,12 +318,16 @@ void aem_stream_provide_end(struct aem_stream_source *source)
 	aem_assert(stream);
 	aem_assert(stream->source == source);
 
-	aem_assert(stream->state == AEM_STREAM_PROVIDING);
-	stream->state = AEM_STREAM_IDLE;
+	// Ensure at least one provide is active
+	aem_assert(stream->state > 0);
+	// One less provide is now active
+	stream->state--;
 
-	struct aem_stream_sink *sink = stream->sink;
-	if (sink)
-		aem_stream_consume(stream, 0);
+	if (!stream->state) {
+		struct aem_stream_sink *sink = stream->sink;
+		if (sink)
+			aem_stream_consume(stream, 0);
+	}
 }
 
 struct aem_stringslice aem_stream_consume_begin(struct aem_stream_sink *sink)
@@ -329,7 +338,7 @@ struct aem_stringslice aem_stream_consume_begin(struct aem_stream_sink *sink)
 	if (!stream)
 		return AEM_STRINGSLICE_EMPTY;
 
-	if (stream->state == AEM_STREAM_CONSUMING) {
+	if (stream->state < 0) {
 		aem_logf_ctx(AEM_LOG_WARN, "Nested stream consume!\n");
 		return AEM_STRINGSLICE_EMPTY;
 	}
@@ -337,8 +346,13 @@ struct aem_stringslice aem_stream_consume_begin(struct aem_stream_sink *sink)
 	aem_assert(stream);
 	aem_assert(stream->sink == sink);
 
-	aem_assert(stream->state == AEM_STREAM_IDLE);
-	stream->state = AEM_STREAM_CONSUMING;
+	// Ensure stream is idle.  Unlike nested providese, nested consumes
+	// aren't safe because the underlying stringbuf isn't updated until
+	// consume_end is called.
+	aem_assert(!stream->state);
+
+	// One more consume is now active.
+	stream->state--;
 
 	return aem_stringslice_new_str(&stream->buf);
 }
@@ -370,6 +384,8 @@ void aem_stream_consume_end(struct aem_stream_sink *sink, struct aem_stringslice
 		aem_logf_ctx(AEM_LOG_WARN, "Stream got FIN, but consume left %zd bytes unprocessed!\n", stream->buf.n);
 	}
 
-	aem_assert(stream->state == AEM_STREAM_CONSUMING);
-	stream->state = AEM_STREAM_IDLE;
+	// Ensure at least one consume is active.
+	aem_assert(stream->state < 0);
+	// One less consume is now active.
+	stream->state++;
 }

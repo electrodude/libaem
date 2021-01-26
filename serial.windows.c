@@ -1,5 +1,6 @@
 #include <windows.h>
 
+#define AEM_INTERNAL
 #include <aem/log.h>
 
 #include "serial.h"

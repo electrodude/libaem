@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define AEM_INTERNAL
 #include <aem/stringbuf.h>
 
 #include "poll.h"

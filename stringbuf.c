@@ -9,6 +9,7 @@
 #include <errno.h>
 #endif
 
+#define AEM_INTERNAL
 #include "stringbuf.h"
 
 #define AEM_STRINGBUF_DEBUG_ALLOC 0

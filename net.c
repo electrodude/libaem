@@ -9,6 +9,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#define AEM_INTERNAL
 #include <aem/compiler.h>
 #include <aem/log.h>
 #include <aem/unix.h>

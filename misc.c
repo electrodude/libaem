@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <string.h>
 
+#define AEM_INTERNAL
 #include <aem/log.h>
 
 #include "misc.h"

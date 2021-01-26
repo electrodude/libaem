@@ -1,3 +1,4 @@
+#define AEM_INTERNAL
 #include <aem/stringslice.h>
 #include <aem/stringbuf.h>
 

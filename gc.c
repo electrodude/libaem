@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#define AEM_INTERNAL
 #define aem_log_module_current (&gc_log_module)
 #include <aem/log.h>
 #include <aem/linked_list.h>

@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <errno.h>
 
+#define AEM_INTERNAL
 #include "log.h"
 
 
@@ -52,6 +53,7 @@ FILE *aem_log_fget(void)
 // log level
 
 struct aem_log_module aem_log_module_default = {.loglevel = AEM_LOG_NOTICE};
+struct aem_log_module aem_log_module_default_internal = {.loglevel = AEM_LOG_NOTICE};
 
 const char *aem_log_level_describe(enum aem_log_level loglevel)
 {

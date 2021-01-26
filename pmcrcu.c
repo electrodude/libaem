@@ -5,6 +5,7 @@
 #include <dlfcn.h>
 #endif
 
+#define AEM_INTERNAL
 #include <aem/linked_list.h>
 #include <aem/log.h>
 

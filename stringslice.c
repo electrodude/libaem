@@ -5,6 +5,7 @@
 #include <errno.h>
 #endif
 
+#define AEM_INTERNAL
 #include <aem/log.h>
 
 #include "stringslice.h"

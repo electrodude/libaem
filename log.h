@@ -44,8 +44,13 @@ FILE *aem_log_fget(void);
 // log level
 
 extern struct aem_log_module aem_log_module_default;
+extern struct aem_log_module aem_log_module_default_internal;
 #ifndef aem_log_module_current
+#ifdef AEM_INTERNAL
+#define aem_log_module_current (&aem_log_module_default_internal)
+#else
 #define aem_log_module_current (&aem_log_module_default)
+#endif
 #endif
 
 const char *aem_log_level_describe(enum aem_log_level loglevel);

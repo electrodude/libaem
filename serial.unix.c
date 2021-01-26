@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <termios.h>
 
+#define AEM_INTERNAL
 #include <aem/log.h>
 
 #include "serial.h"

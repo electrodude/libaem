@@ -71,22 +71,39 @@ const char *aem_log_level_describe(enum aem_log_level loglevel)
 	}
 }
 
-char aem_log_level_letter(enum aem_log_level loglevel)
+const char *aem_log_level_letter(enum aem_log_level loglevel)
 {
+#ifdef AEM_LOG_COLORS
 	switch (loglevel) {
-		case AEM_LOG_FATAL   : return 'F';
-		case AEM_LOG_SECURITY: return 'S';
-		case AEM_LOG_BUG     : return 'B';
-		case AEM_LOG_NYI     : return 'U';
-		case AEM_LOG_ERROR   : return 'E';
-		case AEM_LOG_WARN    : return 'W';
-		case AEM_LOG_NOTICE  : return 'n';
-		case AEM_LOG_INFO    : return 'i';
-		case AEM_LOG_DEBUG   : return 'd';
-		case AEM_LOG_DEBUG2  : return '2';
-		case AEM_LOG_DEBUG3  : return '3';
-		default              : return '?';
+		case AEM_LOG_FATAL   : return "\033[5;101m"    "F";
+		case AEM_LOG_SECURITY: return "\033[101;30;5m" "S";
+		case AEM_LOG_BUG     : return "\033[101;30;1m" "B";
+		case AEM_LOG_NYI     : return "\033[101;30m"   "U";
+		case AEM_LOG_ERROR   : return "\033[31m"       "E";
+		case AEM_LOG_WARN    : return "\033[33m"       "W";
+		case AEM_LOG_NOTICE  : return "\033[94;1m"     "n";
+		case AEM_LOG_INFO    : return "\033[0m"        "i";
+		case AEM_LOG_DEBUG   : return "\033[37;2m"     "d";
+		case AEM_LOG_DEBUG2  : return "\033[90m"       "2";
+		case AEM_LOG_DEBUG3  : return "\033[90;2m"     "3";
+		default              : return "\033[101;30m"   "?";
 	}
+#else
+	switch (loglevel) {
+		case AEM_LOG_FATAL   : return "F";
+		case AEM_LOG_SECURITY: return "S";
+		case AEM_LOG_BUG     : return "B";
+		case AEM_LOG_NYI     : return "U";
+		case AEM_LOG_ERROR   : return "E";
+		case AEM_LOG_WARN    : return "W";
+		case AEM_LOG_NOTICE  : return "n";
+		case AEM_LOG_INFO    : return "i";
+		case AEM_LOG_DEBUG   : return "d";
+		case AEM_LOG_DEBUG2  : return "2";
+		case AEM_LOG_DEBUG3  : return "3";
+		default              : return "?";
+	}
+#endif
 }
 
 enum aem_log_level aem_log_level_check_prefix(enum aem_log_level level, const char *in)

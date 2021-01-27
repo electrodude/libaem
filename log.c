@@ -11,13 +11,12 @@
 
 // log file
 
-FILE *aem_log_fp = NULL;
-int aem_log_autoclose_curr = 0;
+static FILE *aem_log_fp = NULL;
+static int aem_log_autoclose_curr = 0;
 int aem_log_color = 0;
 
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 {
-
 	FILE *fp_old = aem_log_fp;
 	aem_log_fp = fp_new;
 
@@ -122,71 +121,40 @@ char aem_log_level_letter(enum aem_log_level loglevel)
 	}
 }
 
-enum aem_log_level aem_log_level_check_prefix(enum aem_log_level level, const char *in)
+enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 {
+	int c = aem_stringslice_get(&word);
+
+	enum aem_log_level level;
+
+	switch (0 <= c && c < 256 ? tolower(c) : -1) {
+		case 'f': level = AEM_LOG_FATAL   ; break;
+		case 's': level = AEM_LOG_SECURITY; break;
+		case 'b': level = AEM_LOG_BUG     ; break;
+		case 'u': level = AEM_LOG_NYI     ; break;
+		case 'e': level = AEM_LOG_ERROR   ; break;
+		case 'w': level = AEM_LOG_WARN    ; break;
+		case 'n': level = AEM_LOG_NOTICE  ; break;
+		case 'i': level = AEM_LOG_INFO    ; break;
+		case 'd': level = AEM_LOG_DEBUG   ; break;
+		case '2': level = AEM_LOG_DEBUG2  ; break; // These two have no
+		case '3': level = AEM_LOG_DEBUG3  ; break; // valid long forms
+		default :
+			aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse log level; default to debug\n");
+			return AEM_LOG_DEBUG;
+	}
+
+	// If only one letter was given, return now
+	if (!aem_stringslice_ok(word))
+		return level;
+
 	const char *expect = aem_log_level_describe(level);
 
-	const char *p = in;
-	const char *p2 = expect;
-
-	// this should be a function that lives in stringslice or something
-	while (*p && *p2) {
-		if (tolower(*p) != tolower(*p2)) {
-			aem_logf_ctx(AEM_LOG_WARN, "unknown log level %s, autocorrect to %s\n", in, expect);
-			break;
-		}
-		p++; p2++;
-	}
+	// Complain if the rest of the word isn't correct
+	if (!aem_stringslice_eq_case(word, expect+1))
+		aem_logf_ctx(AEM_LOG_WARN, "Misspelled log level; assuming you meant \"%s\"\n", expect);
 
 	return level;
-}
-
-enum aem_log_level aem_log_level_parse(const char *p)
-{
-	if (!p)
-		return AEM_LOG_DEBUG; // default to debug
-
-	switch (tolower(*p)) {
-		case 'f': goto f_atal;
-		case 's': goto s_ecurity;
-		case 'b': goto b_ug;
-		case 'u': goto u_nimplemented;
-		case 'e': goto e_rror;
-		case 'w': goto w_arn;
-		case 'n': goto n_otice;
-		case 'i': goto i_nfo;
-		case 'd': goto d_ebug;
-		case '2': goto d2;
-		case '3': goto d3;
-		default : break;
-	}
-
-	aem_logf_ctx(AEM_LOG_ERROR, "unknown log level %s, default to debug\n", p);
-
-	return AEM_LOG_DEBUG;
-
-f_atal:
-	return aem_log_level_check_prefix(AEM_LOG_FATAL, p);
-s_ecurity:
-	return aem_log_level_check_prefix(AEM_LOG_SECURITY, p);
-b_ug:
-	return aem_log_level_check_prefix(AEM_LOG_BUG, p);
-u_nimplemented:
-	return aem_log_level_check_prefix(AEM_LOG_NYI, p);
-e_rror:
-	return aem_log_level_check_prefix(AEM_LOG_ERROR, p);
-w_arn:
-	return aem_log_level_check_prefix(AEM_LOG_WARN, p);
-n_otice:
-	return aem_log_level_check_prefix(AEM_LOG_NOTICE, p);
-i_nfo:
-	return aem_log_level_check_prefix(AEM_LOG_INFO, p);
-d_ebug:
-	return aem_log_level_check_prefix(AEM_LOG_DEBUG, p);
-d2:
-	return AEM_LOG_DEBUG2;
-d3:
-	return AEM_LOG_DEBUG3;
 }
 
 
@@ -209,9 +177,9 @@ void aem_log_header_impl(struct aem_stringbuf *str, enum aem_log_level loglevel,
 	aem_stringbuf_puts(str, " ");
 }
 
-int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...)
+int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...)
 {
-	if (loglevel > module->loglevel)
+	if (loglevel > mod->loglevel)
 		return 0;
 
 	aem_stringbuf_reset(&aem_log_buf);
@@ -236,49 +204,7 @@ int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level logleve
 	return rc;
 }
 
-int aem_logmf(struct aem_log_module *module, enum aem_log_level loglevel, const char *fmt, ...)
-{
-	if (loglevel > module->loglevel)
-		return 0;
-
-	va_list ap;
-	va_start(ap, fmt);
-
-	int count = aem_vdprintf(fmt, ap);
-
-	va_end(ap);
-
-#ifdef AEM_BREAK_ON_BUG
-	if (loglevel <= AEM_LOG_BUG)
-		aem_break();
-#endif
-
-	return count;
-}
-
 int aem_log_str(struct aem_stringbuf *str)
 {
 	return aem_stringslice_file_write(aem_stringslice_new_str(str), aem_log_fp);
-}
-
-int aem_dprintf(const char *fmt, ...)
-{
-	va_list ap;
-	va_start(ap, fmt);
-
-	int count = aem_vdprintf(fmt, ap);
-
-	va_end(ap);
-
-	return count;
-}
-
-int aem_vdprintf(const char *fmt, va_list ap)
-{
-	if (!aem_log_fp)
-		return 0;
-
-	int count = vfprintf(aem_log_fp, fmt, ap);
-
-	return count;
 }

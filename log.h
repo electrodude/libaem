@@ -7,6 +7,8 @@
 
 #include <aem/aem.h>
 
+// You must set a logfile (i.e. call aem_log_fset, aem_log_fopen, or aem_log_stderr) before calling any logging functions.
+
 enum aem_log_level {
 	AEM_LOG_FATAL,    // Fatal error: program execution must cease as a result.
 	AEM_LOG_SECURITY, // Security error: Occurrence of security error
@@ -27,22 +29,21 @@ struct aem_log_module
 };
 
 
-// log file
+/// Log file
 
-extern FILE *aem_log_fp; // public use is deprecated; use aem_log_{set,open,get}
 extern int aem_log_color;
 
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new);
+FILE *aem_log_fopen(const char *path_new);
+FILE *aem_log_fget(void);
 
 static inline FILE *aem_log_stderr(void)
 {
 	return aem_log_fset(stderr, 0);
 }
-FILE *aem_log_fopen(const char *path_new);
-FILE *aem_log_fget(void);
 
 
-// log level
+/// Log level
 
 extern struct aem_log_module aem_log_module_default;
 extern struct aem_log_module aem_log_module_default_internal;
@@ -58,30 +59,29 @@ const char *aem_log_level_color(enum aem_log_level loglevel);
 const char *aem_log_level_describe(enum aem_log_level loglevel);
 char aem_log_level_letter(enum aem_log_level loglevel);
 
-enum aem_log_level aem_log_level_parse(const char *p);
-static inline enum aem_log_level aem_log_level_parse_set(const char *p)
-{
-	return aem_log_module_default.loglevel = aem_log_level_parse(p);
-}
+struct aem_stringslice;
+enum aem_log_level aem_log_level_parse(struct aem_stringslice word);
+#define aem_log_level_parse_set(p) do { (aem_log_module_current)->loglevel = aem_log_level_parse(aem_stringslice_new_cstr(p)); } while (0)
 
 
-// logging
+/// Logging functions
 struct aem_stringbuf;
+// TODO: This isn't destructed on thread exit
 extern __thread struct aem_stringbuf aem_log_buf;
 
-void aem_log_header_impl(struct aem_stringbuf *str, enum aem_log_level loglevel, const char *file, int line, const char *func);
-#define aem_log_header(str, loglevel) aem_log_header((str), (loglevel), __FILE__, __LINE__, __func__)
+int aem_log_header_mod_impl(struct aem_stringbuf *str, struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func);
+#define aem_log_header_mod(str, module, loglevel) aem_log_header((str), (module), (loglevel), __FILE__, __LINE__, __func__)
+#define aem_log_header(str, loglevel) aem_log_header_mod((str), (aem_log_module_current), (loglevel))
 
-int aem_logmf(struct aem_log_module *module, enum aem_log_level loglevel, const char *fmt, ...);
-#define aem_logf(loglevel, fmt, ...) aem_logmf((aem_log_module_current), (loglevel), fmt, ##__VA_ARGS__)
 int aem_log_str(struct aem_stringbuf *str);
-int aem_dprintf(const char *fmt, ...);
-int aem_vdprintf(const char *fmt, va_list ap);
 
 int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...);
 #define aem_logmf_ctx(module, loglevel, fmt, ...) aem_logmf_ctx_impl((module), (loglevel), __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define aem_logf_ctx(loglevel, fmt, ...) aem_logmf_ctx((aem_log_module_current), (loglevel), fmt, ##__VA_ARGS__)
 
+#define aem_logf_ctx_once(loglevel, ...) do { static int _hits = 0; if (!_hits) aem_logf_ctx((loglevel), ##__VA_ARGS__); _hits = 1; } while (0)
+
+/// Assertions
 #ifndef aem_assert
 #define aem_assert(condition) do { \
 	if (!(condition)) { \
@@ -111,7 +111,5 @@ int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level logleve
 	_a; \
 })
 #endif
-
-#define aem_logf_ctx_once(loglevel, fmt, ...) do { static int _hits = 0; if (!_hits++) aem_logf_ctx((loglevel), "once: " fmt, ##__VA_ARGS__); } while (0)
 
 #endif /* AEM_LOG_H */

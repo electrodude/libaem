@@ -160,6 +160,24 @@ enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 
 	return level;
 }
+void aem_log_level_parse_set(const char *p)
+{
+	struct aem_stringslice s = aem_stringslice_new_cstr(p);
+	aem_stringslice_match_ws(&s);
+	aem_log_module_default.loglevel = aem_log_level_parse(aem_stringslice_match_alnum(&s));
+	aem_logmf_ctx(&aem_log_module_default, aem_log_module_default.loglevel, "Set default log level to %s\n", aem_log_level_describe(aem_log_module_default.loglevel));
+	aem_stringslice_match_ws(&s);
+
+	if (aem_stringslice_match(&s, ",")) {
+		aem_stringslice_match_ws(&s);
+		aem_log_module_default_internal.loglevel = aem_log_level_parse(aem_stringslice_match_alnum(&s));
+		aem_logmf_ctx(&aem_log_module_default_internal, aem_log_module_default_internal.loglevel, "Set internal log level to %s\n", aem_log_level_describe(aem_log_module_default_internal.loglevel));
+		aem_stringslice_match_ws(&s);
+	}
+
+	if (aem_stringslice_ok(s))
+		aem_logf_ctx(AEM_LOG_WARN, "Garbage after log level!\n");
+}
 
 
 /// Logging

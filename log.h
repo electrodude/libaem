@@ -61,7 +61,7 @@ char aem_log_level_letter(enum aem_log_level loglevel);
 
 struct aem_stringslice;
 enum aem_log_level aem_log_level_parse(struct aem_stringslice word);
-#define aem_log_level_parse_set(p) do { (aem_log_module_current)->loglevel = aem_log_level_parse(aem_stringslice_new_cstr(p)); } while (0)
+void aem_log_level_parse_set(const char *p);
 
 
 /// Logging functions

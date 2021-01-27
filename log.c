@@ -184,8 +184,12 @@ void aem_log_level_parse_set(const char *p)
 
 __thread struct aem_stringbuf aem_log_buf = {0};
 
-void aem_log_header_impl(struct aem_stringbuf *str, enum aem_log_level loglevel, const char *file, int line, const char *func)
+int aem_log_header_mod_impl(struct aem_stringbuf *str, struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func)
 {
+	if (loglevel > mod->loglevel)
+		return 1;
+
+	aem_stringbuf_reset(&aem_log_buf);
 	if (aem_log_color)
 		aem_stringbuf_puts(str, aem_log_level_color(loglevel));
 	aem_stringbuf_putc(str, aem_log_level_letter(loglevel));
@@ -197,15 +201,14 @@ void aem_log_header_impl(struct aem_stringbuf *str, enum aem_log_level loglevel,
 	if (aem_log_color)
 		aem_stringbuf_puts(str, "\033[0m"); // Reset text style
 	aem_stringbuf_puts(str, " ");
+
+	return 0;
 }
 
 int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...)
 {
-	if (loglevel > mod->loglevel)
+	if (aem_log_header_mod_impl(&aem_log_buf, mod, loglevel, file, line, func))
 		return 0;
-
-	aem_stringbuf_reset(&aem_log_buf);
-	aem_log_header_impl(&aem_log_buf, loglevel, file, line, func);
 
 	va_list ap;
 	va_start(ap, fmt);

@@ -22,6 +22,9 @@ static inline struct aem_stringslice aem_stringslice_new_len(const char *p, size
 
 static inline struct aem_stringslice aem_stringslice_new_cstr(const char *p)
 {
+	if (!p)
+		return AEM_STRINGSLICE_EMPTY;
+
 	return aem_stringslice_new_len(p, strlen(p));
 }
 

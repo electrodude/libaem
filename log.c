@@ -123,6 +123,10 @@ char aem_log_level_letter(enum aem_log_level loglevel)
 
 enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 {
+	// Empty string -> debug
+	if (!aem_stringslice_ok(word))
+		return AEM_LOG_DEBUG;
+
 	int c = aem_stringslice_get(&word);
 
 	enum aem_log_level level;

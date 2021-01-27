@@ -21,7 +21,7 @@ struct aem_net_sock {
 struct aem_net_sock *aem_net_sock_init(struct aem_net_sock *sock);
 void aem_net_sock_dtor(struct aem_net_sock *sock);
 
-void aem_net_sock_stop(struct aem_net_sock *sock);
+void aem_net_sock_close(struct aem_net_sock *sock);
 
 int aem_net_socket(struct aem_net_sock *sock, struct addrinfo *ai);
 int aem_net_bind(struct aem_net_sock *sock, struct addrinfo *ai);

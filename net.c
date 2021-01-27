@@ -36,12 +36,12 @@ struct aem_net_sock *aem_net_sock_init(struct aem_net_sock *sock)
 
 void aem_net_sock_dtor(struct aem_net_sock *sock)
 {
-	aem_net_sock_stop(sock);
+	aem_net_sock_close(sock);
 
 	sock->poller = NULL;
 }
 
-void aem_net_sock_stop(struct aem_net_sock *sock)
+void aem_net_sock_close(struct aem_net_sock *sock)
 {
 	aem_assert(sock);
 
@@ -97,7 +97,7 @@ int aem_net_socket(struct aem_net_sock *sock, struct addrinfo *ai)
 	aem_assert(sock);
 	aem_assert(ai);
 
-	//aem_net_sock_stop(sock);
+	//aem_net_sock_close(sock);
 
 	struct aem_poll_event *evt = &sock->evt;
 
@@ -655,7 +655,7 @@ static void aem_net_on_accept(struct aem_poll *p, struct aem_poll_event *evt)
 		done:;
 	}
 	if (aem_poll_event_check(evt, POLLHUP)) {
-		aem_net_sock_stop(sock);
+		aem_net_sock_close(sock);
 	}
 	if (aem_poll_event_check(evt, POLLERR)) {
 		aem_logf_ctx(AEM_LOG_ERROR, "fd %d: POLLERR\n", evt->fd);

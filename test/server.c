@@ -52,7 +52,7 @@ static void conn_free(struct aem_net_conn *sock)
 	aem_stream_sink_detach(&conn->sink);
 	aem_stream_source_detach(&conn->source);
 
-	aem_net_sock_stop(&conn->conn.sock);
+	aem_net_sock_close(&conn->conn.sock);
 
 	call_rcu(&conn->rcu_head, conn_free_rcu);
 }

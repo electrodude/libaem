@@ -72,7 +72,7 @@ void aem_net_sock_stop(struct aem_net_sock *sock)
 			how = SHUT_WR;
 
 		if (shutdown(evt->fd, how) < 0) {
-			const char *how_str;
+			const char *how_str = "(invalid)"; // Is always set, but GCC isn't convinced.
 			switch (how) {
 				case SHUT_RDWR: how_str = "SHUT_RDWR"; break;
 				case SHUT_RD  : how_str = "SHUT_RD"  ; break;

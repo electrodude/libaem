@@ -323,6 +323,8 @@ int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_s
 		return 0;
 
 	while (aem_stringslice_ok(*slice)) {
+		struct aem_stringslice checkpoint = *slice;
+
 		int c = aem_stringslice_getc(slice);
 
 		if (c == '\\') {
@@ -358,7 +360,7 @@ int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_s
 		} else if (c > 32 && c < 127) {
 			aem_stringbuf_putc(str, c);
 		} else {
-			aem_stringslice_ungetc(slice); // reject unescaped character and return
+			*slice = checkpoint;
 			return 0;
 		}
 	}

@@ -32,4 +32,8 @@
 #define AEM_STRINGIFY(s) #s
 #define AEM_STRINGIFY2(s) AEM_STRINGIFY(s)
 
+#ifdef _WIN32
+#define __thread __declspec(thread)
+#endif
+
 #endif /* AEM_H */

@@ -1,7 +1,11 @@
+#define _POSIX_C_SOURCE 1
 #include <ctype.h>
 #include <errno.h>
+#include <unistd.h>
 
 #define AEM_INTERNAL
+#include <aem/stringbuf.h>
+
 #include "log.h"
 
 
@@ -9,6 +13,7 @@
 
 FILE *aem_log_fp = NULL;
 int aem_log_autoclose_curr = 0;
+int aem_log_color = 0;
 
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 {
@@ -22,6 +27,15 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 	}
 
 	aem_log_autoclose_curr = autoclose_new;
+
+	int fd = fileno(aem_log_fp);
+	if (fd >= 0 && isatty(fd)) {
+		aem_log_color = 1;
+	} else {
+		aem_log_color = 0;
+	}
+
+	aem_logf_ctx(AEM_LOG_DEBUG, "Switched to new log source: %s\n", aem_log_color ? "color" : "no color");
 
 	return fp_old;
 }
@@ -55,6 +69,24 @@ FILE *aem_log_fget(void)
 struct aem_log_module aem_log_module_default = {.loglevel = AEM_LOG_NOTICE};
 struct aem_log_module aem_log_module_default_internal = {.loglevel = AEM_LOG_NOTICE};
 
+const char *aem_log_level_color(enum aem_log_level loglevel)
+{
+	switch (loglevel) {
+		case AEM_LOG_FATAL   : return "\033[5;101m";
+		case AEM_LOG_SECURITY: return "\033[101;30;5m";
+		case AEM_LOG_BUG     : return "\033[101;30m";
+		case AEM_LOG_NYI     : return "\033[101;30m";
+		case AEM_LOG_ERROR   : return "\033[31m";
+		case AEM_LOG_WARN    : return "\033[33m";
+		case AEM_LOG_NOTICE  : return "\033[94;1m";
+		case AEM_LOG_INFO    : return "\033[0m";
+		case AEM_LOG_DEBUG   : return "\033[37;2m";
+		case AEM_LOG_DEBUG2  : return "\033[90m";
+		case AEM_LOG_DEBUG3  : return "\033[90;2m";
+		default              : return "\033[101;30m";
+	}
+}
+
 const char *aem_log_level_describe(enum aem_log_level loglevel)
 {
 	switch (loglevel) {
@@ -72,40 +104,22 @@ const char *aem_log_level_describe(enum aem_log_level loglevel)
 		default              : return "(unknown)";
 	}
 }
-
-const char *aem_log_level_letter(enum aem_log_level loglevel)
+char aem_log_level_letter(enum aem_log_level loglevel)
 {
-#ifdef AEM_LOG_COLORS
 	switch (loglevel) {
-		case AEM_LOG_FATAL   : return "\033[5;101m"    "F";
-		case AEM_LOG_SECURITY: return "\033[101;30;5m" "S";
-		case AEM_LOG_BUG     : return "\033[101;30;1m" "B";
-		case AEM_LOG_NYI     : return "\033[101;30m"   "U";
-		case AEM_LOG_ERROR   : return "\033[31m"       "E";
-		case AEM_LOG_WARN    : return "\033[33m"       "W";
-		case AEM_LOG_NOTICE  : return "\033[94;1m"     "n";
-		case AEM_LOG_INFO    : return "\033[0m"        "i";
-		case AEM_LOG_DEBUG   : return "\033[37;2m"     "d";
-		case AEM_LOG_DEBUG2  : return "\033[90m"       "2";
-		case AEM_LOG_DEBUG3  : return "\033[90;2m"     "3";
-		default              : return "\033[101;30m"   "?";
+		case AEM_LOG_FATAL   : return 'F';
+		case AEM_LOG_SECURITY: return 'S';
+		case AEM_LOG_BUG     : return 'B';
+		case AEM_LOG_NYI     : return 'U';
+		case AEM_LOG_ERROR   : return 'E';
+		case AEM_LOG_WARN    : return 'W';
+		case AEM_LOG_NOTICE  : return 'n';
+		case AEM_LOG_INFO    : return 'i';
+		case AEM_LOG_DEBUG   : return 'd';
+		case AEM_LOG_DEBUG2  : return '2';
+		case AEM_LOG_DEBUG3  : return '3';
+		default              : return '?';
 	}
-#else
-	switch (loglevel) {
-		case AEM_LOG_FATAL   : return "F";
-		case AEM_LOG_SECURITY: return "S";
-		case AEM_LOG_BUG     : return "B";
-		case AEM_LOG_NYI     : return "U";
-		case AEM_LOG_ERROR   : return "E";
-		case AEM_LOG_WARN    : return "W";
-		case AEM_LOG_NOTICE  : return "n";
-		case AEM_LOG_INFO    : return "i";
-		case AEM_LOG_DEBUG   : return "d";
-		case AEM_LOG_DEBUG2  : return "2";
-		case AEM_LOG_DEBUG3  : return "3";
-		default              : return "?";
-	}
-#endif
 }
 
 enum aem_log_level aem_log_level_check_prefix(enum aem_log_level level, const char *in)
@@ -176,7 +190,51 @@ d3:
 }
 
 
-// logging
+/// Logging
+
+__thread struct aem_stringbuf aem_log_buf = {0};
+
+void aem_log_header_impl(struct aem_stringbuf *str, enum aem_log_level loglevel, const char *file, int line, const char *func)
+{
+	if (aem_log_color)
+		aem_stringbuf_puts(str, aem_log_level_color(loglevel));
+	aem_stringbuf_putc(str, aem_log_level_letter(loglevel));
+	aem_stringbuf_putc(str, ' ');
+	aem_stringbuf_printf(str, "%s:%d(%s)", file, line, func);
+	//aem_stringbuf_puts(str, ": ");
+	//aem_stringbuf_putc(str, aem_log_level_describe(loglevel));
+	aem_stringbuf_puts(str, ":");
+	if (aem_log_color)
+		aem_stringbuf_puts(str, "\033[0m"); // Reset text style
+	aem_stringbuf_puts(str, " ");
+}
+
+int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...)
+{
+	if (loglevel > module->loglevel)
+		return 0;
+
+	aem_stringbuf_reset(&aem_log_buf);
+	aem_log_header_impl(&aem_log_buf, loglevel, file, line, func);
+
+	va_list ap;
+	va_start(ap, fmt);
+	aem_stringbuf_vprintf(&aem_log_buf, fmt, ap);
+	va_end(ap);
+	if (aem_log_color)
+		aem_stringbuf_puts(&aem_log_buf, "\033[0m");
+
+	// TODO: If message exceeds line width, wrap and insert continuation headers.
+
+	int rc = aem_log_str(&aem_log_buf);
+
+#ifdef AEM_BREAK_ON_BUG
+	if (loglevel <= AEM_LOG_BUG)
+		aem_break();
+#endif
+
+	return rc;
+}
 
 int aem_logmf(struct aem_log_module *module, enum aem_log_level loglevel, const char *fmt, ...)
 {
@@ -196,6 +254,11 @@ int aem_logmf(struct aem_log_module *module, enum aem_log_level loglevel, const 
 #endif
 
 	return count;
+}
+
+int aem_log_str(struct aem_stringbuf *str)
+{
+	return aem_stringslice_file_write(aem_stringslice_new_str(str), aem_log_fp);
 }
 
 int aem_dprintf(const char *fmt, ...)

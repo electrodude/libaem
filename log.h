@@ -30,6 +30,7 @@ struct aem_log_module
 // log file
 
 extern FILE *aem_log_fp; // public use is deprecated; use aem_log_{set,open,get}
+extern int aem_log_color;
 
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new);
 
@@ -53,8 +54,9 @@ extern struct aem_log_module aem_log_module_default_internal;
 #endif
 #endif
 
+const char *aem_log_level_color(enum aem_log_level loglevel);
 const char *aem_log_level_describe(enum aem_log_level loglevel);
-const char *aem_log_level_letter(enum aem_log_level loglevel);
+char aem_log_level_letter(enum aem_log_level loglevel);
 
 enum aem_log_level aem_log_level_parse(const char *p);
 static inline enum aem_log_level aem_log_level_parse_set(const char *p)
@@ -64,17 +66,20 @@ static inline enum aem_log_level aem_log_level_parse_set(const char *p)
 
 
 // logging
+struct aem_stringbuf;
+extern __thread struct aem_stringbuf aem_log_buf;
+
+void aem_log_header_impl(struct aem_stringbuf *str, enum aem_log_level loglevel, const char *file, int line, const char *func);
+#define aem_log_header(str, loglevel) aem_log_header((str), (loglevel), __FILE__, __LINE__, __func__)
 
 int aem_logmf(struct aem_log_module *module, enum aem_log_level loglevel, const char *fmt, ...);
 #define aem_logf(loglevel, fmt, ...) aem_logmf((aem_log_module_current), (loglevel), fmt, ##__VA_ARGS__)
+int aem_log_str(struct aem_stringbuf *str);
 int aem_dprintf(const char *fmt, ...);
 int aem_vdprintf(const char *fmt, va_list ap);
 
-#if AEM_LOGF_LOGLEVEL_WORD
-#define aem_logmf_ctx(module, loglevel, fmt, ...) aem_logmf((module), (loglevel), "%s:%d(%s): %s: " fmt, __FILE__, __LINE__, __func__, aem_log_level_describe(loglevel), ##__VA_ARGS__)
-#else
-#define aem_logmf_ctx(module, loglevel, fmt, ...) aem_logmf((module), (loglevel), "%s %s:%d(%s):\033[0m " fmt, aem_log_level_letter(loglevel), __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-#endif
+int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...);
+#define aem_logmf_ctx(module, loglevel, fmt, ...) aem_logmf_ctx_impl((module), (loglevel), __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
 #define aem_logf_ctx(loglevel, fmt, ...) aem_logmf_ctx((aem_log_module_current), (loglevel), fmt, ##__VA_ARGS__)
 
 #ifndef aem_assert

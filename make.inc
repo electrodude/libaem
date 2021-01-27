@@ -27,6 +27,9 @@ libaem_clean:
 
 .PHONY: $(LIBAEM_DIR)/libaem.a
 
+# Disable built-in rules
+.SUFFIXES:
+
 include $(wildcard $(DEPDIR)/*.d)
 
 # vim: set syn=make :

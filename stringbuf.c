@@ -217,6 +217,10 @@ void aem_stringbuf_puthex(struct aem_stringbuf *str, unsigned char byte)
 	aem_stringbuf_putc(str, aem_stringbuf_putint_digits[(byte     ) & 0xF]);
 }
 
+static inline int aem_stringbuf_vprintf_try(struct aem_stringbuf *restrict str, const char *restrict fmt, va_list argp)
+{
+	return vsnprintf(aem_stringbuf_end(str), aem_stringbuf_available(str)+1, fmt, argp);
+}
 void aem_stringbuf_vprintf(struct aem_stringbuf *restrict str, const char *restrict fmt, va_list argp)
 {
 	if (!str)
@@ -228,18 +232,30 @@ void aem_stringbuf_vprintf(struct aem_stringbuf *restrict str, const char *restr
 		return;
 
 	va_list argp2;
-
 	va_copy(argp2, argp);
-	size_t len = vsnprintf(NULL, 0, fmt, argp2) + 2;
+	int len = aem_stringbuf_vprintf_try(str, fmt, argp2);
 	va_end(argp2);
 
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p: %s\n", str, fmt);
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p: %zd out of %zd, %s\n", str, len, aem_stringbuf_available(str)+1, fmt);
 #endif
 
-	aem_stringbuf_reserve(str, len);
+	if (len > aem_stringbuf_available(str)) {
+		// If the first time didn't have enough space, get more and try again.
+		// This might reserve one more byte than we actually need.
+		aem_stringbuf_reserve(str, len+2);
+		len = aem_stringbuf_vprintf_try(str, fmt, argp);
+		// We can't safely assert here because aem_log* isn't
+		// re-entrant, is called by aem_assert, and calls this
+		// function.  So we have to settle for just truncating the
+		// message if it somehow doesn't fit.  But this case should be
+		// impossible, anyway.
+		if (len > aem_stringbuf_available(str))
+			len = aem_stringbuf_available(str);
+	}
 
-	str->n += vsnprintf(aem_stringbuf_end(str), aem_stringbuf_available(str), fmt, argp);
+	str->n += len;
+	return;
 }
 
 void aem_stringbuf_printf(struct aem_stringbuf *restrict str, const char *restrict fmt, ...)

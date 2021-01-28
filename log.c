@@ -189,7 +189,7 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 	if (loglevel > mod->loglevel)
 		return NULL;
 
-	aem_stringbuf_reset(&aem_log_buf);
+	aem_stringbuf_reset(str);
 	if (aem_log_color)
 		aem_stringbuf_puts(str, aem_log_level_color(loglevel));
 	aem_stringbuf_putc(str, aem_log_level_letter(loglevel));
@@ -207,19 +207,28 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 
 int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...)
 {
-	if (!aem_log_header_mod_impl(&aem_log_buf, mod, loglevel, file, line, func))
+	struct aem_stringbuf *str = aem_log_header_mod_impl(&aem_log_buf, mod, loglevel, file, line, func);
+	if (!str)
 		return 0;
 
 	va_list ap;
 	va_start(ap, fmt);
-	aem_stringbuf_vprintf(&aem_log_buf, fmt, ap);
+	aem_stringbuf_vprintf(str, fmt, ap);
 	va_end(ap);
+
+	// If present, removed the final newline the user was previously required to supply.
+	if (str->n && str->s[str->n-1] == '\n')
+		str->n--;
+
+	// Reset color
 	if (aem_log_color)
-		aem_stringbuf_puts(&aem_log_buf, "\033[0m");
+		aem_stringbuf_puts(str, "\033[0m");
+	// Add newline
+	aem_stringbuf_puts(str, "\n");
 
 	// TODO: If message exceeds line width, wrap and insert continuation headers.
 
-	int rc = aem_log_str(&aem_log_buf);
+	int rc = aem_log_str(str);
 
 #ifdef AEM_BREAK_ON_BUG
 	if (loglevel <= AEM_LOG_BUG)

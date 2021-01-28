@@ -69,7 +69,7 @@ struct aem_stringbuf;
 // TODO: This isn't destructed on thread exit
 extern __thread struct aem_stringbuf aem_log_buf;
 
-int aem_log_header_mod_impl(struct aem_stringbuf *str, struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func);
+struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func);
 #define aem_log_header_mod(str, module, loglevel) aem_log_header_mod_impl((str), (module), (loglevel), __FILE__, __LINE__, __func__)
 #define aem_log_header(str, loglevel) aem_log_header_mod((str), (aem_log_module_current), (loglevel))
 

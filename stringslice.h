@@ -83,6 +83,7 @@ static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void 
 })
 
 int aem_stringslice_match_ws(struct aem_stringslice *slice);
+struct aem_stringslice aem_stringslice_trim(struct aem_stringslice slice);
 
 static inline int aem_stringslice_match_bom(struct aem_stringslice *slice)
 {

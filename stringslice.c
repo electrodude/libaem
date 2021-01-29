@@ -70,6 +70,16 @@ int aem_stringslice_match_ws(struct aem_stringslice *slice)
 	return matched;
 }
 
+struct aem_stringslice aem_stringslice_trim(struct aem_stringslice slice)
+{
+	while (aem_stringslice_ok(slice) && isspace(slice.start[0]))
+		slice.start++;
+	while (aem_stringslice_ok(slice) && isspace(slice.end[-1]))
+		slice.end--;
+
+	return slice;
+}
+
 int aem_stringslice_match_newline(struct aem_stringslice *slice)
 {
 	if (!slice)

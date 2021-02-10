@@ -9,6 +9,10 @@
 #include <errno.h>
 #endif
 
+// TODO: Remove this once the functions that use it,
+//       which are all deprecated, are removed.
+#include <aem/translate.h>
+
 #define AEM_INTERNAL
 #include "stringbuf.h"
 
@@ -297,19 +301,13 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
 
 void aem_stringbuf_putss_quote(struct aem_stringbuf *restrict str, struct aem_stringslice slice)
 {
+	aem_string_escape(str, slice);
+}
+
+void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
+{
 	aem_assert(str);
-
-	if (str->bad)
-		return;
-
-#if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= quote(<slice>)\n", aem_stringbuf_get(str));
-#endif
-
-	while (aem_stringslice_ok(slice)) {
-		int c = aem_stringslice_getc(&slice);
-		aem_stringbuf_putq(str, c);
-	}
+	aem_string_escape(str, aem_stringslice_new_str(str2));
 }
 
 int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice)

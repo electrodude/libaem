@@ -160,8 +160,7 @@ void aem_stringbuf_putq(struct aem_stringbuf *str, char c);
 void aem_stringbuf_putss_quote(struct aem_stringbuf *str, struct aem_stringslice slice);
 
 // Append a stringbuf, escaping characters as necessary.
-static inline void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2);
-#define aem_stringbuf_concat_quote aem_stringbuf_append_quote
+void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2);
 
 // Append a stringslice.
 static inline void aem_stringbuf_putss(struct aem_stringbuf *str, struct aem_stringslice slice)
@@ -315,12 +314,6 @@ static inline void aem_stringbuf_append(struct aem_stringbuf *str, const struct 
 	aem_assert(str2);
 
 	aem_stringbuf_putn(str, str2->n, str2->s);
-}
-
-static inline void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
-{
-	aem_assert(str);
-	aem_stringbuf_putss_quote(str, aem_stringslice_new_str(str2));
 }
 
 #endif /* AEM_STRINGBUF_H */

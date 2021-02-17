@@ -73,7 +73,7 @@ const char *aem_log_level_color(enum aem_log_level loglevel)
 	switch (loglevel) {
 		case AEM_LOG_FATAL   : return "\033[5;101m";
 		case AEM_LOG_SECURITY: return "\033[101;30;5m";
-		case AEM_LOG_BUG     : return "\033[101;30m";
+		case AEM_LOG_BUG     : return "\033[103;30m";
 		case AEM_LOG_NYI     : return "\033[101;30m";
 		case AEM_LOG_ERROR   : return "\033[31m";
 		case AEM_LOG_WARN    : return "\033[33m";

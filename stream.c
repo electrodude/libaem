@@ -285,7 +285,7 @@ int aem_stream_should_provide(struct aem_stream_source *source)
 
 	return !stream->buf.n || (source->flags & AEM_STREAM_NEED_MORE);
 }
-struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source, int nest)
+struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source, int force)
 {
 	aem_assert(source);
 
@@ -293,13 +293,13 @@ struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source,
 	if (!stream)
 		return NULL;
 
-	if (!nest && stream->state > 0) {
-		aem_logf_ctx(AEM_LOG_BUG, "Nested stream provide!\n");
-		return NULL;
-	}
-
 	aem_assert(stream);
 	aem_assert(stream->source == source);
+
+	/* TODO
+	if (!stream->state && !force && !aem_stream_should_provide(source))
+		return NULL;
+	*/
 
 	// Ensure no consumes are active
 	aem_assert(stream->state >= 0);

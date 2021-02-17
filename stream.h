@@ -73,7 +73,8 @@ int aem_stream_flow(struct aem_stream *stream, int flags);
 size_t aem_stream_avail(struct aem_stream *stream);
 
 int aem_stream_should_provide(struct aem_stream_source *source);
-struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source, int nest);
+// TODO: if (!nested && !force && !should_provide) return NULL;
+struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source, int force);
 void aem_stream_provide_end(struct aem_stream_source *source);
 
 struct aem_stringslice aem_stream_consume_begin(struct aem_stream_sink *sink);

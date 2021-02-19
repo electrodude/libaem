@@ -120,7 +120,17 @@ struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice)
 // buffers fed to consecutive calls to this function.
 struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *slice, int *state, int finish);
 
-int aem_stringslice_match(struct aem_stringslice *slice, const char *s);
+int aem_stringslice_match_prefix(struct aem_stringslice *slice, struct aem_stringslice s);
+int aem_stringslice_match_suffix(struct aem_stringslice *slice, struct aem_stringslice s);
+
+static inline int aem_stringslice_match(struct aem_stringslice *slice, const char *s)
+{
+	return aem_stringslice_match_prefix(slice, aem_stringslice_new_cstr(s));
+}
+static inline int aem_stringslice_match_end(struct aem_stringslice *slice, const char *s)
+{
+	return aem_stringslice_match_suffix(slice, aem_stringslice_new_cstr(s));
+}
 
 // Test whether a stringslice exactly matches the given C-string
 int aem_stringslice_eq(struct aem_stringslice slice, const char *s);

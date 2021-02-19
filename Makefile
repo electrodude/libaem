@@ -37,6 +37,7 @@ DEPFLAGS=-MD -MP -MF ${DEPDIR}/$*.d
 TESTS=test_test \
       test_utf8 \
       test_test_childproc \
+      test_stringslice \
       test_server \
       test_client
 

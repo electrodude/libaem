@@ -87,15 +87,11 @@ int aem_stringslice_match_newline(struct aem_stringslice *slice)
 
 	int matched = 0;
 
-	if (aem_stringslice_ok(*slice) && *slice->start == '\r') {
-		slice->start++;
+	if (aem_stringslice_match(slice, "\r"))
 		matched |= 2;
-	}
 
-	if (aem_stringslice_ok(*slice) && *slice->start == '\n') {
-		slice->start++;
+	if (aem_stringslice_match(slice, "\n"))
 		matched |= 1;
-	}
 
 	return matched;
 }
@@ -153,11 +149,6 @@ struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *
 
 	aem_assert(state);
 
-	struct aem_stringslice p = *slice;
-
-	// Initialize line to be an empty slice at the beginning of the input slice.
-	struct aem_stringslice line = {.start = p.start, .end = p.start};
-
 	// If the last character given to the previous invocation of this
 	// function was CR, and the first character of this one is LF, then
 	// skip the LF because it was part of the last line of the previous
@@ -165,6 +156,17 @@ struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *
 	if (*state && aem_stringslice_match(slice, "\n")) {
 		aem_logf_ctx(AEM_LOG_WARN, "Dropping missed LF from a CRLF split across a packet boundary\n");
 		*state = 0;
+	}
+
+	struct aem_stringslice p = *slice;
+
+	// Initialize line to be an empty slice at the beginning of the input slice.
+	struct aem_stringslice line = {.start = p.start, .end = p.start};
+
+	// Don't return an empty line if finish flag is set but input is empty
+	if (!aem_stringslice_ok(p)) {
+		line = AEM_STRINGSLICE_EMPTY;
+		goto out;
 	}
 
 	while (aem_stringslice_ok(p)) {
@@ -180,46 +182,68 @@ struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *
 		// function.
 		*state = newline == 2 && !aem_stringslice_ok(p);
 		// If we found a newline, save our progress and return the line.
-		if (newline)
-			goto return_line;
+		if (newline) {
+			*slice = p;
+			goto out;
+		}
 
 		// It wasn't a newline, so it must be something else.
 		aem_stringslice_getc(&p);
 	}
 
-	// Return the incomplete line anyway if this will be the final call to
-	// this function.
+	if (finish) {
+		// Return the incomplete line anyway if this will be the final call to
+		// this function.
+		line.end = p.start;
+		*slice = p;
+	} else {
+		// We didn't get a whole line, so don't return anything
+		line = AEM_STRINGSLICE_EMPTY;
+	}
+
+out:
 	if (finish)
-		goto return_line;
-
-	return AEM_STRINGSLICE_EMPTY;
-
-return_line:
-	*slice = p;
+		*state = 0;
 
 	return line;
 }
 
-int aem_stringslice_match(struct aem_stringslice *slice, const char *s)
+int aem_stringslice_match_prefix(struct aem_stringslice *slice, struct aem_stringslice s)
 {
 	if (!slice)
 		return 0;
-	if (!s)
-		return 1;
 
-	const char *p2 = slice->start;
+	struct aem_stringslice p = *slice;
 
-	while (*s) {
-		if (p2 == slice->end) {
+	while (aem_stringslice_ok(s)) {
+		if (!aem_stringslice_ok(p))
 			return 0;
-		}
 
-		if (*p2++ != *s++) {
+		if (aem_stringslice_getc(&p) != aem_stringslice_getc(&s))
 			return 0;
-		}
 	}
 
-	slice->start = p2;
+	*slice = p;
+
+	return 1;
+}
+
+int aem_stringslice_match_suffix(struct aem_stringslice *slice, struct aem_stringslice s)
+{
+	if (!slice)
+		return 0;
+
+	struct aem_stringslice p = *slice;
+
+	while (aem_stringslice_ok(s)) {
+		if (!aem_stringslice_ok(p))
+			return 0;
+
+		if (*--p.end != *--s.end)
+			return 0;
+	}
+
+	*slice = p;
 
 	return 1;
 }

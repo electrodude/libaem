@@ -25,6 +25,45 @@ static void debug_slice(struct aem_stringbuf *out, struct aem_stringslice in)
 	}
 }
 
+static void test_stringslice_match(struct aem_stringslice slice, const char *s, int result_expect, struct aem_stringslice slice_expect)
+{
+	struct aem_stringslice slice_ret = slice;
+	int result = aem_stringslice_match(&slice_ret, s);
+
+	if (result != result_expect || !ss_eq(slice_ret, slice_expect)) {
+		rc = 1;
+		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
+			aem_stringbuf_puts(&aem_log_buf, "stringslice_match(");
+			debug_slice(&aem_log_buf, slice);
+			aem_stringbuf_printf(&aem_log_buf, ", \"%s\") returned (%d, ", s, result);
+			debug_slice(&aem_log_buf, slice_ret);
+			aem_stringbuf_printf(&aem_log_buf, "), expected (%d, ", result_expect);
+			debug_slice(&aem_log_buf, slice_expect);
+			aem_stringbuf_puts(&aem_log_buf, ")\n");
+			aem_log_str(&aem_log_buf);
+		}
+	}
+}
+
+static void test_stringslice_match_end(struct aem_stringslice slice, const char *s, int result_expect, struct aem_stringslice slice_expect)
+{
+	struct aem_stringslice slice_ret = slice;
+	int result = aem_stringslice_match_end(&slice_ret, s);
+
+	if (result != result_expect || !ss_eq(slice_ret, slice_expect)) {
+		rc = 1;
+		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
+			aem_stringbuf_puts(&aem_log_buf, "stringslice_match_end(");
+			debug_slice(&aem_log_buf, slice);
+			aem_stringbuf_printf(&aem_log_buf, ", \"%s\") returned (%d, ", s, result);
+			debug_slice(&aem_log_buf, slice_ret);
+			aem_stringbuf_printf(&aem_log_buf, "), expected (%d, ", result_expect);
+			debug_slice(&aem_log_buf, slice_expect);
+			aem_stringbuf_puts(&aem_log_buf, ")\n");
+			aem_log_str(&aem_log_buf);
+		}
+	}
+}
 static void test_stringslice_match_line_multi(struct aem_stringslice slice, int state, int finish, struct aem_stringslice result_expect, struct aem_stringslice slice_expect)
 {
 	// - If finish flag is set, state is set to zero.
@@ -115,6 +154,27 @@ int main(int argc, char **argv)
 
 // TODO: This macro should be in stringslice.h
 #define aem_ss_cstr aem_stringslice_new_cstr
+
+
+	aem_logf_ctx(AEM_LOG_NOTICE, "test aem_stringslice_match{,_end}");
+
+	test_stringslice_match(aem_ss_cstr(""), "", 1, aem_ss_cstr(""));
+	test_stringslice_match_end(aem_ss_cstr(""), "", 1, aem_ss_cstr(""));
+
+	test_stringslice_match(aem_ss_cstr("abcd"), "", 1, aem_ss_cstr("abcd"));
+	test_stringslice_match_end(aem_ss_cstr("abcd"), "", 1, aem_ss_cstr("abcd"));
+
+	test_stringslice_match(aem_ss_cstr("ab"), "ab", 1, aem_ss_cstr(""));
+	test_stringslice_match_end(aem_ss_cstr("cd"), "cd", 1, aem_ss_cstr(""));
+
+	test_stringslice_match(aem_ss_cstr("ab"), "cd", 0, aem_ss_cstr("ab"));
+	test_stringslice_match_end(aem_ss_cstr("cd"), "ab", 0, aem_ss_cstr("cd"));
+
+	test_stringslice_match(aem_ss_cstr("ab"), "ac", 0, aem_ss_cstr("ab"));
+	test_stringslice_match_end(aem_ss_cstr("cd"), "bd", 0, aem_ss_cstr("cd"));
+
+	test_stringslice_match(aem_ss_cstr("abcd"), "ab", 1, aem_ss_cstr("cd"));
+	test_stringslice_match_end(aem_ss_cstr("abcd"), "cd", 1, aem_ss_cstr("ab"));
 
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test aem_stringslice_match_line_multi");

@@ -19,7 +19,7 @@ else
         HOST_SYS=Windows
 endif
 
-SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c translate.c stream.c pmcrcu.c log.c gc.c
+SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c translate.c pathutil.c stream.c pmcrcu.c log.c gc.c
 ifeq (${HOST_SYS},Windows)
 SOURCES_LIBAEM+=serial.windows.c
 else
@@ -37,6 +37,7 @@ DEPFLAGS=-MD -MP -MF ${DEPDIR}/$*.d
 TESTS=test_test \
       test_utf8 \
       test_test_childproc \
+      test_pathutil \
       test_stringslice \
       test_server \
       test_client

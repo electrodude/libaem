@@ -203,10 +203,12 @@ static void aem_poll_verify(struct aem_poll *p)
 		//pollfd->events = evt->events;
 		aem_poll_event_verify(p, i);
 		if (!evt->events) {
-			struct aem_stringbuf out = AEM_STRINGBUF_ALLOCA(256);
-			aem_poll_event_dump(evt, &out);
-			aem_logf_ctx(AEM_LOG_WARN, "Unhandled revents %#x on event %zd (%s)\n", evt->revents, i, aem_stringbuf_get(&out));
-			aem_stringbuf_dtor(&out);
+			if (aem_log_header(&aem_log_buf, AEM_LOG_WARN)) {
+				aem_stringbuf_printf(&aem_log_buf, "Empty event %zd: ", i);
+				aem_poll_event_dump(&aem_log_buf, evt);
+				aem_stringbuf_puts(&aem_log_buf, "\n");
+				aem_log_str(&aem_log_buf);
+			}
 		}
 	}
 }
@@ -234,7 +236,7 @@ void aem_poll_print_event_bits(struct aem_stringbuf *out, short revents)
 	}
 }
 
-void aem_poll_event_dump(const struct aem_poll_event *evt, struct aem_stringbuf *out)
+void aem_poll_event_dump(struct aem_stringbuf *out, const struct aem_poll_event *evt)
 {
 	aem_stringbuf_printf(out, "fd %d: events = ", evt->fd);
 	aem_poll_print_event_bits(out, evt->events);
@@ -298,7 +300,12 @@ int aem_poll_poll(struct aem_poll *p)
 			if (revents & POLLNVAL)
 				aem_logf_ctx(AEM_LOG_BUG, "POLLNVAL on fd %d for poll %p, evt %zd\n", pollfd->fd, p, i);
 
-			aem_logf_ctx(AEM_LOG_DEBUG, "%p[%zd]: fd %d revents %#x\n", p, i, pollfd->fd, revents);
+			if (aem_log_header(&aem_log_buf, AEM_LOG_DEBUG)) {
+				aem_stringbuf_printf(&aem_log_buf, "%p[%zd]: ", p, i);
+				aem_poll_event_dump(&aem_log_buf, evt);
+				aem_stringbuf_puts(&aem_log_buf, "\n");
+				aem_log_str(&aem_log_buf);
+			}
 
 			if (evt->on_event)
 				evt->on_event(p, evt);
@@ -312,10 +319,12 @@ int aem_poll_poll(struct aem_poll *p)
 			}
 
 			if (evt->revents) {
-				struct aem_stringbuf out = AEM_STRINGBUF_ALLOCA(256);
-				aem_poll_event_dump(evt, &out);
-				aem_logf_ctx(AEM_LOG_BUG, "Unhandled revents %#x on event %zd (%s)\n", evt->revents, i, aem_stringbuf_get(&out));
-				aem_stringbuf_dtor(&out);
+				if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
+					aem_stringbuf_printf(&aem_log_buf, "Unhandled revents on event %zd: ", i);
+					aem_poll_event_dump(&aem_log_buf, evt);
+					aem_stringbuf_puts(&aem_log_buf, "\n");
+					aem_log_str(&aem_log_buf);
+				}
 			}
 
 
@@ -376,10 +385,12 @@ void aem_poll_hup_all(struct aem_poll *p)
 		struct aem_poll_event *evt = p->evts[i];
 		aem_poll_event_verify(p, i);
 
-		struct aem_stringbuf out = AEM_STRINGBUF_ALLOCA(256);
-		aem_poll_event_dump(evt, &out);
-		aem_logf_ctx(AEM_LOG_DEBUG, "%p[%zd]: HUP %s\n", p, i, aem_stringbuf_get(&out));
-		aem_stringbuf_dtor(&out);
+		if (aem_log_header(&aem_log_buf, AEM_LOG_DEBUG)) {
+			aem_stringbuf_printf(&aem_log_buf, "%p[%zd]: HUP ", p, i);
+			aem_poll_event_dump(&aem_log_buf, evt);
+			aem_stringbuf_puts(&aem_log_buf, "\n");
+			aem_log_str(&aem_log_buf);
+		}
 
 		aem_assert(!evt->revents);
 		evt->revents |= POLLHUP;

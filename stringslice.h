@@ -140,10 +140,20 @@ int aem_stringslice_eq_case(struct aem_stringslice slice, const char *s);
 int aem_stringslice_cmp(struct aem_stringslice s0, struct aem_stringslice s1);
 
 int aem_stringslice_match_hexbyte(struct aem_stringslice *slice);
+
+int aem_stringslice_match_ulong_base(struct aem_stringslice *slice, int base, unsigned long int *out);
+int aem_stringslice_match_long_base(struct aem_stringslice *slice, int base, long int *out);
+int aem_stringslice_match_uint_base(struct aem_stringslice *slice, int base, unsigned int *out);
+int aem_stringslice_match_int_base(struct aem_stringslice *slice, int base, int *out);
+int aem_stringslice_match_long_auto(struct aem_stringslice *slice, long int *out);
+
 // TODO: inconsistency: this function returns -1 on failure and 0 on success,
 // while most other functions in this file that only use their return value to
 // indicate status return 0 on failure and 1 on success.
 // Deprecated in favor of aem_stringslice_match_int_base.
-int aem_stringslice_match_int(struct aem_stringslice *slice, int base, int *out);
+static inline int aem_stringslice_match_int(struct aem_stringslice *slice, int base, int *out)
+{
+	return !aem_stringslice_match_int_base(slice, base, out);
+}
 
 #endif /* AEM_STRINGSLICE_H */

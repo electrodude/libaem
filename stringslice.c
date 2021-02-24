@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <limits.h>
 #include <stdlib.h>
 
 #ifdef __unix__
@@ -289,17 +290,15 @@ int aem_stringslice_cmp(struct aem_stringslice s0, struct aem_stringslice s1)
 }
 
 // Could be a lookup table
-static inline int hex2nib(char c)
+static inline int char2digit(char c, int numeral, int lcase, int ucase)
 {
-	if (c >= '0' && c <= '9') {
-		return c - '0';
-	} else if (c >= 'a' && c <= 'f') {
-		return c - 'a' + 0xA;
-	} else if (c >= 'A' && c <= 'F') {
-		return c - 'A' + 0xA;
-	} else {
-		return -1;
-	}
+	if (c >= '0' && c <= '9')
+		return c - '0' + numeral;
+	if (c >= 'a' && c <= 'z')
+		return c - 'a' + lcase;
+	if (c >= 'A' && c <= 'Z')
+		return c - 'A' + ucase;
+	return -1;
 }
 
 int aem_stringslice_match_hexbyte(struct aem_stringslice *slice)
@@ -307,17 +306,18 @@ int aem_stringslice_match_hexbyte(struct aem_stringslice *slice)
 	if (!slice)
 		return -1;
 
+	// Ensure at least two characters remain.
 	if (slice->start == slice->end || slice->start + 1 == slice->end)
 		return -1;
 
 	const char *p = slice->start;
 
-	int c1 = hex2nib(*p++);
-	if (c1 < 0)
+	int c1 = char2digit(*p++, 0, 0xA, 0xA);
+	if (c1 < 0 || c1 > 0xF)
 		return -1;
 
-	int c0 = hex2nib(*p++);
-	if (c0 < 0)
+	int c0 = char2digit(*p++, 0, 0xA, 0xA);
+	if (c0 < 0 || c0 > 0xF)
 		return -1;
 
 	slice->start = p;
@@ -325,51 +325,169 @@ int aem_stringslice_match_hexbyte(struct aem_stringslice *slice)
 	return c1 << 4 | c0;
 }
 
-int aem_stringslice_match_int(struct aem_stringslice *slice, int base, int *out)
+int aem_stringslice_match_ulong_base(struct aem_stringslice *slice, int base, unsigned long int *out)
 {
-	if (!slice)
-		return -1;
+	aem_assert(slice);
+	aem_assert(2 <= base && base <= 36);
+	aem_assert(out);
 
-	int acc = 0;
+	if (!aem_stringslice_ok(*slice))
+		return 0;
 
-	struct aem_stringslice best = *slice;
 	struct aem_stringslice curr = *slice;
+	struct aem_stringslice best = curr;
 
-	int neg = 0;
-	if (aem_stringslice_match(&curr, "-")) {
-		neg = 1;
-	}
+	unsigned long int n = 0;
 
+	int any_digits = 0;
 	while (aem_stringslice_ok(curr)) {
 		int c = aem_stringslice_get(&curr);
-		int digit;
-		if ('0' <= c && c <= '9') {
-			digit = c - '0';
-		} else if ('a' <= c && c <= 'z') {
-			digit = c - 'a' + 10;
-		} else if ('A' <= c && c <= 'Z') {
-			digit = c - 'A' + (base > 36 ? 36 : 10); // Be case-insensitive if base is low enough to not need both cases.
-		} else {
+		// TODO: + and / for Base64; but Base64 order is [A-Za-z0-9+/].
+		int digit = char2digit(c, 0, 10, 10);
+		if (digit < 0 || digit >= base) // Invalid digit; end of number
 			break;
-		}
-
-		if (digit >= base) // Invalid digit
-			break;
-
-		acc = acc*base + digit;
+		if (n > ULONG_MAX/base) // Overflow; say we didn't find any number at all.
+			return 0;
+		n = n*base + digit;
 		best = curr;
+		any_digits = 1;
 	}
 
 	// Return failure if we found no digits
-	if (best.start == slice->start)
-		return -1;
+	if (!any_digits)
+		return 0;
 
-	if (neg)
-		acc = -acc;
-
-	if (out)
-		*out = acc;
 	*slice = best;
+	*out = n;
+	return 1;
+}
+int aem_stringslice_match_long_base(struct aem_stringslice *slice, int base, long int *out)
+{
+	aem_assert(slice);
+	aem_assert(2 <= base && base <= 36);
+	aem_assert(out);
 
-	return 0;
+	if (!aem_stringslice_ok(*slice))
+		return 0;
+
+	struct aem_stringslice curr = *slice;
+
+	int neg = aem_stringslice_match(&curr, "-");
+
+	unsigned long un;
+	int ok = aem_stringslice_match_ulong_base(&curr, base, &un);
+
+	if (!ok)
+		return ok;
+
+	long n;
+	if (!neg) {
+		n = un;
+		// If it's negative, an overflow occurred.
+		if (n < 0)
+			return 0;
+	} else {
+		n = -un;
+		// If it's positive, an overflow occurred.
+		if (n >= 0)
+			return 0;
+	}
+
+	*slice = curr;
+	*out = n;
+	return ok;
+}
+
+int aem_stringslice_match_uint_base(struct aem_stringslice *slice, int base, unsigned int *out)
+{
+	aem_assert(slice);
+	aem_assert(out);
+
+	struct aem_stringslice curr = *slice;
+
+	unsigned long int out_l;
+	int ok = aem_stringslice_match_ulong_base(&curr, base, &out_l);
+
+	if (!ok)
+		return ok;
+
+	// Check for overflow
+	if (out_l > UINT_MAX)
+		return 0;
+
+	*slice = curr;
+	*out = out_l;
+	return ok;
+}
+int aem_stringslice_match_int_base(struct aem_stringslice *slice, int base, int *out)
+{
+	aem_assert(slice);
+	aem_assert(out);
+
+	struct aem_stringslice curr = *slice;
+
+	long int out_l;
+	int ok = aem_stringslice_match_long_base(&curr, base, &out_l);
+
+	if (!ok)
+		return ok;
+
+	// Check for overflow
+	if ((out_l > 0 && out_l > INT_MAX) || (out_l < 0 && out_l < INT_MIN))
+		return 0;
+
+	*slice = curr;
+	*out = out_l;
+	return ok;
+}
+
+int aem_stringslice_match_long_auto(struct aem_stringslice *slice, long int *out)
+{
+	aem_assert(slice);
+	aem_assert(out);
+
+	if (!aem_stringslice_ok(*slice))
+		return 0;
+
+	struct aem_stringslice curr = *slice;
+
+	int neg = aem_stringslice_match(&curr, "-");
+
+	int base = 10;
+	// TODO: Custom radix: e.g. 5r14320
+	if (aem_stringslice_match(&curr, "0x")) {
+		base = 16;
+	} else if (aem_stringslice_match(&curr, "0b") || aem_stringslice_match(&curr, "0y")) {
+		base = 2;
+	//} else if (aem_stringslice_match(&curr, "0")) { // What's octal?
+		//base = 8;
+	// TODO: Pascal/Spin syntax: $ (hex), % (bin), %% (quaternary)
+	} else {
+		base = 10;
+	}
+
+	// TODO: baseN: syntax
+
+	unsigned long int un;
+	int ok = aem_stringslice_match_ulong_base(&curr, base, &un);
+
+	if (!ok)
+		return ok;
+
+	long n;
+	if (!neg) {
+		n = un;
+		// If it's negative, an overflow occurred.
+		if (n < 0)
+			return 0;
+	} else {
+		n = -un;
+		// If it's positive, an overflow occurred.
+		if (n >= 0)
+			return 0;
+	}
+
+	*slice = curr;
+	*out = n;
+	return ok;
 }

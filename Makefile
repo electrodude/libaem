@@ -39,6 +39,7 @@ TESTS=test_test \
       test_test_childproc \
       test_pathutil \
       test_stringslice \
+      test_stringslice_numeric \
       test_server \
       test_client
 

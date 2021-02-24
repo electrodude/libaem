@@ -1,29 +1,4 @@
-#include <aem/log.h>
-#include <aem/stringbuf.h>
-#include <aem/stringslice.h>
-#include <aem/translate.h>
-
-int rc = 0;
-
-static int ss_eq(struct aem_stringslice s1, struct aem_stringslice s2)
-{
-	if (s1.start && s1.end && s1.start && s2.end) {
-		return !aem_stringslice_cmp(s1, s2);
-	} else {
-		return s1.start == s2.start && s1.end == s2.end;
-	}
-}
-static void debug_slice(struct aem_stringbuf *out, struct aem_stringslice in)
-{
-	aem_assert(out);
-	if (in.start && in.end) {
-		aem_stringbuf_puts(out, "\"");
-		aem_string_escape(out, in);
-		aem_stringbuf_puts(out, "\"");
-	} else {
-		aem_stringbuf_puts(out, "(null)");
-	}
-}
+#include "test_common.h"
 
 #define NO_OUTPUTl (-0xDEADBEEFBADC0FEEl)
 #define NO_OUTPUT (-0xDEADBEEF)
@@ -52,7 +27,7 @@ static void test_stringslice_match_long_base(struct aem_stringslice slice, int b
 	int result = aem_stringslice_match_long_base(&slice_ret, base, &out);
 
 	if (result != result_expect || !ss_eq(slice_ret, slice_expect) || out != out_expect) {
-		rc = 1;
+		test_errors++;
 		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
 			aem_stringbuf_puts(&aem_log_buf, "stringslice_match_long_base(");
 			debug_slice(&aem_log_buf, slice);
@@ -90,7 +65,7 @@ static void test_stringslice_match_uint_base(struct aem_stringslice slice, int b
 	int result = aem_stringslice_match_uint_base(&slice_ret, base, &out);
 
 	if (result != result_expect || !ss_eq(slice_ret, slice_expect) || out != out_expect) {
-		rc = 1;
+		test_errors++;
 		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
 			aem_stringbuf_puts(&aem_log_buf, "stringslice_match_uint_base(");
 			debug_slice(&aem_log_buf, slice);
@@ -126,7 +101,7 @@ static void test_stringslice_match_long_auto(struct aem_stringslice slice, struc
 	int result = aem_stringslice_match_long_auto(&slice_ret, &out);
 
 	if (result != result_expect || !ss_eq(slice_ret, slice_expect) || out != out_expect) {
-		rc = 1;
+		test_errors++;
 		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
 			aem_stringbuf_puts(&aem_log_buf, "stringslice_match_long_auto(");
 			debug_slice(&aem_log_buf, slice);
@@ -145,12 +120,6 @@ int main(int argc, char **argv)
 	aem_log_stderr();
 	aem_log_module_default.loglevel = AEM_LOG_NOTICE;
 	aem_log_module_default_internal.loglevel = AEM_LOG_DEBUG;
-
-	rc = 0;
-
-// TODO: This macro should be in stringslice.h
-#define aem_ss_cstr aem_stringslice_new_cstr
-
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test aem_stringslice_match_long_base");
 
@@ -212,7 +181,6 @@ int main(int argc, char **argv)
 	test_stringslice_match_long_auto(aem_ss_cstr("0x-1" ), aem_ss_cstr("0x-1" ), 0, NO_OUTPUTl);
 	test_stringslice_match_long_auto(aem_ss_cstr("-0x-1"), aem_ss_cstr("-0x-1"), 0, NO_OUTPUTl);
 
-	aem_logf_ctx(AEM_LOG_NOTICE, "test end");
 
-	return rc;
+	return show_test_results();
 }

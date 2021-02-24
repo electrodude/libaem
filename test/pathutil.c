@@ -1,7 +1,6 @@
-#include <aem/log.h>
-#include <aem/pathutil.h>
+#include "test_common.h"
 
-int rc = 0;
+#include <aem/pathutil.h>
 
 struct aem_stringbuf buf = {0};
 static void test_sandbox_path(const char *base, const char *path, const char *ext, int rc_expect, const char *result)
@@ -9,12 +8,12 @@ static void test_sandbox_path(const char *base, const char *path, const char *ex
 	aem_logf_ctx(AEM_LOG_INFO, "sandbox_path(\"%s\", \"%s\", \"%s\") expect (%d, \"%s\")", base, path, ext, rc_expect, result);
 
 	aem_stringbuf_reset(&buf);
-	int rc_test = aem_sandbox_path(&buf, aem_stringslice_new_cstr(base), aem_stringslice_new_cstr(path), ext);
+	int rc = aem_sandbox_path(&buf, aem_stringslice_new_cstr(base), aem_stringslice_new_cstr(path), ext);
 	int match = aem_stringslice_eq(aem_stringslice_new_str(&buf), result);
 
-	if (rc_test != rc_expect || !match) {
-		rc = 1;
-		aem_logf_ctx(AEM_LOG_BUG, "sandbox_path(\"%s\", \"%s\", \"%s\") returned (%d, \"%s\"), expected (%d, \"%s\")!", base, path, ext, rc_test, aem_stringbuf_get(&buf), rc_expect, result);
+	if (rc != rc_expect || !match) {
+		test_errors++;
+		aem_logf_ctx(AEM_LOG_BUG, "sandbox_path(\"%s\", \"%s\", \"%s\") returned (%d, \"%s\"), expected (%d, \"%s\")!", base, path, ext, rc, aem_stringbuf_get(&buf), rc_expect, result);
 	}
 }
 
@@ -23,8 +22,6 @@ int main(int argc, char **argv)
 	aem_log_stderr();
 	aem_log_module_default.loglevel = AEM_LOG_NOTICE;
 	aem_log_module_default_internal.loglevel = AEM_LOG_DEBUG;
-
-	rc = 0;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test sandbox_path");
 
@@ -98,9 +95,7 @@ int main(int argc, char **argv)
 	test_sandbox_path("/base/../dir" , "a/../../b/filename", NULL  , 1, "/base/../dir/b/filename");
 
 
-	aem_logf_ctx(AEM_LOG_NOTICE, "test end");
-
 	aem_stringbuf_dtor(&buf);
 
-	return rc;
+	return show_test_results();
 }

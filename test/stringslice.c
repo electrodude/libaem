@@ -1,29 +1,4 @@
-#include <aem/log.h>
-#include <aem/stringbuf.h>
-#include <aem/stringslice.h>
-#include <aem/translate.h>
-
-int rc = 0;
-
-static int ss_eq(struct aem_stringslice s1, struct aem_stringslice s2)
-{
-	if (s1.start && s1.end && s1.start && s2.end) {
-		return !aem_stringslice_cmp(s1, s2);
-	} else {
-		return s1.start == s2.start && s1.end == s2.end;
-	}
-}
-static void debug_slice(struct aem_stringbuf *out, struct aem_stringslice in)
-{
-	aem_assert(out);
-	if (in.start && in.end) {
-		aem_stringbuf_puts(out, "\"");
-		aem_string_escape(out, in);
-		aem_stringbuf_puts(out, "\"");
-	} else {
-		aem_stringbuf_puts(out, "(null)");
-	}
-}
+#include "test_common.h"
 
 static void test_stringslice_match(struct aem_stringslice slice, const char *s, int result_expect, struct aem_stringslice slice_expect)
 {
@@ -31,7 +6,7 @@ static void test_stringslice_match(struct aem_stringslice slice, const char *s, 
 	int result = aem_stringslice_match(&slice_ret, s);
 
 	if (result != result_expect || !ss_eq(slice_ret, slice_expect)) {
-		rc = 1;
+		test_errors++;
 		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
 			aem_stringbuf_puts(&aem_log_buf, "stringslice_match(");
 			debug_slice(&aem_log_buf, slice);
@@ -51,7 +26,7 @@ static void test_stringslice_match_end(struct aem_stringslice slice, const char 
 	int result = aem_stringslice_match_end(&slice_ret, s);
 
 	if (result != result_expect || !ss_eq(slice_ret, slice_expect)) {
-		rc = 1;
+		test_errors++;
 		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
 			aem_stringbuf_puts(&aem_log_buf, "stringslice_match_end(");
 			debug_slice(&aem_log_buf, slice);
@@ -123,7 +98,7 @@ static void test_stringslice_match_line_multi(struct aem_stringslice slice, int 
 	struct aem_stringslice result = aem_stringslice_match_line_multi(&slice_ret, &state_ret, finish);
 
 	if (!ss_eq(result, result_expect) || !ss_eq(slice_ret, slice_expect) || state_ret != state_expect || slice.end != slice_ret.end) {
-		rc = 1;
+		test_errors++;
 		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
 			aem_stringbuf_puts(&aem_log_buf, "stringslice_match_line_multi(");
 			debug_slice(&aem_log_buf, slice);
@@ -149,12 +124,6 @@ int main(int argc, char **argv)
 	aem_log_stderr();
 	aem_log_module_default.loglevel = AEM_LOG_NOTICE;
 	aem_log_module_default_internal.loglevel = AEM_LOG_DEBUG;
-
-	rc = 0;
-
-// TODO: This macro should be in stringslice.h
-#define aem_ss_cstr aem_stringslice_new_cstr
-
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test aem_stringslice_match{,_end}");
 
@@ -289,7 +258,5 @@ int main(int argc, char **argv)
 	test_stringslice_match_line_multi(aem_ss_cstr("\nline\n\r"  ), 1, 1, aem_ss_cstr("line"  ), aem_ss_cstr("\r"    ));
 
 
-	aem_logf_ctx(AEM_LOG_NOTICE, "test end");
-
-	return rc;
+	return show_test_results();
 }

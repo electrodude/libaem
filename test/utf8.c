@@ -1,18 +1,12 @@
-#include <stdlib.h>
-#include <stdio.h>
-
-#include <aem/log.h>
-#include <aem/stringbuf.h>
-#include <aem/stringslice.h>
+#include "test_common.h"
 
 int main(int argc, char **argv)
 {
-	int rc = 0;
-
 	aem_log_stderr();
-	aem_log_module_default.loglevel = AEM_LOG_DEBUG;
+	aem_log_module_default.loglevel = AEM_LOG_NOTICE;
+	aem_log_module_default_internal.loglevel = AEM_LOG_DEBUG;
 
-	aem_logf_ctx(AEM_LOG_NOTICE, "test start\n");
+	aem_logf_ctx(AEM_LOG_NOTICE, "test utf8\n");
 
 	size_t n = 128;
 
@@ -25,7 +19,7 @@ int main(int argc, char **argv)
 		unsigned int c = i*i*i*(i+1);
 		if (aem_stringbuf_put(&str, c))
 		{
-			aem_logf_ctx(AEM_LOG_FATAL, "aem_stringbuf_put_utf8: couldn't put %u\n", c);
+			aem_logf_ctx(AEM_LOG_BUG, "aem_stringbuf_put_utf8: couldn't put %u\n", c);
 			return 1;
 		}
 	}
@@ -49,14 +43,12 @@ int main(int argc, char **argv)
 
 		if (c != c2)
 		{
-			aem_logf_ctx(AEM_LOG_FATAL, "%zd: expect 0x%x, got 0x%x\n", i, c, c2);
+			aem_logf_ctx(AEM_LOG_BUG, "%zd: expect 0x%x, got 0x%x\n", i, c, c2);
 			return 1;
 		}
 	}
 
 	aem_stringbuf_dtor(&str);
 
-	aem_logf_ctx(AEM_LOG_NOTICE, "test end\n");
-
-	return rc;
+	return show_test_results();
 }

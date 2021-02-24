@@ -52,7 +52,7 @@ all:	libaem.a
 
 test:	${TESTS}
 
-test/bin/%:	test/%.o libaem.a
+test/bin/%:	test/%.o test/test_common.o libaem.a
 	${LD} $^ ${LDFLAGS} -o $@
 
 test_%:	test/bin/%

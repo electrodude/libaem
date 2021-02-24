@@ -29,6 +29,14 @@
 
 #endif /* AEM_DEBUG */
 
+#ifdef __GNUC__
+#define aem_deprecated __attribute__((deprecated))
+#define aem_deprecated_msg(msg) __attribute__((deprecated(msg)))
+#else
+#define aem_deprecated
+#define aem_deprecated_msg(msg)
+#endif
+
 #define AEM_STRINGIFY(s) #s
 #define AEM_STRINGIFY2(s) AEM_STRINGIFY(s)
 

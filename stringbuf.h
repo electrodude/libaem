@@ -157,10 +157,10 @@ static inline void aem_stringbuf_append(struct aem_stringbuf *str, const struct 
 void aem_stringbuf_putq(struct aem_stringbuf *str, char c);
 
 // Append a stringslice, escaping characters as necessary.
-void aem_stringbuf_putss_quote(struct aem_stringbuf *str, struct aem_stringslice slice);
+aem_deprecated void aem_stringbuf_putss_quote(struct aem_stringbuf *str, struct aem_stringslice slice);
 
 // Append a stringbuf, escaping characters as necessary.
-void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2);
+aem_deprecated void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2);
 
 // Append a stringslice.
 static inline void aem_stringbuf_putss(struct aem_stringbuf *str, struct aem_stringslice slice)
@@ -169,7 +169,7 @@ static inline void aem_stringbuf_putss(struct aem_stringbuf *str, struct aem_str
 }
 
 // Unquote quoted characters out of slice and append it to str until unquoted stuff is found.
-int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice);
+aem_deprecated int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice);
 
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c);
 

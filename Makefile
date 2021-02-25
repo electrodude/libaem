@@ -34,21 +34,24 @@ OBJECTS_LIBAEM_TEST=$(patsubst %.c,%.o,${SOURCES_LIBAEM_TEST})
 DEPDIR=.deps
 DEPFLAGS=-MD -MP -MF ${DEPDIR}/$*.d
 
-TESTS=test_test \
-      test_utf8 \
-      test_test_childproc \
+all:	libaem.a
+
+TESTS=test_utf8 \
       test_pathutil \
       test_stringslice \
-      test_stringslice_numeric \
-      test_server \
-      test_client
+      test_stringslice_numeric
+#      test_childproc \
+#      test_server \
+#      test_client \
 
-TESTS_BIN=$(patsubst test_%,test/bin/%,${TESTS})
+TEST_PROGS=${TESTS} childproc_child
+
+test_childproc:	test/bin/childproc_child
+
+TESTS_BIN=$(patsubst test_%,test/bin/%,${TEST_PROGS})
 
 $(shell mkdir -p ${DEPDIR}/test)
 $(shell mkdir -p test/bin)
-
-all:	libaem.a
 
 test:	${TESTS}
 
@@ -56,7 +59,7 @@ test/bin/%:	test/%.o test/test_common.o libaem.a
 	${LD} $^ ${LDFLAGS} -o $@
 
 test_%:	test/bin/%
-	cd test && ./bin/$* || rm ./bin/$*
+	cd test && ./bin/$*
 
 clean:
 	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o ${TESTS_BIN} ${DEPDIR}/*.d ${DEPDIR}/test/*.d

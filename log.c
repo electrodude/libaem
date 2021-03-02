@@ -232,6 +232,10 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 
 	int rc = aem_log_str(str);
 
+	// Warn if format string ends with newline
+	if (fmt[0] && fmt[strlen(fmt)-1] == '\n')
+		aem_logmf_ctx_impl(&aem_log_module_default_internal, AEM_LOG_BUG, file, line, func, "Deprecated: format string for the previous message ends with \\n");
+
 #ifdef AEM_BREAK_ON_BUG
 	if (loglevel <= AEM_LOG_BUG)
 		aem_break();

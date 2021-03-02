@@ -1,5 +1,6 @@
 #define _DEFAULT_SOURCE
 #include <errno.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -8,8 +9,6 @@
 #include <aem/net.h>
 #include <aem/pmcrcu.h>
 #include <aem/translate.h>
-
-int should_exit;
 
 struct server_connection
 {
@@ -26,6 +25,8 @@ struct server_connection
 
 	int line_state;
 };
+
+int should_exit = 0;
 
 static void conn_free_rcu(struct rcu_head *rcu_head)
 {
@@ -235,11 +236,11 @@ static void conn_setup(struct aem_net_conn *sock, struct aem_net_server *server,
 			}
 			switch (addr->sa_family) {
 				case AF_INET:
-					aem_logf_ctx(AEM_LOG_INFO, "srv %p, fd %d: %s:%s", server, conn->conn.sock.evt.fd, host, serv);
+					aem_logf_ctx(AEM_LOG_NOTICE, "srv %p, fd %d: %s:%s", server, conn->conn.sock.evt.fd, host, serv);
 					aem_stringbuf_printf(&conn->name, "%s:%s", host, serv);
 					break;
 				case AF_INET6:
-					aem_logf_ctx(AEM_LOG_INFO, "srv %p, fd %d: [%s]:%s", server, conn->conn.sock.evt.fd, host, serv);
+					aem_logf_ctx(AEM_LOG_NOTICE, "srv %p, fd %d: [%s]:%s", server, conn->conn.sock.evt.fd, host, serv);
 					aem_stringbuf_printf(&conn->name, "[%s]:%s", host, serv);
 					break;
 			}
@@ -252,6 +253,14 @@ static void conn_setup(struct aem_net_conn *sock, struct aem_net_server *server,
 
 	aem_stream_connect(&conn->conn.rx, &conn->sink);
 	aem_stream_connect(&conn->source, &conn->conn.tx);
+}
+
+static void on_sigint(int sig, siginfo_t *si, void *ucontext)
+{
+	(void)sig;
+	(void)si;
+	(void)ucontext;
+	should_exit = 1;
 }
 
 void usage(const char *cmd)
@@ -299,7 +308,14 @@ int main(int argc, char **argv)
 	struct aem_poll poller;
 	aem_poll_init(&poller);
 
-	should_exit = 0;
+	struct sigaction sa;
+	sa.sa_flags = SA_SIGINFO;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_sigaction = on_sigint;
+	if (sigaction(SIGINT, &sa, NULL) == -1)
+		aem_logf_ctx(AEM_LOG_ERROR, "Failed to set SIGINT handler: %s\n", strerror(errno));
+	if (sigaction(SIGTERM, &sa, NULL) == -1)
+		aem_logf_ctx(AEM_LOG_ERROR, "Failed to set SIGTERM handler: %s\n", strerror(errno));
 
 	struct aem_net_server srv;
 
@@ -315,8 +331,10 @@ int main(int argc, char **argv)
 	while (poller.n) {
 		aem_logf_ctx(AEM_LOG_NOTICE, "iteration %d", i);
 		aem_poll_poll(&poller);
-		if (should_exit)
+		if (should_exit) {
+			aem_logf_ctx(AEM_LOG_NOTICE, "Closing all connections: %zd active fds\n", poller.n);
 			aem_poll_hup_all(&poller);
+		}
 		synchronize_rcu(); // Call deferred destructors.
 		i++;
 	}

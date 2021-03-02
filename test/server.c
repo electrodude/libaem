@@ -310,11 +310,15 @@ int main(int argc, char **argv)
 	srv.setup = conn_setup;
 	aem_net_listen(&srv, 4096);
 
+	int i = 0;
+
 	while (poller.n) {
+		aem_logf_ctx(AEM_LOG_NOTICE, "iteration %d", i);
 		aem_poll_poll(&poller);
 		if (should_exit)
 			aem_poll_hup_all(&poller);
 		synchronize_rcu(); // Call deferred destructors.
+		i++;
 	}
 
 	aem_net_server_dtor(&srv);

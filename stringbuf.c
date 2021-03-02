@@ -221,6 +221,7 @@ void aem_stringbuf_puthex(struct aem_stringbuf *str, unsigned char byte)
 	aem_stringbuf_putc(str, aem_stringbuf_putint_digits[(byte     ) & 0xF]);
 }
 
+// TODO: can these actually safely be restrict?
 static inline int aem_stringbuf_vprintf_try(struct aem_stringbuf *restrict str, const char *restrict fmt, va_list argp)
 {
 	return vsnprintf(aem_stringbuf_end(str), aem_stringbuf_available(str)+1, fmt, argp);

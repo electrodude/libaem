@@ -73,12 +73,12 @@ struct aem_log_module aem_log_module_default_internal = {.loglevel = AEM_LOG_NOT
 const char *aem_log_level_color(enum aem_log_level loglevel)
 {
 	switch (loglevel) {
-		case AEM_LOG_FATAL   : return "\033[5;101m";
+		case AEM_LOG_FATAL   : return "\033[101;5m";
 		case AEM_LOG_SECURITY: return "\033[101;30;5m";
 		case AEM_LOG_BUG     : return "\033[103;30m";
 		case AEM_LOG_NYI     : return "\033[101;30m";
-		case AEM_LOG_ERROR   : return "\033[31m";
-		case AEM_LOG_WARN    : return "\033[33m";
+		case AEM_LOG_ERROR   : return "\033[31;1m";
+		case AEM_LOG_WARN    : return "\033[33;1m";
 		case AEM_LOG_NOTICE  : return "\033[94;1m";
 		case AEM_LOG_INFO    : return "\033[0m";
 		case AEM_LOG_DEBUG   : return "\033[37;2m";
@@ -188,6 +188,7 @@ __thread struct aem_stringbuf aem_log_buf = {0};
 
 struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func)
 {
+	aem_assert(mod);
 	if (loglevel > mod->loglevel)
 		return NULL;
 
@@ -199,16 +200,18 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 	aem_stringbuf_printf(str, "%s:%d(%s)", file, line, func);
 	//aem_stringbuf_puts(str, ": ");
 	//aem_stringbuf_putc(str, aem_log_level_describe(loglevel));
-	aem_stringbuf_puts(str, ":");
+	aem_stringbuf_putc(str, ':');
 	if (aem_log_color)
 		aem_stringbuf_puts(str, "\033[0m"); // Reset text style
-	aem_stringbuf_puts(str, " ");
+	aem_stringbuf_putc(str, ' ');
 
 	return str;
 }
 
 int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...)
 {
+	aem_assert(fmt);
+
 	struct aem_stringbuf *str = aem_log_header_mod_impl(&aem_log_buf, mod, loglevel, file, line, func);
 	if (!str)
 		return 0;
@@ -218,7 +221,7 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 	aem_stringbuf_vprintf(str, fmt, ap);
 	va_end(ap);
 
-	// If present, removed the final newline the user was previously required to supply.
+	// If present, remove the final newline the user was required to supply in previous versions.
 	if (str->n && str->s[str->n-1] == '\n')
 		str->n--;
 

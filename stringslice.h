@@ -22,6 +22,8 @@ static inline struct aem_stringslice aem_stringslice_new_len(const char *p, size
 	return aem_stringslice_new(p, &p[n]);
 }
 
+// The optimizer should be smart enough to elide the call to strlen if you pass
+// in a string literal.
 static inline struct aem_stringslice aem_stringslice_new_cstr(const char *p)
 {
 	if (!p)

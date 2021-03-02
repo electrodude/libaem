@@ -194,13 +194,19 @@ static int aem_stream_provide(struct aem_stream *stream)
 	aem_assert(source->stream == stream);
 	aem_assert(source->provide);
 
-	// Don't let FIN turn off.
-	//stream->flags = flags_source | (stream->flags & AEM_STREAM_FIN);
+#ifdef AEM_DEBUG
+	int flags_orig = stream->flags;
+#endif
 
 	if (stream->buf.n > 65536)
 		aem_logf_ctx(AEM_LOG_BUG, "Why are you calling provide when you already have %zd bytes?", stream->buf.n);
 
 	source->provide(source);
+
+#ifdef AEM_DEBUG
+	if ((flags_orig & AEM_STREAM_FIN) && !(stream->flags & AEM_STREAM_FIN))
+		aem_logf_ctx(AEM_LOG_BUG, "FIN got turned off by source %p!", source);
+#endif
 
 	return 0;
 }
@@ -218,12 +224,21 @@ static int aem_stream_consume(struct aem_stream *stream)
 	aem_assert(sink->stream == stream);
 	aem_assert(sink->consume);
 
+#ifdef AEM_DEBUG
+	int flags_orig = stream->flags;
+#endif
+
 	size_t n_pre = stream->buf.n;
 
 	sink->consume(sink);
 
 	if (stream->buf.n > n_pre)
 		aem_logf_ctx(AEM_LOG_BUG, "Stream buffer has more contents (%zd => %zd) after calling ->consume!", n_pre, stream->buf.n);
+
+#ifdef AEM_DEBUG
+	if ((flags_orig & AEM_STREAM_FIN) && !(stream->flags & AEM_STREAM_FIN))
+		aem_logf_ctx(AEM_LOG_BUG, "FIN got turned off by sink %p!", sink);
+#endif
 
 	return 0;
 }

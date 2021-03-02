@@ -7,7 +7,7 @@
 
 int aem_serial_open(struct aem_serial *s, const char *device, int baud)
 {
-	aem_logf_ctx(AEM_LOG_WARN, "untested on Windows: open serial port");
+	aem_logf_ctx(AEM_LOG_NYI, "Untested on Windows");
 	ser->fd = CreateFile(device,
 			     GENERIC_READ | GENERIC_WRITE,
 			     0,
@@ -17,7 +17,7 @@ int aem_serial_open(struct aem_serial *s, const char *device, int baud)
 			     0);
 
 	if (ser->fd == INVALID_HANDLE_VALUE) {
-		aem_logf_ctx(AEM_LOG_ERROR, "failed to open tty %s", device);
+		aem_logf_ctx(AEM_LOG_ERROR, "Failed to open tty %s", device);
 
 		return -1;
 	}
@@ -45,9 +45,9 @@ int aem_serial_open(struct aem_serial *s, const char *device, int baud)
 	}
 
 	if (baud >= 0) {
-		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s baud %d", device, baud);
+		aem_logf_ctx(AEM_LOG_NOTICE, "Opened tty %s baud %d", device, baud);
 	} else {
-		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s", device);
+		aem_logf_ctx(AEM_LOG_NOTICE, "Opened tty %s", device);
 	}
 
 	return 0;
@@ -55,14 +55,14 @@ int aem_serial_open(struct aem_serial *s, const char *device, int baud)
 
 int aem_serial_close(struct aem_serial *s)
 {
-	aem_logf_ctx(AEM_LOG_WARN, "untested on Windows");
+	aem_logf_ctx(AEM_LOG_NYI, "Untested on Windows");
 	if (ser->fd != INVALID_HANDLE_VALUE) {
 		aem_logf_ctx(AEM_LOG_NOTICE, "close fd");
 
 		CloseHandle(ser->fd);
 		ser->fd = INVALID_HANDLE_VALUE;
 	} else {
-		aem_logf_ctx(AEM_LOG_WARN, "not open");
+		aem_logf_ctx(AEM_LOG_WARN, "Not open");
 
 		return 0;
 	}
@@ -75,7 +75,7 @@ int aem_serial_ok(struct aem_serial *s)
 
 size_t aem_serial_write(struct aem_serial *s, struct aem_stringslice out)
 {
-	aem_logf_ctx(AEM_LOG_WARN, "untested on Windows");
+	aem_logf_ctx(AEM_LOG_NYI, "Untested on Windows");
 
 	DWORD n;
 	if (!WriteFile(s->fd, out.start, aem_stringslice_len(&out), &n, NULL)) {
@@ -87,7 +87,7 @@ size_t aem_serial_write(struct aem_serial *s, struct aem_stringslice out)
 
 size_t aem_serial_read(struct aem_serial *s, struct aem_stringbuf *in)
 {
-	aem_logf_ctx(AEM_LOG_WARN, "untested on Windows");
+	aem_logf_ctx(AEM_LOG_NYI, "Untested on Windows");
 
 	DWORD n;
 	if (!ReadFile(s->fd, aem_stringbuf_end(in), aem_stringbuf_available(in), &n, NULL))
@@ -102,7 +102,7 @@ size_t aem_serial_read(struct aem_serial *s, struct aem_stringbuf *in)
 
 int aem_serial_getc(struct aem_serial *s)
 {
-	aem_logf_ctx(AEM_LOG_WARN, "untested on Windows");
+	aem_logf_ctx(AEM_LOG_NYI, "Untested on Windows");
 
 	unsigned char c;
 	DWORD n;

@@ -29,7 +29,7 @@ void aem_gc_dtor(struct aem_gc_context *ctx)
 	aem_gc_run(ctx);
 
 	if (!AEM_LL_EMPTY(&ctx->objects, ctx_next)) {
-		aem_logf_ctx(AEM_LOG_BUG, "not all objects collected, leaking");
+		aem_logf_ctx(AEM_LOG_BUG, "Not all objects collected, leaking");
 	}
 }
 

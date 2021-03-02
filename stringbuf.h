@@ -48,9 +48,11 @@ struct aem_stringbuf {
 // You must call aem_stringbuf_dtor on this unless you're absolutely sure that it
 //  wasn't copied into a malloc()'d buffer.  You can ensure that it won't be
 //  copied into a malloc()'d buffer (instead, characters will just stop getting
-//  added when it gets full) if you set .fixed = 1.
+//  added once it's full) if you set .fixed = 1.
 #define AEM_STRINGBUF_ALLOCA(_len) \
 	((struct aem_stringbuf){.s=alloca(_len), .n=0, .maxn = (_len), .storage = AEM_STRINGBUF_STORAGE_UNOWNED})
+
+// Deprecated in favor of AEM_STRINGBUF_ALLOCA, and is indeed now just a macro for it.
 #define AEM_STRINGBUF_ON_STACK(_name, _len) \
 	struct aem_stringbuf _name = AEM_STRINGBUF_ALLOCA(_len);
 

@@ -20,7 +20,7 @@ again:;
 			case EINTR: goto again;
 		}
 
-		aem_logf_ctx(AEM_LOG_ERROR, "failed to open tty %s: %s", device, strerror(errno));
+		aem_logf_ctx(AEM_LOG_ERROR, "Failed to open tty %s: %s", device, strerror(errno));
 
 		return ser->fd;
 	}
@@ -28,15 +28,15 @@ again:;
 	if (baud >= 0) {
 		struct termios tio;
 		tcgetattr(ser->fd, &tio);
-		cfmakeraw(&tio);
+		cfmakeraw(&tio); // TODO: Should we cfmakeraw even if no baud is specified?
 		cfsetspeed(&tio, baud);
 		tcsetattr(ser->fd, TCSADRAIN, &tio);
 	}
 
 	if (baud >= 0) {
-		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s baud %d: fd %d", device, baud, ser->fd);
+		aem_logf_ctx(AEM_LOG_NOTICE, "Opened tty %s baud %d: fd %d", device, baud, ser->fd);
 	} else {
-		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s: fd %d", device, ser->fd);
+		aem_logf_ctx(AEM_LOG_NOTICE, "Opened tty %s: fd %d", device, ser->fd);
 	}
 
 	return 0;
@@ -54,7 +54,7 @@ again:;
 				case EINTR: goto again;
 			}
 
-			aem_logf_ctx(AEM_LOG_ERROR, "failed to close fd %d, leaking: %s", ser->fd, strerror(errno));
+			aem_logf_ctx(AEM_LOG_ERROR, "Failed to close fd %d, leaking: %s", ser->fd, strerror(errno));
 		}
 		ser->fd = -1;
 
@@ -62,7 +62,7 @@ again:;
 	}
 	else
 	{
-		aem_logf_ctx(AEM_LOG_WARN, "not open");
+		aem_logf_ctx(AEM_LOG_WARN, "Not open");
 
 		return 0;
 	}

@@ -6,19 +6,17 @@
 
 #include "stream.h"
 
-static int aem_stream_provide(struct aem_stream *stream, int flags_source);
-static int aem_stream_consume(struct aem_stream *stream, int flags_sink);
+static int aem_stream_provide(struct aem_stream *stream);
+static int aem_stream_consume(struct aem_stream *stream);
 
 /// Constructor/destructor
-struct aem_stream_source *aem_stream_source_init(struct aem_stream_source *source, int (*provide)(struct aem_stream_source *source))
+struct aem_stream_source *aem_stream_source_init(struct aem_stream_source *source, void (*provide)(struct aem_stream_source *source))
 {
 	aem_assert(source);
 	aem_assert(provide);
 
 	source->stream = NULL;
 	source->provide = provide;
-
-	source->flags = 0;
 
 	return source;
 }
@@ -34,15 +32,13 @@ void aem_stream_source_dtor(struct aem_stream_source *source)
 	aem_assert(!source->stream); // aem_stream_source_detach should have ensured this
 }
 
-struct aem_stream_sink *aem_stream_sink_init(struct aem_stream_sink *sink, int (*consume)(struct aem_stream_sink *sink))
+struct aem_stream_sink *aem_stream_sink_init(struct aem_stream_sink *sink, void (*consume)(struct aem_stream_sink *sink))
 {
 	aem_assert(sink);
 	aem_assert(consume);
 
 	sink->stream = NULL;
 	sink->consume = consume;
-
-	sink->flags = 0;
 
 	return sink;
 }
@@ -69,6 +65,8 @@ static struct aem_stream *aem_stream_new(void)
 	stream->sink = NULL;
 
 	stream->state = 0;
+
+	stream->flags = 0;
 
 	return stream;
 }
@@ -147,10 +145,9 @@ void aem_stream_source_detach(struct aem_stream_source *source)
 
 	aem_assert(stream->source == source);
 
+	stream->flags = AEM_STREAM_FIN;
 	if (stream->sink)
-		stream->sink->flags |= AEM_STREAM_FIN;
-	if (stream->sink)
-		aem_stream_consume(stream, AEM_STREAM_FIN);
+		aem_stream_consume(stream);
 
 	aem_assert(!stream->state);
 
@@ -171,8 +168,7 @@ void aem_stream_sink_detach(struct aem_stream_sink *sink)
 
 	aem_assert(stream->sink == sink);
 
-	if (stream->source)
-		stream->source->flags |= AEM_STREAM_FIN;
+	stream->flags |= AEM_STREAM_FIN;
 
 	aem_assert(!stream->state);
 
@@ -185,77 +181,57 @@ void aem_stream_sink_detach(struct aem_stream_sink *sink)
 
 
 /// Stream data flow
-static int aem_stream_provide(struct aem_stream *stream, int flags_source)
+static int aem_stream_provide(struct aem_stream *stream)
 {
 	aem_assert(stream);
 
 	struct aem_stream_source *source = stream->source;
+	if (!source) {
+		aem_logf_ctx(AEM_LOG_BUG, "Source was NULL!");
+		return -1;
+	}
 	aem_assert(source);
 	aem_assert(source->stream == stream);
 	aem_assert(source->provide);
 
 	// Don't let FIN turn off.
-	source->flags = flags_source | (source->flags & AEM_STREAM_FIN);
+	//stream->flags = flags_source | (stream->flags & AEM_STREAM_FIN);
 
 	if (stream->buf.n > 65536)
 		aem_logf_ctx(AEM_LOG_BUG, "Why are you calling provide when you already have %zd bytes?\n", stream->buf.n);
 
-	int flags_sink = source->provide(source);
+	source->provide(source);
 
-	aem_assert(!(flags_sink & AEM_STREAM_NEED_MORE));
-
-	if (stream->sink)
-		stream->sink->flags = flags_sink;
-
-	return flags_sink;
+	return 0;
 }
 
-static int aem_stream_consume(struct aem_stream *stream, int flags_sink)
+static int aem_stream_consume(struct aem_stream *stream)
 {
 	aem_assert(stream);
 
-	aem_assert(!(flags_sink & AEM_STREAM_NEED_MORE));
-
 	struct aem_stream_sink *sink = stream->sink;
+	if (!sink) {
+		aem_logf_ctx(AEM_LOG_BUG, "Sink was NULL!");
+		return -1;
+	}
 	aem_assert(sink);
 	aem_assert(sink->stream == stream);
 	aem_assert(sink->consume);
 
-	sink->flags = flags_sink | (sink->flags & AEM_STREAM_FIN);
+	size_t n_pre = stream->buf.n;
 
-	aem_assert(!(sink->flags & AEM_STREAM_NEED_MORE));
+	sink->consume(sink);
 
-	int flags_source = sink->consume(sink);
+	if (stream->buf.n > n_pre)
+		aem_logf_ctx(AEM_LOG_BUG, "Stream buffer has more contents (%zd => %zd) after calling ->consume!", n_pre, stream->buf.n);
 
-	// You can't ask for more if we already said you won't be getting any.
-	if (flags_source & AEM_STREAM_FIN)
-		aem_assert(!(flags_source & AEM_STREAM_NEED_MORE));
-
-	if (aem_stream_avail(stream) && !(flags_source & AEM_STREAM_NEED_MORE))
-		aem_logf_ctx(AEM_LOG_WARN, "Callback left %zd bytes unconsumed without an excuse.\n", stream->buf.n);
-
-	if (stream->source)
-		stream->source->flags = flags_source;
-
-	return flags_source;
+	return 0;
 }
 
-int aem_stream_flow(struct aem_stream *stream, int flags_source)
+int aem_stream_flow(struct aem_stream *stream)
 {
-	aem_assert(stream);
-
-	// If nothing is available or if more input is needed, run the whole pipeline
-	if (aem_stream_should_provide(stream->source)) {
-		return aem_stream_provide(stream, flags_source);
-	} else {
-		// Otherwise, just try to get rid of data.
-		int flags_source2 = aem_stream_consume(stream, flags_source & AEM_STREAM_FIN);
-		// If we it turns out we need more input after all, run the whole pipeline.
-		if (flags_source2 & AEM_STREAM_NEED_MORE)
-			return aem_stream_provide(stream, flags_source2);
-
-		return flags_source2;
-	}
+	// Just call provide no matter what.  It can decide for itself whether or not it actually wants to provide anything.
+	return aem_stream_provide(stream);
 }
 
 
@@ -267,7 +243,42 @@ size_t aem_stream_avail(struct aem_stream *stream)
 	return stream->buf.n;
 }
 
+void aem_stream_sink_set_full(struct aem_stream_sink *sink, int full)
+{
+	if (!sink)
+		return;
 
+	struct aem_stream *stream = sink->stream;
+	if (!stream)
+		return;
+
+	if (full)
+		stream->flags |= AEM_STREAM_FULL;
+	else
+		stream->flags &= ~AEM_STREAM_FULL;
+}
+int aem_stream_propagate_up(struct aem_stream_source *down, struct aem_stream_sink *up)
+{
+	int ok = aem_stream_should_provide(down);
+
+	aem_stream_sink_set_full(up, !ok);
+
+	aem_stream_provide(up->stream);
+
+	return ok;
+}
+int aem_stream_propagate_down(struct aem_stream_source *down, struct aem_stream_sink *up)
+{
+	aem_assert(down);
+	int ok = aem_stream_should_provide(down);
+
+	aem_stream_sink_set_full(up, !ok);
+
+	if (!ok)
+		aem_stream_consume(down->stream);
+
+	return ok;
+}
 int aem_stream_should_provide(struct aem_stream_source *source)
 {
 	if (!source)
@@ -283,7 +294,18 @@ int aem_stream_should_provide(struct aem_stream_source *source)
 	if (stream->state)
 		return 0;
 
-	return !stream->buf.n || (source->flags & AEM_STREAM_NEED_MORE);
+	if (!stream->buf.n) {
+		if (stream->flags & AEM_STREAM_FULL) {
+			aem_logf_ctx(AEM_LOG_WARN, "Clearing FULL flag from empty stream %p", stream);
+			stream->flags &= ~AEM_STREAM_FULL;
+		}
+		return 1;
+	}
+
+	if (stream->flags & AEM_STREAM_FULL)
+		return 0;
+
+	return 1;
 }
 struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source, int force)
 {
@@ -296,18 +318,14 @@ struct aem_stringbuf *aem_stream_provide_begin(struct aem_stream_source *source,
 	aem_assert(stream);
 	aem_assert(stream->source == source);
 
-	/* TODO
-	if (!stream->state && !force && !aem_stream_should_provide(source))
-		return NULL;
-	*/
-
 	// Ensure no consumes are active
 	aem_assert(stream->state >= 0);
 	// One more provide is now active
 	stream->state++;
 
-	// Don't let things get out of hand
-	aem_assert(stream->state < 256);
+	// Complain if things get out of hand
+	if (stream->state >= 256)
+		aem_logf_ctx(AEM_LOG_WARN, "%zd nested provides on stream %s!", stream->state, stream);
 
 	return &stream->buf;
 }
@@ -321,13 +339,13 @@ void aem_stream_provide_end(struct aem_stream_source *source)
 
 	// Ensure at least one provide is active
 	aem_assert(stream->state > 0);
-	// One less provide is now active
+	// One fewer provide is now active
 	stream->state--;
 
 	if (!stream->state) {
 		struct aem_stream_sink *sink = stream->sink;
 		if (sink)
-			aem_stream_consume(stream, 0);
+			aem_stream_consume(stream);
 	}
 }
 
@@ -347,7 +365,7 @@ struct aem_stringslice aem_stream_consume_begin(struct aem_stream_sink *sink)
 	aem_assert(stream);
 	aem_assert(stream->sink == sink);
 
-	// Ensure stream is idle.  Unlike nested providese, nested consumes
+	// Ensure stream is idle.  Unlike nested provides, nested consumes
 	// aren't safe because the underlying stringbuf isn't updated until
 	// consume_end is called.
 	aem_assert(!stream->state);
@@ -368,9 +386,9 @@ void aem_stream_consume_end(struct aem_stream_sink *sink, struct aem_stringslice
 	if (s.start) {
 		struct aem_stringslice consumed = aem_stringslice_new(stream->buf.s, s.start);
 
-		size_t n_less = aem_stringslice_len(consumed);
+		size_t n_consumed = aem_stringslice_len(consumed);
 
-		aem_stringbuf_pop_front(&stream->buf, n_less);
+		aem_stringbuf_pop_front(&stream->buf, n_consumed);
 
 		// If the buffer is excessively large, shrink it.
 		if (stream->buf.maxn > stream->buf.n*4 + 4096) {
@@ -381,12 +399,11 @@ void aem_stream_consume_end(struct aem_stream_sink *sink, struct aem_stringslice
 		}
 	}
 
-	if ((sink->flags & AEM_STREAM_FIN) && stream->buf.n) {
+	if ((stream->flags & AEM_STREAM_FIN) && stream->buf.n)
 		aem_logf_ctx(AEM_LOG_WARN, "Stream got FIN, but consume left %zd bytes unprocessed!\n", stream->buf.n);
-	}
 
 	// Ensure at least one consume is active.
 	aem_assert(stream->state < 0);
-	// One less consume is now active.
+	// One fewer consume is now active.
 	stream->state++;
 }

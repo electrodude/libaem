@@ -7,6 +7,7 @@
 #include <aem/log.h>
 #include <aem/net.h>
 #include <aem/pmcrcu.h>
+#include <aem/translate.h>
 
 int should_exit;
 
@@ -71,27 +72,20 @@ static int process_data(struct server_connection *conn, struct aem_stringbuf *ou
 	struct aem_stringslice curr = *in;
 	struct aem_stringslice line = aem_stringslice_match_line_multi(&curr, &conn->line_state, flags & AEM_STREAM_FIN);
 
-	aem_logf_ctx(AEM_LOG_DEBUG2, "%s: line %zd bytes, flags %d\n", aem_stringbuf_get(&conn->name), aem_stringslice_len(line), flags);
+	//aem_logf_ctx(AEM_LOG_DEBUG2, "%s: line %zd bytes, flags %d", aem_stringbuf_get(&conn->name), aem_stringslice_len(line), flags);
 
 	if (line.start) {
 		struct aem_stringbuf msg = {0};
 
 		aem_stringbuf_puts(&msg, "Line: ");
-		aem_stringbuf_putss_quote(&msg, line);
+		aem_string_escape(&msg, line);
 		aem_stringbuf_puts(&msg, "\n");
 
 		//aem_logf_ctx(AEM_LOG_INFO, "%s", aem_stringbuf_get(&msg));
 		aem_stringbuf_append(out, &msg);
 
 		aem_stringbuf_dtor(&msg);
-	} else if (aem_stringslice_ok(*in)) {
-		rc |= AEM_STREAM_NEED_MORE;
 	}
-
-	aem_assert(conn->source.stream);
-	// Fails if writing side is closed.
-	if (!conn->source.stream->sink)
-		aem_logf_ctx(AEM_LOG_WARN, "TX closed\n");
 
 	if (flags & AEM_STREAM_FIN) {
 		aem_stringbuf_puts(out, "EOF\n");
@@ -101,85 +95,97 @@ static int process_data(struct server_connection *conn, struct aem_stringbuf *ou
 		should_exit = 1;
 
 	if (aem_stringslice_eq(line, "crash"))
-		aem_abort();
+		aem_assert(!"Crashing due to user command");
 
 	*in = curr;
 
 	return rc;
 }
 
-static int conn_consume(struct aem_stream_sink *sink)
+static void conn_on_close(struct aem_net_sock *sock)
+{
+	aem_assert(sock);
+	struct aem_net_conn *conn2 = aem_container_of(sock, struct aem_net_conn, sock);
+	struct server_connection *conn = aem_container_of(conn2, struct server_connection, conn);
+	aem_logf_ctx(AEM_LOG_NOTICE, "Socket closed");
+	conn_free(&conn->conn);
+}
+static void conn_consume(struct aem_stream_sink *sink)
 {
 	aem_assert(sink);
 	aem_assert(sink->stream);
 
-	int flags = sink->flags;
-
 	struct server_connection *conn = aem_container_of(sink, struct server_connection, sink);
 
-	int flags_source = 0;
-
-	struct aem_stringbuf *out = aem_stream_provide_begin(&conn->source, 0);
-
-	if (!out) {
-		aem_logf_ctx(AEM_LOG_BUG, "TX disconnected\n");
-		flags_source = AEM_STREAM_FIN;
-		goto disconnected;
+	struct aem_stream *stream_sink = sink->stream;
+	if (!stream_sink) {
+		aem_logf_ctx(AEM_LOG_BUG, "RX disconnected");
+		aem_net_sock_close(&conn->conn.sock);
+		return;
 	}
+
+	struct aem_stream_source *source = &conn->source;
+
+	struct aem_stream *stream_source = source->stream;
+	if (!stream_source) {
+		aem_logf_ctx(AEM_LOG_BUG, "TX disconnected\n");
+		aem_net_sock_close(&conn->conn.sock);
+		return;
+	}
+
+	if (!aem_stream_propagate_down(source, sink))
+	// TODO BUG: Check for stream closure here
+		return;
+
+	struct aem_stringbuf *out = aem_stream_provide_begin(source, 1);
+	aem_assert(out);
 
 	struct aem_stringslice in = aem_stream_consume_begin(sink);
 	if (!in.start)
-		return flags_source;
+		goto done_out;
 
-	aem_logf_ctx(AEM_LOG_DEBUG2, "%zd bytes, flags %d\n", aem_stringslice_len(in), flags);
+	aem_logf_ctx(AEM_LOG_DEBUG2, "%zd bytes, flags up %d, down %d", aem_stringslice_len(in), stream_sink->flags, stream_source->flags);
 
 	while (aem_stringslice_ok(in)) {
 		struct aem_stringslice in_prev = in;
 
 		aem_assert(conn->process_data);
-		int rc = conn->process_data(conn, out, &in, flags);
+		int rc = conn->process_data(conn, out, &in, stream_sink->flags & AEM_STREAM_FIN);
 
-		if (!rc) {
-			aem_assert(in.start != in_prev.start); // Callback didn't make progress without excuse.
-		}
+		//aem_logf_ctx(AEM_LOG_DEBUG3, "%zd bytes remain; rc %d\n", aem_stringslice_len(in), rc);
 
-		aem_logf_ctx(AEM_LOG_DEBUG3, "%zd bytes remain; rc %d\n", aem_stringslice_len(in), rc);
-
-		if (rc) {
-			flags_source = rc;
+		if (in.start == in_prev.start) {
 			break;
 		}
 	}
 
-	if (flags & AEM_STREAM_FIN) {
-		aem_assert(conn->process_data);
-		int rc2 = conn->process_data(conn, out, &in, flags);
-	}
+	if (!aem_stringslice_ok(in))
+		stream_sink->flags &= ~AEM_STREAM_FULL;
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "done: %zd bytes remain\n", aem_stringslice_len(in));
+	aem_logf_ctx(AEM_LOG_DEBUG, "done: %zd bytes remain", aem_stringslice_len(in));
+
+	if (stream_sink->flags & AEM_STREAM_FIN || stream_source->flags & AEM_STREAM_FIN) {
+		if (aem_stringslice_ok(in))
+			aem_logf_ctx(AEM_LOG_WARN, "process_data left %zd bytes unconsumed at stream termination!", aem_stringslice_len(in));
+		else
+			stream_source->flags |= AEM_STREAM_FIN;
+	}
 
 	aem_stream_consume_end(sink, in);
 
-	aem_stream_provide_end(&conn->source);
-
-disconnected:
-	if (flags & AEM_STREAM_FIN) {
-		aem_logf_ctx(AEM_LOG_INFO, "EOF\n");
-		conn_free(&conn->conn);
-	}
-
-	return flags_source;
+done_out:
+	aem_stream_provide_end(source);
 }
-static int conn_provide(struct aem_stream_source *source)
+static void conn_provide(struct aem_stream_source *source)
 {
 	aem_assert(source);
 	aem_assert(source->stream);
 
 	struct server_connection *conn = aem_container_of(source, struct server_connection, source);
 
-	aem_stream_flow(conn->sink.stream, source->flags);
+	struct aem_stream_sink *sink = &conn->sink;
 
-	return 0;
+	aem_stream_propagate_up(source, sink);
 }
 static struct aem_net_conn *conn_new(struct aem_net_server *server, struct sockaddr *addr, socklen_t len)
 {
@@ -193,6 +199,7 @@ static struct aem_net_conn *conn_new(struct aem_net_server *server, struct socka
 
 	conn->process_data = process_data;
 	conn->line_state = 0;
+	conn->conn.sock.on_close = conn_on_close;
 	aem_net_conn_init(&conn->conn);
 	aem_stream_sink_init(&conn->sink, conn_consume);
 	aem_stream_source_init(&conn->source, conn_provide);
@@ -206,6 +213,14 @@ static void conn_setup(struct aem_net_conn *sock, struct aem_net_server *server,
 	aem_assert(sock);
 
 	struct server_connection *conn = aem_container_of(sock, struct server_connection, conn);
+
+	const int sz = 8192;
+	if (setsockopt(sock->sock.evt.fd, SOL_SOCKET, SO_SNDBUF, &sz, sizeof(sz)) < 0) {
+		aem_logf_ctx(AEM_LOG_ERROR, "setsockopt(%d, SO_SNDBUF, %zd): %s", sock->sock.evt.fd, sz, strerror(errno));
+	}
+	if (setsockopt(sock->sock.evt.fd, SOL_SOCKET, SO_RCVBUF, &sz, sizeof(sz)) < 0) {
+		aem_logf_ctx(AEM_LOG_ERROR, "setsockopt(%d, SO_RCVBUF, %zd): %s", sock->sock.evt.fd, sz, strerror(errno));
+	}
 
 	switch (addr->sa_family) {
 		case AF_INET:

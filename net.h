@@ -13,6 +13,8 @@ struct aem_net_sock {
 
 	struct aem_poll *poller;
 
+	void (*on_close)(struct aem_net_sock *sock);
+
 	char rd_open : 1;
 	char wr_open : 1;
 };

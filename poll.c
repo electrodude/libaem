@@ -279,9 +279,9 @@ int aem_poll_poll(struct aem_poll *p)
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%d pending events\n", rc);
 
-	int progress;
+	int rc_orig;
 	do {
-		progress = 0;
+		rc_orig = rc;
 		for (size_t i = 0; i < p->n; i++) {
 			struct pollfd *pollfd = &p->fds[i];
 			struct aem_poll_event *evt = p->evts[i];
@@ -290,8 +290,6 @@ int aem_poll_poll(struct aem_poll *p)
 
 			if (!revents)
 				continue;
-
-			progress = 1;
 
 			// Decrement this for each event we process: it should
 			// be zero by the time we're done.
@@ -340,9 +338,9 @@ int aem_poll_poll(struct aem_poll *p)
 				// this, we ensure that the above `if (revents)
 				// continue;` statement won't let us re-process this
 				// event until the next poll.
-				pollfd->revents = evt->revents;
+				pollfd->revents = 0;
 
-				// Ensure event is still constent
+				// Ensure event is still consistent
 				aem_assert(p->evts[evt->i] == evt);
 				aem_poll_event_verify(p, evt->i);
 			}
@@ -361,10 +359,12 @@ int aem_poll_poll(struct aem_poll *p)
 		// the event list was shuffled around underneath us.  Try again
 		// until all events are processed (or until we somehow stop
 		// making progress, which would imply a bug).
-	} while (rc > 0 && progress);
-
-	if (rc)
-		aem_logf_ctx(AEM_LOG_BUG, "%d events unprocessed!\n", rc);
+		if (rc == rc_orig) {
+			// TODO: What if an event deregisters some other event with pending revents?
+			aem_logf_ctx(AEM_LOG_BUG, "Made no progress; lost %d event%s", rc, rc != 1 ? "s" : "");
+			break;
+		}
+	} while (rc > 0);
 
 	return rc;
 }
@@ -397,6 +397,8 @@ void aem_poll_hup_all(struct aem_poll *p)
 
 		if (evt->on_event) {
 			evt->on_event(p, evt);
+			if (evt->i != -1)
+				aem_logf_ctx(AEM_LOG_BUG, "Event failed to deregister itself!\n");
 			// Assert that it deregistered itself.
 			aem_assert(evt->i == -1);
 		} else {

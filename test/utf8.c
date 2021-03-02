@@ -6,11 +6,11 @@ int main(int argc, char **argv)
 	aem_log_module_default.loglevel = AEM_LOG_NOTICE;
 	aem_log_module_default_internal.loglevel = AEM_LOG_DEBUG;
 
-	aem_logf_ctx(AEM_LOG_NOTICE, "test utf8\n");
+	aem_logf_ctx(AEM_LOG_NOTICE, "test utf8");
 
 	size_t n = 128;
 
-	aem_logf_ctx(AEM_LOG_INFO, "write utf8\n");
+	aem_logf_ctx(AEM_LOG_INFO, "write utf8");
 	struct aem_stringbuf str;
 	aem_stringbuf_init(&str);
 
@@ -19,7 +19,7 @@ int main(int argc, char **argv)
 		unsigned int c = i*i*i*(i+1);
 		if (aem_stringbuf_put(&str, c))
 		{
-			aem_logf_ctx(AEM_LOG_BUG, "aem_stringbuf_put_utf8: couldn't put %u\n", c);
+			aem_logf_ctx(AEM_LOG_BUG, "aem_stringbuf_put_utf8: couldn't put %u", c);
 			return 1;
 		}
 	}
@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 		fclose(fp);
 	}
 
-	aem_logf_ctx(AEM_LOG_INFO, "read utf8\n");
+	aem_logf_ctx(AEM_LOG_INFO, "read utf8");
 
 	for (size_t i = 0; i < n; i++)
 	{
@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 
 		if (c != c2)
 		{
-			aem_logf_ctx(AEM_LOG_BUG, "%zd: expect 0x%x, got 0x%x\n", i, c, c2);
+			aem_logf_ctx(AEM_LOG_BUG, "%zd: expect 0x%x, got 0x%x", i, c, c2);
 			return 1;
 		}
 	}

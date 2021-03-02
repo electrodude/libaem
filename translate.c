@@ -9,7 +9,7 @@ void aem_string_escape(struct aem_stringbuf *restrict str, struct aem_stringslic
 		return;
 
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= escape(<slice>)\n", aem_stringbuf_get(str));
+	aem_logf_ctx(AEM_LOG_DEBUG, "\"%s\" ..= escape(<slice>)", aem_stringbuf_get(str));
 #endif
 
 	while (aem_stringslice_ok(slice)) {

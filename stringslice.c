@@ -155,7 +155,7 @@ struct aem_stringslice aem_stringslice_match_line_multi(struct aem_stringslice *
 	// skip the LF because it was part of the last line of the previous
 	// invocation, which was already processed.
 	if (*state && aem_stringslice_match(slice, "\n")) {
-		aem_logf_ctx(AEM_LOG_WARN, "Dropping missed LF from a CRLF split across a packet boundary\n");
+		aem_logf_ctx(AEM_LOG_WARN, "Dropping missed LF from a CRLF split across a packet boundary");
 		*state = 0;
 	}
 

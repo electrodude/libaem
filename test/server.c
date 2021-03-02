@@ -33,7 +33,7 @@ static void conn_free_rcu(struct rcu_head *rcu_head)
 
 	struct server_connection *conn = aem_container_of(rcu_head, struct server_connection, rcu_head);
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p\n", conn);
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p", conn);
 
 	aem_stream_sink_dtor(&conn->sink);
 	aem_stream_source_dtor(&conn->source);
@@ -48,7 +48,7 @@ static void conn_free(struct aem_net_conn *sock)
 
 	struct server_connection *conn = aem_container_of(sock, struct server_connection, conn);
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "%s: fd %d\n", aem_stringbuf_get(&conn->name), conn->conn.sock.evt.fd);
+	aem_logf_ctx(AEM_LOG_DEBUG, "%s: fd %d", aem_stringbuf_get(&conn->name), conn->conn.sock.evt.fd);
 
 	aem_stream_sink_detach(&conn->sink);
 	aem_stream_source_detach(&conn->source);
@@ -128,7 +128,7 @@ static void conn_consume(struct aem_stream_sink *sink)
 
 	struct aem_stream *stream_source = source->stream;
 	if (!stream_source) {
-		aem_logf_ctx(AEM_LOG_BUG, "TX disconnected\n");
+		aem_logf_ctx(AEM_LOG_BUG, "TX disconnected");
 		aem_net_sock_close(&conn->conn.sock);
 		return;
 	}
@@ -152,7 +152,7 @@ static void conn_consume(struct aem_stream_sink *sink)
 		aem_assert(conn->process_data);
 		int rc = conn->process_data(conn, out, &in, stream_sink->flags & AEM_STREAM_FIN);
 
-		//aem_logf_ctx(AEM_LOG_DEBUG3, "%zd bytes remain; rc %d\n", aem_stringslice_len(in), rc);
+		//aem_logf_ctx(AEM_LOG_DEBUG3, "%zd bytes remain; rc %d", aem_stringslice_len(in), rc);
 
 		if (in.start == in_prev.start) {
 			break;
@@ -191,7 +191,7 @@ static struct aem_net_conn *conn_new(struct aem_net_server *server, struct socka
 {
 	struct server_connection *conn = malloc(sizeof(*conn));
 	if (!conn) {
-		aem_logf_ctx(AEM_LOG_ERROR, "malloc failed: %s\n", strerror(errno));
+		aem_logf_ctx(AEM_LOG_ERROR, "malloc failed: %s", strerror(errno));
 		return NULL;
 	}
 
@@ -230,23 +230,23 @@ static void conn_setup(struct aem_net_conn *sock, struct aem_net_server *server,
 			char serv[64];
 			int gni_rc = getnameinfo(addr, len, host, sizeof(host), serv, sizeof(serv), NI_NUMERICSERV);
 			if (gni_rc < 0) {
-				aem_logf_ctx(AEM_LOG_ERROR, "getnameinfo(): %s\n", gai_strerror(gni_rc));
+				aem_logf_ctx(AEM_LOG_ERROR, "getnameinfo(): %s", gai_strerror(gni_rc));
 				break;
 			}
 			switch (addr->sa_family) {
 				case AF_INET:
-					aem_logf_ctx(AEM_LOG_INFO, "srv %p, fd %d: %s:%s\n", server, conn->conn.sock.evt.fd, host, serv);
+					aem_logf_ctx(AEM_LOG_INFO, "srv %p, fd %d: %s:%s", server, conn->conn.sock.evt.fd, host, serv);
 					aem_stringbuf_printf(&conn->name, "%s:%s", host, serv);
 					break;
 				case AF_INET6:
-					aem_logf_ctx(AEM_LOG_INFO, "srv %p, fd %d: [%s]:%s\n", server, conn->conn.sock.evt.fd, host, serv);
+					aem_logf_ctx(AEM_LOG_INFO, "srv %p, fd %d: [%s]:%s", server, conn->conn.sock.evt.fd, host, serv);
 					aem_stringbuf_printf(&conn->name, "[%s]:%s", host, serv);
 					break;
 			}
 			break;
 		}
 		default:
-			aem_logf_ctx(AEM_LOG_INFO, "srv %p, conn %d: unknown AF\n", server, conn->conn.sock.evt.fd);
+			aem_logf_ctx(AEM_LOG_INFO, "srv %p, conn %d: unknown AF", server, conn->conn.sock.evt.fd);
 			break;
 	}
 
@@ -292,7 +292,7 @@ int main(int argc, char **argv)
 	argc -= optind;
 
 	if (unix && service) {
-		aem_logf_ctx(AEM_LOG_FATAL, "You can't specify both -U and -p.\n");
+		aem_logf_ctx(AEM_LOG_FATAL, "You can't specify both -U and -p.");
 		exit(1);
 	}
 

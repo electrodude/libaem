@@ -29,7 +29,7 @@ void aem_gc_dtor(struct aem_gc_context *ctx)
 	aem_gc_run(ctx);
 
 	if (!AEM_LL_EMPTY(&ctx->objects, ctx_next)) {
-		aem_logf_ctx(AEM_LOG_BUG, "not all objects collected, leaking\n");
+		aem_logf_ctx(AEM_LOG_BUG, "not all objects collected, leaking");
 	}
 }
 
@@ -60,7 +60,7 @@ void aem_gc_run(struct aem_gc_context *ctx)
 	AEM_LL_FOR_ALL(curr, &ctx->objects, ctx_next) {
 		// If it wasn't hit by the mark cycle, it's dead
 		if (!aem_iter_gen_hit(&curr->iter, &ctx->objects.iter)) {
-			aem_logf_ctx(AEM_LOG_DEBUG, "dtor %p(%s)\n", curr, curr->vtbl->name);
+			aem_logf_ctx(AEM_LOG_DEBUG, "dtor %p(%s)", curr, curr->vtbl->name);
 			if (curr->vtbl->dtor) {
 				curr->vtbl->dtor(curr, ctx);
 			}

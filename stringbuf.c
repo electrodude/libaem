@@ -23,7 +23,7 @@ struct aem_stringbuf *aem_stringbuf_new_raw(void)
 	struct aem_stringbuf *str = malloc(sizeof(*str));
 
 	if (!str) {
-		aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed: %s\n", strerror(errno));
+		aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed: %s", strerror(errno));
 		return NULL;
 	}
 
@@ -73,7 +73,7 @@ static inline void aem_stringbuf_storage_free(struct aem_stringbuf *str)
 			break;
 
 		default:
-			aem_logf_ctx(AEM_LOG_BUG, "%p: unknown storage type %d, leaking %p!\n", str, str->storage, str->s);
+			aem_logf_ctx(AEM_LOG_BUG, "%p: unknown storage type %d, leaking %p!", str, str->storage, str->s);
 			break;
 	}
 }
@@ -126,7 +126,7 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 #endif
 	if (str->storage == AEM_STRINGBUF_STORAGE_HEAP) {
 #if AEM_STRINGBUF_DEBUG_ALLOC
-		aem_logf_ctx(AEM_LOG_DEBUG, "realloc: n %zd, maxn %zd -> %zd\n", str->n, str->maxn, maxn_new);
+		aem_logf_ctx(AEM_LOG_DEBUG, "realloc: n %zd, maxn %zd -> %zd", str->n, str->maxn, maxn_new);
 #endif
 		char *s_new = realloc(str->s, maxn_new);
 
@@ -139,7 +139,7 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 		str->maxn = maxn_new;
 	} else {
 #if AEM_STRINGBUF_DEBUG_ALLOC
-		aem_logf_ctx(AEM_LOG_DEBUG, "to heap: n %zd, maxn %zd -> %zd\n", str->n, str->maxn, maxn_new);
+		aem_logf_ctx(AEM_LOG_DEBUG, "to heap: n %zd, maxn %zd -> %zd", str->n, str->maxn, maxn_new);
 #endif
 
 		char *s_new = malloc(maxn_new);
@@ -172,7 +172,7 @@ char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 		return NULL;
 
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p\n", aem_stringbuf_get(str));
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p", aem_stringbuf_get(str));
 #endif
 
 	if (!str->fixed && str->storage == AEM_STRINGBUF_STORAGE_HEAP) {
@@ -241,7 +241,7 @@ void aem_stringbuf_vprintf(struct aem_stringbuf *restrict str, const char *restr
 	va_end(argp2);
 
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p: %zd out of %zd, %s\n", str, len, aem_stringbuf_available(str)+1, fmt);
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p: %zd out of %zd, %s", str, len, aem_stringbuf_available(str)+1, fmt);
 #endif
 
 	if (len > aem_stringbuf_available(str)) {
@@ -386,7 +386,7 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i)
 		return -1;
 	}
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "[%zd] = %c\n", i, str->s[i]);
+	aem_logf_ctx(AEM_LOG_DEBUG, "[%zd] = %c", i, str->s[i]);
 #endif
 
 	return str->s[i];
@@ -428,7 +428,7 @@ size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 
 	size_t in = fread(aem_stringbuf_end(str), 1, n, fp);
 
-	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd\n", in, str->n, str->maxn);
+	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd", in, str->n, str->maxn);
 
 	str->n += in;
 
@@ -488,7 +488,7 @@ ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 
 	ssize_t in = read(fd, aem_stringbuf_end(str), n);
 
-	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd\n", in, str->n, str->maxn);
+	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd", in, str->n, str->maxn);
 
 	if (in > 0) {
 		str->n += in;

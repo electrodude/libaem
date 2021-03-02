@@ -45,10 +45,10 @@ int aem_pmcrcu_process_one_callback(void)
 	{
 		Dl_info info;
 		if (dladdr(head->func, &info)) {
-			//aem_logf_ctx(AEM_LOG_DEBUG, "rcu callback: obj %p, method %s from %s\n", head, info.dli_sname, info.dli_fname);
-			aem_logf_ctx(AEM_LOG_DEBUG, "rcu callback: %s(%p)\n", info.dli_sname, head);
+			//aem_logf_ctx(AEM_LOG_DEBUG, "rcu callback: obj %p, method %s from %s", head, info.dli_sname, info.dli_fname);
+			aem_logf_ctx(AEM_LOG_DEBUG, "rcu callback: %s(%p)", info.dli_sname, head);
 		} else {
-			aem_logf_ctx(AEM_LOG_DEBUG, "rcu callback: ((void(*)(struct rcu_head*))%p)(%p)\n", head->func, head);
+			aem_logf_ctx(AEM_LOG_DEBUG, "rcu callback: ((void(*)(struct rcu_head*))%p)(%p)", head->func, head);
 		}
 	}
 #endif

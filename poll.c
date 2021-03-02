@@ -63,7 +63,7 @@ static void aem_poll_resize(struct aem_poll *p)
 		maxn = 8;
 	if (maxn == p->maxn)
 		return;
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p: resize from %zd to %zd (%zd used)\n", p, p->maxn, maxn, p->n);
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p: resize from %zd to %zd (%zd used)", p, p->maxn, maxn, p->n);
 	aem_assert(p->n+1 <= maxn); // Make sure we have room for at least one more.
 	p->maxn = maxn;
 	p->fds  = realloc(p->fds , p->maxn*sizeof(*p->fds ));
@@ -77,7 +77,7 @@ static void aem_poll_assign(struct aem_poll *p, struct aem_poll_event *evt)
 {
 	aem_assert(p);
 	aem_assert(evt);
-	aem_logf_ctx(AEM_LOG_DEBUG, "evt %p[%zd] := %p (fd %d)\n", p, evt->i, evt, evt->fd);
+	aem_logf_ctx(AEM_LOG_DEBUG, "evt %p[%zd] := %p (fd %d)", p, evt->i, evt, evt->fd);
 
 	aem_assert(evt->i >= 0);
 	aem_assert((size_t)evt->i < p->n);
@@ -92,7 +92,7 @@ ssize_t aem_poll_add(struct aem_poll *p, struct aem_poll_event *evt)
 	aem_assert(p);
 	aem_assert(evt);
 	if (evt->fd < 0) {
-		aem_logf_ctx(AEM_LOG_BUG, "Invalid fd: %d\n", evt->fd);
+		aem_logf_ctx(AEM_LOG_BUG, "Invalid fd: %d", evt->fd);
 		return -1;
 	}
 
@@ -108,7 +108,7 @@ ssize_t aem_poll_add(struct aem_poll *p, struct aem_poll_event *evt)
 
 	aem_poll_assign(p, evt);
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "evt %p[%zd] = %p: fd %d\n", p, evt->i, evt, evt->fd);
+	aem_logf_ctx(AEM_LOG_DEBUG, "evt %p[%zd] = %p: fd %d", p, evt->i, evt, evt->fd);
 
 	return evt->i;
 }
@@ -117,9 +117,9 @@ int aem_poll_del(struct aem_poll *p, struct aem_poll_event *evt)
 {
 	aem_assert(p);
 	aem_assert(evt);
-	aem_logf_ctx(AEM_LOG_DEBUG, "evt %p[%zd] = %p: fd %d\n", p, evt->i, evt, evt->fd);
+	aem_logf_ctx(AEM_LOG_DEBUG, "evt %p[%zd] = %p: fd %d", p, evt->i, evt, evt->fd);
 	if (evt->i == -1) {
-		aem_logf_ctx(AEM_LOG_BUG, "Event %p (fd %d) not registered\n", evt, evt->fd);
+		aem_logf_ctx(AEM_LOG_BUG, "Event %p (fd %d) not registered", evt, evt->fd);
 		return -1;
 	}
 
@@ -253,7 +253,7 @@ int aem_poll_poll(struct aem_poll *p)
 	aem_poll_verify(p);
 #endif
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p: poll %zd events\n", p, p->n);
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p: poll %zd events", p, p->n);
 
 	int timeout = -1;
 	int rc = poll(p->fds, p->n, timeout);
@@ -267,7 +267,7 @@ int aem_poll_poll(struct aem_poll *p)
 
 			default: {
 				int myerrno = errno;
-				aem_logf_ctx(AEM_LOG_FATAL, "poll failed: %s\n", strerror(errno));
+				aem_logf_ctx(AEM_LOG_FATAL, "poll failed: %s", strerror(errno));
 				errno = myerrno;
 				return rc;
 			}
@@ -275,9 +275,9 @@ int aem_poll_poll(struct aem_poll *p)
 	}
 
 	if (!rc)
-		aem_logf_ctx(AEM_LOG_DEBUG, "timeout after %d\n", timeout);
+		aem_logf_ctx(AEM_LOG_DEBUG, "timeout after %d", timeout);
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "%d pending events\n", rc);
+	aem_logf_ctx(AEM_LOG_DEBUG, "%d pending events", rc);
 
 	int rc_orig;
 	do {
@@ -296,7 +296,7 @@ int aem_poll_poll(struct aem_poll *p)
 			rc--;
 
 			if (revents & POLLNVAL)
-				aem_logf_ctx(AEM_LOG_BUG, "POLLNVAL on fd %d for poll %p, evt %zd\n", pollfd->fd, p, i);
+				aem_logf_ctx(AEM_LOG_BUG, "POLLNVAL on fd %d for poll %p, evt %zd", pollfd->fd, p, i);
 
 			if (aem_log_header(&aem_log_buf, AEM_LOG_DEBUG)) {
 				aem_stringbuf_printf(&aem_log_buf, "%p[%zd]: ", p, i);
@@ -313,7 +313,7 @@ int aem_poll_poll(struct aem_poll *p)
 				// TODO: Is ignoring or deregistering chronically ignored events trying too hard?
 				// TODO: This can have false positives if e.g. on POLLHUP, the callback deregisters its event, closes the fd, opens a new fd with the same number, and reregisters the event and it happens to get the same index.
 				aem_poll_del(p, evt);
-				aem_logf_ctx(AEM_LOG_BUG, "We deregistered fd %d for you due to POLLHUP because your buggy code forgot to do it itself.  The object containing (struct aem_poll_event*)%p was likely leaked.\n", evt->fd, evt);
+				aem_logf_ctx(AEM_LOG_BUG, "We deregistered fd %d for you due to POLLHUP because your buggy code forgot to do it itself.  The object containing (struct aem_poll_event*)%p was likely leaked.", evt->fd, evt);
 			}
 
 			if (evt->revents) {
@@ -377,7 +377,7 @@ void aem_poll_hup_all(struct aem_poll *p)
 	aem_poll_verify(p);
 #endif
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p: HUP all\n", p);
+	aem_logf_ctx(AEM_LOG_DEBUG, "%p: HUP all", p);
 
 	while (p->n) {
 		size_t i = p->n-1;
@@ -398,11 +398,11 @@ void aem_poll_hup_all(struct aem_poll *p)
 		if (evt->on_event) {
 			evt->on_event(p, evt);
 			if (evt->i != -1)
-				aem_logf_ctx(AEM_LOG_BUG, "Event failed to deregister itself!\n");
+				aem_logf_ctx(AEM_LOG_BUG, "Event failed to deregister itself!");
 			// Assert that it deregistered itself.
 			aem_assert(evt->i == -1);
 		} else {
-			aem_logf_ctx(AEM_LOG_WARN, "%p[%zd]: fd %d has no on_event callback!\n", p, i, pollfd->fd);
+			aem_logf_ctx(AEM_LOG_WARN, "%p[%zd]: fd %d has no on_event callback!", p, i, pollfd->fd);
 		}
 
 	}

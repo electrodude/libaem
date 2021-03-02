@@ -198,7 +198,7 @@ static int aem_stream_provide(struct aem_stream *stream)
 	//stream->flags = flags_source | (stream->flags & AEM_STREAM_FIN);
 
 	if (stream->buf.n > 65536)
-		aem_logf_ctx(AEM_LOG_BUG, "Why are you calling provide when you already have %zd bytes?\n", stream->buf.n);
+		aem_logf_ctx(AEM_LOG_BUG, "Why are you calling provide when you already have %zd bytes?", stream->buf.n);
 
 	source->provide(source);
 
@@ -358,7 +358,7 @@ struct aem_stringslice aem_stream_consume_begin(struct aem_stream_sink *sink)
 		return AEM_STRINGSLICE_EMPTY;
 
 	if (stream->state < 0) {
-		aem_logf_ctx(AEM_LOG_WARN, "Nested stream consume!\n");
+		aem_logf_ctx(AEM_LOG_WARN, "Nested stream consume!");
 		return AEM_STRINGSLICE_EMPTY;
 	}
 
@@ -400,7 +400,7 @@ void aem_stream_consume_end(struct aem_stream_sink *sink, struct aem_stringslice
 	}
 
 	if ((stream->flags & AEM_STREAM_FIN) && stream->buf.n)
-		aem_logf_ctx(AEM_LOG_WARN, "Stream got FIN, but consume left %zd bytes unprocessed!\n", stream->buf.n);
+		aem_logf_ctx(AEM_LOG_WARN, "Stream got FIN, but consume left %zd bytes unprocessed!", stream->buf.n);
 
 	// Ensure at least one consume is active.
 	aem_assert(stream->state < 0);

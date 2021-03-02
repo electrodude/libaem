@@ -246,7 +246,7 @@ static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c)
 	aem_assert(str);
 
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "putc(\"%s\", '%c')\n", aem_stringbuf_get(str), c);
+	aem_logf_ctx(AEM_LOG_DEBUG, "putc(\"%s\", '%c')", aem_stringbuf_get(str), c);
 #endif
 
 	aem_stringbuf_reserve(str, 1);

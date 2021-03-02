@@ -85,7 +85,7 @@ int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level logleve
 #ifndef aem_assert
 #define aem_assert(condition) do { \
 	if (!(condition)) { \
-		aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s\n", #condition); \
+		aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s", #condition); \
 		aem_abort(); \
 	} \
 } while (0)
@@ -94,7 +94,7 @@ int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level logleve
 #ifndef aem_assert_msg
 #define aem_assert_msg(condition, msg) do { \
 	if (!(condition)) { \
-		aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s: %s\n", #condition, msg); \
+		aem_logf_ctx(AEM_LOG_BUG, "assertion failed: %s: %s", #condition, msg); \
 		aem_abort(); \
 	} \
 } while (0)
@@ -105,7 +105,7 @@ int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level logleve
 	__typeof__(a) _a = (a); \
 	__typeof__(b) _b = (b); \
 	if (_a != _b) { \
-		aem_logf_ctx(AEM_LOG_BUG, "equality failed: %s != %s\n", #a, #b); \
+		aem_logf_ctx(AEM_LOG_BUG, "equality failed: %s != %s", #a, #b); \
 		aem_abort(); \
 	} \
 	_a; \

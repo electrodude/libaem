@@ -20,7 +20,7 @@ again:;
 			case EINTR: goto again;
 		}
 
-		aem_logf_ctx(AEM_LOG_ERROR, "failed to open tty %s: %s\n", device, strerror(errno));
+		aem_logf_ctx(AEM_LOG_ERROR, "failed to open tty %s: %s", device, strerror(errno));
 
 		return ser->fd;
 	}
@@ -34,9 +34,9 @@ again:;
 	}
 
 	if (baud >= 0) {
-		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s baud %d: fd %d\n", device, baud, ser->fd);
+		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s baud %d: fd %d", device, baud, ser->fd);
 	} else {
-		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s: fd %d\n", device, ser->fd);
+		aem_logf_ctx(AEM_LOG_NOTICE, "opened tty %s: fd %d", device, ser->fd);
 	}
 
 	return 0;
@@ -45,7 +45,7 @@ again:;
 int aem_serial_close(struct aem_serial *ser)
 {
 	if (ser->fd >= 0) {
-		aem_logf_ctx(AEM_LOG_NOTICE, "close fd %d\n", ser->fd);
+		aem_logf_ctx(AEM_LOG_NOTICE, "close fd %d", ser->fd);
 
 again:;
 		int rc = close(ser->fd);
@@ -54,7 +54,7 @@ again:;
 				case EINTR: goto again;
 			}
 
-			aem_logf_ctx(AEM_LOG_ERROR, "failed to close fd %d, leaking: %s\n", ser->fd, strerror(errno));
+			aem_logf_ctx(AEM_LOG_ERROR, "failed to close fd %d, leaking: %s", ser->fd, strerror(errno));
 		}
 		ser->fd = -1;
 
@@ -62,7 +62,7 @@ again:;
 	}
 	else
 	{
-		aem_logf_ctx(AEM_LOG_WARN, "not open\n");
+		aem_logf_ctx(AEM_LOG_WARN, "not open");
 
 		return 0;
 	}

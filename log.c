@@ -36,7 +36,7 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 		aem_log_color = 0;
 	}
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "Switched to new log source: %s\n", aem_log_color ? "color" : "no color");
+	aem_logf_ctx(AEM_LOG_DEBUG, "Switched to new log source: %s", aem_log_color ? "color" : "no color");
 
 	return fp_old;
 }
@@ -146,7 +146,7 @@ enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 		case '2': level = AEM_LOG_DEBUG2  ; break; // These two have no
 		case '3': level = AEM_LOG_DEBUG3  ; break; // valid long forms
 		default :
-			aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse log level; default to debug\n");
+			aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse log level; default to debug");
 			return AEM_LOG_DEBUG;
 	}
 
@@ -158,7 +158,7 @@ enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 
 	// Complain if the rest of the word isn't correct
 	if (!aem_stringslice_eq_case(word, expect+1))
-		aem_logf_ctx(AEM_LOG_WARN, "Misspelled log level; assuming you meant \"%s\"\n", expect);
+		aem_logf_ctx(AEM_LOG_WARN, "Misspelled log level; assuming you meant \"%s\"", expect);
 
 	return level;
 }
@@ -167,18 +167,18 @@ void aem_log_level_parse_set(const char *p)
 	struct aem_stringslice s = aem_stringslice_new_cstr(p);
 	aem_stringslice_match_ws(&s);
 	aem_log_module_default.loglevel = aem_log_level_parse(aem_stringslice_match_alnum(&s));
-	aem_logmf_ctx(&aem_log_module_default, aem_log_module_default.loglevel, "Set default log level to %s\n", aem_log_level_describe(aem_log_module_default.loglevel));
+	aem_logmf_ctx(&aem_log_module_default, aem_log_module_default.loglevel, "Set default log level to %s", aem_log_level_describe(aem_log_module_default.loglevel));
 	aem_stringslice_match_ws(&s);
 
 	if (aem_stringslice_match(&s, ",")) {
 		aem_stringslice_match_ws(&s);
 		aem_log_module_default_internal.loglevel = aem_log_level_parse(aem_stringslice_match_alnum(&s));
-		aem_logmf_ctx(&aem_log_module_default_internal, aem_log_module_default_internal.loglevel, "Set internal log level to %s\n", aem_log_level_describe(aem_log_module_default_internal.loglevel));
+		aem_logmf_ctx(&aem_log_module_default_internal, aem_log_module_default_internal.loglevel, "Set internal log level to %s", aem_log_level_describe(aem_log_module_default_internal.loglevel));
 		aem_stringslice_match_ws(&s);
 	}
 
 	if (aem_stringslice_ok(s))
-		aem_logf_ctx(AEM_LOG_WARN, "Garbage after log level!\n");
+		aem_logf_ctx(AEM_LOG_WARN, "Garbage after log level!");
 }
 
 

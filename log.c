@@ -27,6 +27,8 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 
 	aem_log_autoclose_curr = autoclose_new;
 
+	setvbuf(aem_log_fp, NULL, _IOLBF, 0);
+
 	int fd = fileno(aem_log_fp);
 	if (fd >= 0 && isatty(fd)) {
 		aem_log_color = 1;

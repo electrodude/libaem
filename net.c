@@ -28,6 +28,8 @@ struct aem_net_sock *aem_net_sock_init(struct aem_net_sock *sock)
 	aem_poll_event_init(&sock->evt);
 	sock->poller = NULL;
 
+	sock->on_close = NULL;
+
 	sock->rd_open = 0;
 	sock->wr_open = 0;
 

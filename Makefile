@@ -23,7 +23,7 @@ SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c translate.c pathutil.c s
 ifeq (${HOST_SYS},Windows)
 SOURCES_LIBAEM+=serial.windows.c
 else
-SOURCES_LIBAEM+=serial.unix.c net.c poll.c
+SOURCES_LIBAEM+=serial.unix.c net.c poll.c unix.c
 endif
 
 OBJECTS_LIBAEM=$(patsubst %.c,%.o,${SOURCES_LIBAEM})

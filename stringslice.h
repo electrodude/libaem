@@ -32,7 +32,7 @@ static inline struct aem_stringslice aem_stringslice_new_cstr(const char *p)
 	return aem_stringslice_new_len(p, strlen(p));
 }
 
-#define aem_stringslice_new_sizeof(char_arr) aem_stringslice_new_len((char_arr), sizeof(char_arr))
+#define aem_stringslice_new_sizeof(char_arr) aem_stringslice_new_len((char_arr), sizeof(char_arr)-1)
 
 
 int aem_stringslice_file_write(struct aem_stringslice slice, FILE *fp);

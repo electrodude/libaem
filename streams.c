@@ -116,5 +116,5 @@ void aem_stream_transducer_close(struct aem_stream_transducer *tr)
 	// Ensure on_close is never called more than once
 	tr->on_close = NULL;
 
-	tr->on_close(tr);
+	on_close(tr);
 }

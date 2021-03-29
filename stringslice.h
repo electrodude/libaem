@@ -89,18 +89,6 @@ static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void 
 int aem_stringslice_match_ws(struct aem_stringslice *slice);
 struct aem_stringslice aem_stringslice_trim(struct aem_stringslice slice);
 
-static inline int aem_stringslice_match_bom(struct aem_stringslice *slice)
-{
-	struct aem_stringslice p = *slice;
-	int c = aem_stringslice_get(&p);
-	if (c == 0xFEFF) {
-		*slice = p;
-		return 1;
-	}
-
-	return 0;
-}
-
 // Consume a CR, CRLF, or LF at the current position.
 // Returns 1 for LF, 2 for CR, 3 for CRLF, or 0 on failure
 int aem_stringslice_match_newline(struct aem_stringslice *slice);
@@ -134,6 +122,11 @@ static inline int aem_stringslice_match(struct aem_stringslice *slice, const cha
 static inline int aem_stringslice_match_end(struct aem_stringslice *slice, const char *s)
 {
 	return aem_stringslice_match_suffix(slice, aem_stringslice_new_cstr(s));
+}
+
+static inline int aem_stringslice_match_bom(struct aem_stringslice *slice)
+{
+	return aem_stringslice_match(slice, "\xEF\xBB\xBF");
 }
 
 // Test whether a stringslice exactly matches the given C-string

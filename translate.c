@@ -62,6 +62,7 @@ void aem_string_unescape(struct aem_stringbuf *restrict str, struct aem_stringsl
 			aem_stringbuf_putc(str, c);
 		} else {
 			*slice = checkpoint;
+			break;
 		}
 	}
 }
@@ -92,20 +93,17 @@ void aem_string_urldecode(struct aem_stringbuf *restrict out, struct aem_strings
 		struct aem_stringslice checkpoint = *in;
 		int c = aem_stringslice_get(in);
 
-		int c2;
-		switch (c) {
-		case '%':
-			c2 = aem_stringslice_match_hexbyte(in);
+		if (c < 0) {
+			break;
+		} if (c == '%') {
+			int c2 = aem_stringslice_match_hexbyte(in);
 			if (c2 < 0) {
 				*in = checkpoint;
 				return;
 			}
 			aem_stringbuf_putc(out, c2);
-			break;
-
-		default:
+		} else {
 			aem_stringbuf_putc(out, c);
-			break;
 		}
 	}
 }

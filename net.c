@@ -135,8 +135,8 @@ int aem_net_socket(struct aem_net_sock *sock, struct addrinfo *ai)
 
 	evt->fd = fd;
 
-	sock->rd_open = 1;
-	sock->wr_open = 1;
+	sock->rd_open = 0;
+	sock->wr_open = 0;
 
 	return 0;
 

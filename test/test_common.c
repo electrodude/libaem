@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 199309L
+
 #include <aem/translate.h>
 
 #include "test_common.h"
@@ -38,4 +40,24 @@ int show_test_results_impl(const char *file, int line, const char *func)
 	aem_log_str(str);
 
 	return test_errors;
+}
+
+
+/// Timing
+void tic(struct timespec *t_start)
+{
+	aem_assert(t_start);
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, t_start);
+}
+void toc(const struct timespec t_start)
+{
+	struct timespec t_end;
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &t_end);
+	if (t_end.tv_nsec < t_start.tv_nsec) {
+		t_end.tv_nsec += 1000000000;
+		t_end.tv_sec -= 1;
+	}
+	int sec  = t_end.tv_sec - t_start.tv_sec;
+	int nsec = t_end.tv_nsec - t_start.tv_nsec;
+	aem_logf_ctx(AEM_LOG_NOTICE, "Took %d.%09d s", sec, nsec);
 }

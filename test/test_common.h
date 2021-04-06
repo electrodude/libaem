@@ -1,6 +1,8 @@
 #ifndef AEM_TEST_COMMON_H
 #define AEM_TEST_COMMON_H
 
+#include <time.h>
+
 #include <aem/log.h>
 #include <aem/stringbuf.h>
 #include <aem/stringslice.h>
@@ -15,5 +17,8 @@ void debug_slice(struct aem_stringbuf *out, struct aem_stringslice in);
 
 int show_test_results_impl(const char *file, int line, const char *func);
 #define show_test_results() show_test_results_impl(__FILE__, __LINE__, __func__)
+
+void tic(struct timespec *t_start);
+void toc(struct timespec t_start);
 
 #endif /* AEM_TEST_COMMON_H */

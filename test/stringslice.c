@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 199309L
+
 #include "test_common.h"
 
 static void test_stringslice_match(struct aem_stringslice slice, const char *s, int result_expect, struct aem_stringslice slice_expect)

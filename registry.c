@@ -94,6 +94,7 @@ void aem_registrable_deregister(struct aem_registrable *item)
 	aem_assert(item->id >= 0);
 	aem_assert(item->reg);
 
+	// Deregister the item, and verify we didn't somehow deregister the wrong one.
 	aem_assert(aem_stack_remove(&item->reg->stk, item->id) == item);
 	item->id = -1;
 

@@ -16,6 +16,7 @@ AEM's personal C library
 * `aem_iter_gen`: graph iterator helper
 
 * `aem_gc`: simple mark/sweep garbage collector
+* `aem_module`: Dynamic module loader
 
 
 ## Planned Features

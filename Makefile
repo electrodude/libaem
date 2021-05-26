@@ -5,6 +5,7 @@ RANLIB=ranlib
 
 CFLAGS+=-std=c99 -fPIC -Wall -Wextra
 LDFLAGS+=
+LDFLAGS+=-ldl -rdynamic
 
 CFLAGS+=-O3
 LDFLAGS+=-O3
@@ -19,7 +20,7 @@ else
         HOST_SYS=Windows
 endif
 
-SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c translate.c pathutil.c registry.c stream.c streams.c pmcrcu.c log.c gc.c
+SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c translate.c pathutil.c registry.c stream.c streams.c pmcrcu.c log.c module.c gc.c
 ifeq (${HOST_SYS},Windows)
 SOURCES_LIBAEM+=serial.windows.c
 else
@@ -37,6 +38,7 @@ DEPFLAGS=-MD -MP -MF ${DEPDIR}/$*.d
 all:	libaem.a
 
 TESTS=test_utf8 \
+      test_module \
       test_pathutil \
       test_stringslice \
       test_stringslice_numeric
@@ -47,22 +49,24 @@ TESTS=test_utf8 \
 TEST_PROGS=${TESTS} childproc_child
 
 test_childproc:	test/bin/childproc_child
-
-TESTS_BIN=$(patsubst test_%,test/bin/%,${TEST_PROGS})
+test_module: 	test/lib/module_empty.so test/lib/module_invalid.so test/lib/module_test.so test/lib/module_test_singleton.so
 
 $(shell mkdir -p ${DEPDIR}/test)
-$(shell mkdir -p test/bin)
+$(shell mkdir -p test/bin test/lib)
 
 test:	${TESTS}
 
 test/bin/%:	test/%.o test/test_common.o libaem.a
 	${LD} $^ ${LDFLAGS} -o $@
 
+test/lib/%.so:	test/%.o test/test_common.o libaem.a
+	${LD} -shared $^ ${LDFLAGS} -o $@
+
 test_%:	test/bin/%
 	cd test && ./bin/$*
 
 clean:
-	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o ${TESTS_BIN} ${DEPDIR}/*.d ${DEPDIR}/test/*.d
+	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o test/bin/* test/lib/* ${DEPDIR}/*.d ${DEPDIR}/test/*.d
 
 libaem.a:	${OBJECTS_LIBAEM}
 	${AR} $@ $^
@@ -76,4 +80,4 @@ libaem.a:	${OBJECTS_LIBAEM}
 include $(wildcard ${DEPDIR}/*.d)
 include $(wildcard ${DEPDIR}/test/*.d)
 
-# vim: set ts=13 :
+# vim: set ts=16 :

@@ -10,6 +10,10 @@
 // TODO: This macro belongs in stringslice.h
 #define aem_ss_cstr aem_stringslice_new_cstr
 
+extern struct aem_log_module test_log_module;
+#undef aem_log_module_current
+#define aem_log_module_current (&test_log_module)
+
 extern int test_errors;
 
 int ss_eq(struct aem_stringslice s1, struct aem_stringslice s2);

@@ -4,6 +4,8 @@
 
 #include "test_common.h"
 
+struct aem_log_module test_log_module = {.loglevel = AEM_LOG_NOTICE};
+
 int test_errors = 0;
 
 int ss_eq(struct aem_stringslice s1, struct aem_stringslice s2)
@@ -29,10 +31,13 @@ void debug_slice(struct aem_stringbuf *out, struct aem_stringslice in)
 int show_test_results_impl(const char *file, int line, const char *func)
 {
 	int loglevel = test_errors ? AEM_LOG_ERROR : AEM_LOG_NOTICE;
+
 	struct aem_stringbuf *str = aem_log_header_mod_impl(&aem_log_buf, aem_log_module_current, loglevel, file, line, func);
+	if (!str)
+		return test_errors;
 
 	if (!test_errors)
-		aem_stringbuf_puts(str, "Tests succeeded");
+		aem_stringbuf_puts(str, "All tests succeeded");
 	else
 		aem_stringbuf_printf(str, "%zd test%s failed!", test_errors, test_errors != 1 ? "s" : "");
 

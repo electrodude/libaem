@@ -242,9 +242,9 @@ int main(int argc, char **argv)
 	sigemptyset(&sa.sa_mask);
 	sa.sa_sigaction = on_sigint;
 	if (sigaction(SIGINT, &sa, NULL) == -1)
-		aem_logf_ctx(AEM_LOG_ERROR, "Failed to set SIGINT handler: %s\n", strerror(errno));
+		aem_logf_ctx(AEM_LOG_ERROR, "Failed to set SIGINT handler: %s", strerror(errno));
 	if (sigaction(SIGTERM, &sa, NULL) == -1)
-		aem_logf_ctx(AEM_LOG_ERROR, "Failed to set SIGTERM handler: %s\n", strerror(errno));
+		aem_logf_ctx(AEM_LOG_ERROR, "Failed to set SIGTERM handler: %s", strerror(errno));
 
 	struct aem_net_server srv;
 
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
 		aem_logf_ctx(AEM_LOG_NOTICE, "iteration %d", i);
 		aem_poll_poll(&poller);
 		if (should_exit) {
-			aem_logf_ctx(AEM_LOG_NOTICE, "Closing all connections: %zd active fds\n", poller.n);
+			aem_logf_ctx(AEM_LOG_NOTICE, "Closing all connections: %zd active fds", poller.n);
 			aem_poll_hup_all(&poller);
 		}
 		synchronize_rcu(); // Call deferred destructors.

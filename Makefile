@@ -64,6 +64,7 @@ test/lib/%.so:	test/%.o test/test_common.o libaem.a
 
 test_%:	test/bin/%
 	cd test && ./bin/$*
+	#cd test && valgrind -q ./bin/$*
 
 clean:
 	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o test/bin/* test/lib/* ${DEPDIR}/*.d ${DEPDIR}/test/*.d

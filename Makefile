@@ -3,6 +3,8 @@ LD=gcc
 AR=ar rcu
 RANLIB=ranlib
 
+#TEST_PROG_PFX=valgrind -q
+
 CFLAGS+=-std=c99 -fPIC -Wall -Wextra
 LDFLAGS+=
 LDFLAGS+=-ldl -rdynamic
@@ -63,8 +65,7 @@ test/lib/%.so:	test/%.o test/test_common.o libaem.a
 	${LD} -shared $^ ${LDFLAGS} -o $@
 
 test_%:	test/bin/%
-	cd test && ./bin/$*
-	#cd test && valgrind -q ./bin/$*
+	cd test && ${TEST_PROG_PFX} ./bin/$*
 
 clean:
 	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o test/bin/* test/lib/* ${DEPDIR}/*.d ${DEPDIR}/test/*.d

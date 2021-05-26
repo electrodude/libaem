@@ -12,11 +12,14 @@ struct aem_module_def {
 
 	int (*reg)(struct aem_module *mod, struct aem_stringslice args);
 	int (*dereg)(struct aem_module *mod);
-	void (*identify)(struct aem_module *mod, struct aem_stringbuf *out);
+	int (*check_dereg)(struct aem_module *mod);
 
 	char singleton : 1;
-	char no_unload : 1;
 };
+
+// Set def->check_dereg to this for modules that should never be unloaded
+int aem_module_disable_dereg(struct aem_module *mod);
+
 enum aem_module_state {
 	AEM_MODULE_UNREGISTERED,
 	AEM_MODULE_REGISTERED,
@@ -32,6 +35,8 @@ struct aem_module {
 	struct aem_module *mod_next;
 
 	struct aem_log_module *logmodule;
+
+	void *userdata; // User-defined pointer to module-specific data
 
 	enum aem_module_state state;
 };
@@ -49,6 +54,7 @@ int aem_module_load(struct aem_stringslice name, struct aem_stringslice args, st
 int aem_modules_load(struct aem_stringslice *config);
 int aem_module_unload(struct aem_module *mod);
 
+void aem_module_identify(struct aem_stringbuf *out, struct aem_module *mod);
 struct aem_module *aem_module_lookup(struct aem_stringslice name);
 
 #endif /* AEM_MODULE_H */

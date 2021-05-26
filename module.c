@@ -7,6 +7,17 @@
 
 #include "module.h"
 
+int aem_module_disable_dereg(struct aem_module *mod)
+{
+	if (aem_log_header(&aem_log_buf, AEM_LOG_ERROR)) {
+		aem_stringbuf_puts(&aem_log_buf, "Module ");
+		aem_module_identify(&aem_log_buf, mod);
+		aem_stringbuf_puts(&aem_log_buf, " can't be unloaded.\n");
+		aem_log_str(&aem_log_buf);
+	}
+	return -1;
+}
+
 struct aem_stringbuf aem_module_path = {0};
 struct aem_log_module *aem_module_logmodule = &aem_log_module_default;
 
@@ -38,6 +49,8 @@ int aem_module_load(struct aem_stringslice name, struct aem_stringslice args, st
 	mod->handle = NULL;
 	mod->def = NULL;
 	AEM_LL2_INIT(mod, mod);
+	mod->logmodule = aem_module_logmodule;
+	mod->userdata = NULL;
 	mod->state = AEM_MODULE_UNREGISTERED;
 
 	aem_stringbuf_putss(&mod->name, name);
@@ -65,7 +78,6 @@ int aem_module_load(struct aem_stringslice name, struct aem_stringslice args, st
 	}
 	mod->handle = handle;
 	mod->def = dlsym(mod->handle, "aem_module_def");
-	mod->logmodule = aem_module_logmodule;
 
 	// Fill in default name
 	if (mod->def && mod->def->name) {
@@ -174,9 +186,10 @@ int aem_module_unload(struct aem_module *mod)
 	if (mod->state == AEM_MODULE_REGISTERED) {
 		const struct aem_module_def *def = mod->def;
 		aem_assert(def);
-		if (def->no_unload) {
-			aem_logf_ctx(AEM_LOG_ERROR, "Module \"%s\" can't be unloaded.", aem_stringbuf_get(&mod->name));
-			return -1;
+		if (def->check_dereg) {
+			int rc = def->check_dereg(mod);
+			if (rc)
+				return rc;
 		}
 	}
 
@@ -215,11 +228,46 @@ int aem_module_unload(struct aem_module *mod)
 	return 0;
 }
 
+void aem_module_identify(struct aem_stringbuf *out, struct aem_module *mod)
+{
+	aem_assert(out);
+
+	if (!mod) {
+		aem_stringbuf_puts(out, "(null module)");
+		return;
+	}
+
+	aem_stringbuf_putc(out, '"');
+	aem_stringbuf_append(out, &mod->name);
+	aem_stringbuf_putc(out, '"');
+
+	const struct aem_module_def *def = mod->def;
+	if (def) {
+		aem_stringbuf_puts(out, " (");
+		aem_stringbuf_puts(out, def->name);
+		if (def->version) {
+			aem_stringbuf_puts(out, "-");
+			aem_stringbuf_puts(out, def->version);
+		}
+		aem_stringbuf_puts(out, ")");
+	} else {
+		aem_stringbuf_puts(out, " (null def)");
+	}
+}
+
 struct aem_module *aem_module_lookup(struct aem_stringslice name)
 {
+	// First, search module names
 	AEM_LL_FOR_ALL(mod, &aem_modules, mod_next) {
 		aem_assert(mod->def);
 		if (aem_stringslice_eq(name, aem_stringbuf_get(&mod->name))) {
+			return mod;
+		}
+	}
+	// Second, search module definition names
+	AEM_LL_FOR_ALL(mod, &aem_modules, mod_next) {
+		aem_assert(mod->def);
+		if (aem_stringslice_eq(name, mod->def->name)) {
 			return mod;
 		}
 	}

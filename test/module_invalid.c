@@ -1,10 +1,10 @@
 #include <aem/module.h>
 
-struct aem_module_def aem_module_def = {
+const struct aem_module_def aem_module_def = {
 	.name = "module_invalid",
 	.version = "0",
 	// Invalid: not singleton, yet no .reg method
 	.singleton = 0,
-	// Should get unloaded anyway, because loading didn't succeed
-	.no_unload = 1,
+	// Should still get unloaded despite this, because loading didn't succeed
+	.check_dereg = aem_module_disable_dereg,
 };

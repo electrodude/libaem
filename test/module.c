@@ -90,10 +90,10 @@ int main(int argc, char **argv)
 
 	AEM_LL_FOR_ALL(mod, &aem_modules, mod_next) {
 		aem_assert(mod->def);
-		if (aem_log_header(&aem_log_buf, AEM_LOG_INFO)) {
-			aem_stringbuf_puts(&aem_log_buf, "Module \"");
-			aem_stringbuf_append(&aem_log_buf, &mod->name);
-			aem_stringbuf_printf(&aem_log_buf, "\", def %s, path ", mod->def->name);
+		if (aem_log_header(&aem_log_buf, AEM_LOG_NOTICE)) {
+			aem_stringbuf_puts(&aem_log_buf, "Module ");
+			aem_module_identify(&aem_log_buf, mod);
+			aem_stringbuf_printf(&aem_log_buf, ", path ");
 			aem_stringbuf_append(&aem_log_buf, &mod->path);
 			aem_stringbuf_puts(&aem_log_buf, "\n");
 			aem_log_str(&aem_log_buf);

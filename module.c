@@ -120,7 +120,7 @@ int aem_module_load(struct aem_stringslice name, struct aem_stringslice args, st
 	}
 
 	// Register module
-	aem_logf_ctx(AEM_LOG_INFO, "Registering module \"%s\"", aem_stringbuf_get(&mod->name));
+	aem_logf_ctx(AEM_LOG_DEBUG, "Registering module \"%s\"", aem_stringbuf_get(&mod->name));
 
 	if (def->reg && (rc = def->reg(mod, args))) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Error while registering module \"%s\": %d", aem_stringbuf_get(&mod->name), rc);
@@ -200,16 +200,16 @@ int aem_module_unload(struct aem_module *mod)
 		const struct aem_module_def *def = mod->def;
 		aem_assert(def);
 		if (def->dereg) {
-			aem_logf_ctx(AEM_LOG_INFO, "Deregistering module \"%s\"", aem_stringbuf_get(&mod->name));
+			aem_logf_ctx(AEM_LOG_DEBUG, "Deregistering module \"%s\"", aem_stringbuf_get(&mod->name));
 			int rc = def->dereg(mod);
 			if (!rc) {
-				aem_logf_ctx(AEM_LOG_INFO, "Deregistered module \"%s\"", aem_stringbuf_get(&mod->name));
+				aem_logf_ctx(AEM_LOG_DEBUG, "Deregistered module \"%s\"", aem_stringbuf_get(&mod->name));
 			} else {
 				aem_logf_ctx(AEM_LOG_ERROR, "Error while deregistering module \"%s\": %d", aem_stringbuf_get(&mod->name), rc);
 				return rc;
 			}
 		} else {
-			aem_logf_ctx(AEM_LOG_INFO, "Module \"%s\" doesn't need to deregister anything.", aem_stringbuf_get(&mod->name));
+			aem_logf_ctx(AEM_LOG_DEBUG2, "Module \"%s\" doesn't need to deregister anything.", aem_stringbuf_get(&mod->name));
 		}
 		mod->state = AEM_MODULE_UNREGISTERED;
 	}

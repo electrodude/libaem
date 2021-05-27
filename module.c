@@ -36,28 +36,30 @@ void aem_module_path_set(const char *dir)
 	aem_logf_ctx(AEM_LOG_DEBUG, "Module path: %s", aem_stringbuf_get(&aem_module_path));
 }
 
-int aem_module_load(struct aem_stringslice name, struct aem_stringslice args, struct aem_module **mod_p)
+void aem_module_init(struct aem_module *mod)
 {
-	// Initialize module struct
-	struct aem_module *mod = malloc(sizeof(*mod));
-	if (!mod) {
-		aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed!");
-		return 1;
-	}
 	aem_stringbuf_init(&mod->name);
 	aem_stringbuf_init(&mod->path);
 	mod->handle = NULL;
 	mod->def = NULL;
 	AEM_LL2_INIT(mod, mod);
 	mod->logmodule = aem_module_logmodule;
-	mod->userdata = NULL;
 	mod->state = AEM_MODULE_UNREGISTERED;
+}
+void aem_module_dtor(struct aem_module *mod)
+{
+	aem_stringbuf_dtor(&mod->name);
+	aem_stringbuf_dtor(&mod->path);
+}
 
-	aem_stringbuf_putss(&mod->name, name);
+int aem_module_resolve_path(struct aem_module *mod)
+{
+	aem_assert(mod);
 
-	int rc = 0;
+	struct aem_stringslice name = aem_stringslice_new_str(&mod->name);
 
-	// Determine absolute path to module file
+	// Determine path to module file
+	aem_stringbuf_reset(&mod->path);
 	if (aem_sandbox_path(&mod->path, aem_stringslice_new_str(&aem_module_path), name, ".so")) {
 		if (aem_log_header(&aem_log_buf, AEM_LOG_SECURITY)) {
 			aem_stringbuf_puts(&aem_log_buf, "Invalid module name: ");
@@ -65,11 +67,28 @@ int aem_module_load(struct aem_stringslice name, struct aem_stringslice args, st
 			aem_stringbuf_puts(&aem_log_buf, "\n");
 			aem_log_str(&aem_log_buf);
 		}
-		rc = -1;
-		goto fail;
+		return -1;
 	}
 
-	void *handle = dlopen(aem_stringbuf_get(&mod->path), RTLD_NOW);
+	return 0;
+}
+int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
+{
+	aem_assert(mod);
+
+	int rc = 0;
+
+	// If path is empty, resolve it now
+	if (!mod->path.n) {
+		if ((rc = aem_module_resolve_path(mod))) {
+			// Clear path in case the caller decides to try again
+			aem_stringbuf_reset(&mod->path);
+			return rc;
+		}
+	}
+
+	// Load module
+	void *handle = dlopen(aem_stringbuf_get(&mod->path), RTLD_NOW | RTLD_GLOBAL);
 
 	if (!handle) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to load module \"%s\": %s", aem_stringbuf_get(&mod->path), dlerror());
@@ -133,49 +152,11 @@ int aem_module_load(struct aem_stringslice name, struct aem_stringslice args, st
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "Registered module \"%s\"", aem_stringbuf_get(&mod->name));
 
-	if (mod_p)
-		*mod_p = mod;
-
 	return 0;
 
 fail:
 	aem_module_unload(mod);
 	return rc;
-}
-
-int aem_modules_load(struct aem_stringslice *config)
-{
-	aem_assert(config);
-
-	while (aem_stringslice_ok(*config)) {
-		struct aem_stringslice line = aem_stringslice_match_line(config);
-
-		// Ignore leading whitespace
-		aem_stringslice_match_ws(&line);
-
-		// Ignore empty lines
-		if (!aem_stringslice_ok(line))
-			continue;
-
-		// Ignore comment lines beginning with "#"
-		if (aem_stringslice_match(&line, "#"))
-			continue;
-
-		struct aem_stringslice name = aem_stringslice_match_word(&line);
-		line = aem_stringslice_trim(line);
-
-		if (!aem_stringslice_ok(name)) {
-			aem_logf_ctx(AEM_LOG_ERROR, "Invalid syntax: expected module name");
-			return -1;
-		}
-
-		int rc = aem_module_load(name, line, NULL);
-
-		if (rc)
-			return rc;
-	}
-
-	return 0;
 }
 
 int aem_module_unload(struct aem_module *mod)
@@ -214,16 +195,15 @@ int aem_module_unload(struct aem_module *mod)
 		mod->state = AEM_MODULE_UNREGISTERED;
 	}
 
+	mod->def = NULL;
+
 	if (mod->handle) {
 		if (dlclose(mod->handle)) {
 			aem_logf_ctx(AEM_LOG_ERROR, "Failed to dlclose() module \"%s\": %s", aem_stringbuf_get(&mod->name), dlerror());
 			return -1;
 		}
 	}
-
-	aem_stringbuf_dtor(&mod->name);
-	aem_stringbuf_dtor(&mod->path);
-	free(mod);
+	mod->handle = NULL;
 
 	return 0;
 }
@@ -253,6 +233,52 @@ void aem_module_identify(struct aem_stringbuf *out, struct aem_module *mod)
 	} else {
 		aem_stringbuf_puts(out, " (null def)");
 	}
+}
+
+int aem_modules_load(struct aem_stringslice *config)
+{
+	aem_assert(config);
+
+	while (aem_stringslice_ok(*config)) {
+		struct aem_stringslice line = aem_stringslice_match_line(config);
+
+		// Ignore leading whitespace
+		aem_stringslice_match_ws(&line);
+
+		// Ignore empty lines
+		if (!aem_stringslice_ok(line))
+			continue;
+
+		// Ignore comment lines beginning with "#"
+		if (aem_stringslice_match(&line, "#"))
+			continue;
+
+		struct aem_stringslice name = aem_stringslice_match_word(&line);
+		line = aem_stringslice_trim(line);
+
+		if (!aem_stringslice_ok(name)) {
+			aem_logf_ctx(AEM_LOG_ERROR, "Invalid syntax: expected module name");
+			return -1;
+		}
+
+		struct aem_module *mod = malloc(sizeof(*mod));
+		if (!mod) {
+			aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed!");
+			return -1;
+		}
+		aem_module_init(mod);
+		aem_stringbuf_putss(&mod->name, name);
+		int rc = aem_module_load(mod, line);
+
+		if (rc) {
+			aem_module_dtor(mod);
+			free(mod);
+
+			return rc;
+		}
+	}
+
+	return 0;
 }
 
 struct aem_module *aem_module_lookup(struct aem_stringslice name)

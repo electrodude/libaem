@@ -36,8 +36,6 @@ struct aem_module {
 
 	struct aem_log_module *logmodule;
 
-	void *userdata; // User-defined pointer to module-specific data
-
 	enum aem_module_state state;
 };
 
@@ -50,11 +48,16 @@ void aem_module_path_set(const char *dir);
 
 extern struct aem_log_module *aem_module_logmodule;
 
-int aem_module_load(struct aem_stringslice name, struct aem_stringslice args, struct aem_module **mod_p);
-int aem_modules_load(struct aem_stringslice *config);
+void aem_module_init(struct aem_module *mod);
+void aem_module_dtor(struct aem_module *mod);
+
+int aem_module_resolve_path(struct aem_module *mod);
+int aem_module_load(struct aem_module *mod, struct aem_stringslice args);
 int aem_module_unload(struct aem_module *mod);
 
 void aem_module_identify(struct aem_stringbuf *out, struct aem_module *mod);
+
+int aem_modules_load(struct aem_stringslice *config);
 struct aem_module *aem_module_lookup(struct aem_stringslice name);
 
 #endif /* AEM_MODULE_H */

@@ -4,7 +4,7 @@
 # Must end with "aem"
 LIBAEM_DIR?=aem
 
-CFLAGS+=-I$(dir $(LIBAEM_DIR))
+CFLAGS+=-I$(realpath $(dir $(LIBAEM_DIR)))
 
 LIBS+=$(LIBAEM_DIR)/libaem.a
 
@@ -20,7 +20,7 @@ $(LIBAEM_DIR)/libaem.a:
 	$(MAKE) -C $(LIBAEM_DIR) -w libaem.a
 
 libaem_clean:
-	rm -vf $(DEPDIR)/*.d
+	rm -vrf $(DEPDIR)
 	$(MAKE) -C $(LIBAEM_DIR) -w clean
 
 .PHONY: libaem_clean

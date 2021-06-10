@@ -49,10 +49,15 @@ void aem_module_path_set(const char *dir);
 extern struct aem_log_module *aem_module_logmodule;
 
 void aem_module_init(struct aem_module *mod);
+// Calls aem_module_unload and then frees memory
 void aem_module_dtor(struct aem_module *mod);
 
 int aem_module_resolve_path(struct aem_module *mod);
+// Load a module.  Call after calling aem_module_init and setting either the
+// name or path fields.  Returns non-zero on error, in which case you must
+// destroy the module yourself via aem_module_unload or aem_module_dtor.
 int aem_module_load(struct aem_module *mod, struct aem_stringslice args);
+// Unload a module, even if only partially loaded.  Idempotent.
 int aem_module_unload(struct aem_module *mod);
 
 void aem_module_identify(struct aem_stringbuf *out, struct aem_module *mod);

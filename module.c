@@ -38,6 +38,8 @@ void aem_module_path_set(const char *dir)
 
 void aem_module_init(struct aem_module *mod)
 {
+	aem_assert(mod);
+
 	aem_stringbuf_init(&mod->name);
 	aem_stringbuf_init(&mod->path);
 	mod->handle = NULL;
@@ -48,6 +50,10 @@ void aem_module_init(struct aem_module *mod)
 }
 void aem_module_dtor(struct aem_module *mod)
 {
+	aem_assert(mod);
+
+	aem_module_unload(mod);
+
 	aem_stringbuf_dtor(&mod->name);
 	aem_stringbuf_dtor(&mod->path);
 }
@@ -61,7 +67,7 @@ int aem_module_resolve_path(struct aem_module *mod)
 	// Determine path to module file
 	aem_stringbuf_reset(&mod->path);
 	if (aem_sandbox_path(&mod->path, aem_stringslice_new_str(&aem_module_path), name, ".so")) {
-		if (aem_log_header(&aem_log_buf, AEM_LOG_SECURITY)) {
+		if (aem_log_header(&aem_log_buf, AEM_LOG_ERROR)) {
 			aem_stringbuf_puts(&aem_log_buf, "Invalid module name: ");
 			aem_string_escape(&aem_log_buf, name);
 			aem_stringbuf_puts(&aem_log_buf, "\n");
@@ -92,7 +98,7 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 
 	if (!handle) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to load module \"%s\": %s", aem_stringbuf_get(&mod->path), dlerror());
-		return 1;
+		return -1;
 	}
 	mod->handle = handle;
 	mod->def = dlsym(mod->handle, "aem_module_def");
@@ -107,12 +113,12 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 	const struct aem_module_def *def = mod->def;
 	if (!def) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Couldn't find module definition for \"%s\": %s", aem_stringbuf_get(&mod->path), dlerror());
-		return 1;
+		return -1;
 	}
 
 	if (!def->name) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Module %s has NULL name!", aem_stringbuf_get(&mod->name));
-		return 1;
+		return -1;
 	}
 
 	if (!def->version) {
@@ -123,18 +129,23 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 		// Make sure we don't load a singleton module twice.
 		AEM_LL_FOR_ALL(mod2, &aem_modules, mod_next) {
 			if (mod->def == mod2->def) {
-				aem_logf_ctx(AEM_LOG_ERROR, "Module \"%s\" already loaded!", def->name);
-				return 1;
+				aem_logf_ctx(AEM_LOG_ERROR, "Singleton module \"%s\" already loaded!", def->name);
+				return -1;
 			}
 		}
 	} else if (!def->reg) {
 		// Singleton modules that are just function libraries don't need register methods.
 		aem_logf_ctx(AEM_LOG_ERROR, "Non-singleton module \"%s\" has no register method!", aem_stringbuf_get(&mod->name));
-		return 1;
+		return -1;
 	}
 
 	// Register module
-	aem_logf_ctx(AEM_LOG_DEBUG, "Registering module \"%s\"", aem_stringbuf_get(&mod->name));
+	if (aem_log_header(&aem_log_buf, AEM_LOG_DEBUG)) {
+		aem_stringbuf_puts(&aem_log_buf, "Registering module ");
+		aem_module_identify(&aem_log_buf, mod);
+		aem_stringbuf_puts(&aem_log_buf, "\n");
+		aem_log_str(&aem_log_buf);
+	}
 
 	if (def->reg && (rc = def->reg(mod, args))) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Error while registering module \"%s\": %d", aem_stringbuf_get(&mod->name), rc);
@@ -145,7 +156,12 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 
 	mod->state = AEM_MODULE_REGISTERED;
 
-	aem_logf_ctx(AEM_LOG_NOTICE, "Registered module \"%s\"", aem_stringbuf_get(&mod->name));
+	if (aem_log_header(&aem_log_buf, AEM_LOG_NOTICE)) {
+		aem_stringbuf_puts(&aem_log_buf, "Registered module ");
+		aem_module_identify(&aem_log_buf, mod);
+		aem_stringbuf_puts(&aem_log_buf, "\n");
+		aem_log_str(&aem_log_buf);
+	}
 
 	return 0;
 }
@@ -191,6 +207,7 @@ int aem_module_unload(struct aem_module *mod)
 	if (mod->handle) {
 		if (dlclose(mod->handle)) {
 			aem_logf_ctx(AEM_LOG_ERROR, "Failed to dlclose() module \"%s\": %s", aem_stringbuf_get(&mod->name), dlerror());
+			// TODO: Clear mod->handle?
 			return -1;
 		}
 	}

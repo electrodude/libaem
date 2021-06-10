@@ -87,29 +87,32 @@ int main(int argc, char **argv)
 
 	struct aem_module *mod_test_0, *mod_test_1, *mod_singleton;
 
-	test_module_load("module_noent"         , "" , 1, NULL);
-	test_module_load("module_empty"         , "" , 1, NULL);
-	test_module_load("module_invalid"       , "" , 1, NULL);
-	test_module_load("module_test"          , "0", 0, NULL);
+	test_module_load("../module_illegal"    , "" , -1, NULL);
+	test_module_load("module_noent"         , "" , -1, NULL);
+	test_module_load("module_empty"         , "" , -1, NULL);
+	test_module_load("module_invalid"       , "" , -1, NULL);
+	test_module_load("module_failreg"       , "" , -9, NULL);
+	test_module_load("module_test"          , "0",  0, NULL);
 	test_module_unload("module_test-0"        ,  0);
-	test_module_load("./module_test"        , "0", 0, &mod_test_0);
-	test_module_load("../lib/module_test"   , "S",-1, NULL);
+	test_module_load("./module_test"        , "0",  0, &mod_test_0);
+	test_module_load("../lib/module_test"   , "S", -1, NULL);
 	test_modules_load("module_test 1", "", 0);
-	test_module_load("module_test_singleton", "" , 0, &mod_singleton);
-	test_module_load("module_test"          , "1", 0, &mod_test_1);
-	test_modules_load("module_test 2\nmodule_test_singleton\nmodule_test 3", "module_test 3", 1);
-	test_module_load("module_test_singleton", "" , 1, NULL);
+	test_module_load("module_test_singleton", "" ,  0, &mod_singleton);
+	test_module_load("module_test"          , "1",  0, &mod_test_1);
+	test_modules_load("module_test 2\nmodule_test_singleton\nmodule_test 3", "module_test 3", -1);
+	test_module_load("module_test_singleton", "" , -1, NULL);
 
-	AEM_LL_FOR_ALL(mod, &aem_modules, mod_next) {
-		aem_assert(mod->def);
-		if (aem_log_header(&aem_log_buf, AEM_LOG_NOTICE)) {
-			aem_stringbuf_puts(&aem_log_buf, "Module ");
+	if (aem_log_header(&aem_log_buf, AEM_LOG_NOTICE)) {
+		aem_stringbuf_puts(&aem_log_buf, "\033[95;1mCurrently loaded modules:\033[0;1m\n");
+		AEM_LL_FOR_ALL(mod, &aem_modules, mod_next) {
+			aem_assert(mod->def);
+			aem_stringbuf_puts(&aem_log_buf, "\tModule ");
 			aem_module_identify(&aem_log_buf, mod);
 			aem_stringbuf_printf(&aem_log_buf, ", path ");
 			aem_stringbuf_append(&aem_log_buf, &mod->path);
 			aem_stringbuf_puts(&aem_log_buf, "\n");
-			aem_log_str(&aem_log_buf);
 		}
+			aem_log_str(&aem_log_buf);
 	}
 
 	test_module_unload("module_test_singleton",  0);
@@ -121,6 +124,9 @@ int main(int argc, char **argv)
 	test_module_unload("module_test-3"        , -1);
 	test_module_unload("module_empty"         , -1);
 	test_module_unload("module_invalid"       , -1);
+
+	aem_stringbuf_dtor(&aem_module_path);
+	aem_stringbuf_shrinkwrap(&aem_log_buf);
 
 	return show_test_results();
 }

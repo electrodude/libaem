@@ -25,6 +25,7 @@ static void test_module_load(const char *name, const char *args, int rc_expect, 
 	}
 
 	if (rc) {
+		aem_module_unload(mod);
 		aem_module_dtor(mod);
 		free(mod);
 	}

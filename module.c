@@ -92,8 +92,7 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 
 	if (!handle) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to load module \"%s\": %s", aem_stringbuf_get(&mod->path), dlerror());
-		rc = 1;
-		goto fail;
+		return 1;
 	}
 	mod->handle = handle;
 	mod->def = dlsym(mod->handle, "aem_module_def");
@@ -108,14 +107,12 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 	const struct aem_module_def *def = mod->def;
 	if (!def) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Couldn't find module definition for \"%s\": %s", aem_stringbuf_get(&mod->path), dlerror());
-		rc = 1;
-		goto fail;
+		return 1;
 	}
 
 	if (!def->name) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Module %s has NULL name!", aem_stringbuf_get(&mod->name));
-		rc = 1;
-		goto fail;
+		return 1;
 	}
 
 	if (!def->version) {
@@ -127,15 +124,13 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 		AEM_LL_FOR_ALL(mod2, &aem_modules, mod_next) {
 			if (mod->def == mod2->def) {
 				aem_logf_ctx(AEM_LOG_ERROR, "Module \"%s\" already loaded!", def->name);
-				rc = 1;
-				goto fail;
+				return 1;
 			}
 		}
 	} else if (!def->reg) {
 		// Singleton modules that are just function libraries don't need register methods.
 		aem_logf_ctx(AEM_LOG_ERROR, "Non-singleton module \"%s\" has no register method!", aem_stringbuf_get(&mod->name));
-		rc = 1;
-		goto fail;
+		return 1;
 	}
 
 	// Register module
@@ -143,7 +138,7 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 
 	if (def->reg && (rc = def->reg(mod, args))) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Error while registering module \"%s\": %d", aem_stringbuf_get(&mod->name), rc);
-		goto fail;
+		return rc;
 	}
 
 	AEM_LL2_INSERT_BEFORE(&aem_modules, mod, mod);
@@ -153,10 +148,6 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 	aem_logf_ctx(AEM_LOG_NOTICE, "Registered module \"%s\"", aem_stringbuf_get(&mod->name));
 
 	return 0;
-
-fail:
-	aem_module_unload(mod);
-	return rc;
 }
 
 int aem_module_unload(struct aem_module *mod)

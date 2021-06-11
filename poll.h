@@ -68,6 +68,8 @@ struct aem_poll {
 	size_t maxn;
 	struct pollfd *fds;
 	struct aem_poll_event **evts;
+
+	int poll_rc;
 };
 
 void aem_poll_init(struct aem_poll *p);
@@ -84,8 +86,13 @@ struct aem_stringbuf;
 void aem_poll_print_event_bits(struct aem_stringbuf *out, short revents);
 void aem_poll_event_dump(struct aem_stringbuf *out, const struct aem_poll_event *evt);
 
-// Call poll(2) and process resulting events
+// Call poll(2)
+int aem_poll_wait(struct aem_poll *p);
+// Process events found by previous aem_poll_wait
+int aem_poll_process(struct aem_poll *p);
+// Call aem_poll_wait and then aem_poll_process, returning the result of the latter
 int aem_poll_poll(struct aem_poll *p);
+
 // Send an artificial HUP to each event handler
 void aem_poll_hup_all(struct aem_poll *p);
 

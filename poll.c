@@ -39,6 +39,7 @@ void aem_poll_init(struct aem_poll *p)
 	p->maxn = 8;
 	p->fds  = malloc(p->maxn*sizeof(*p->fds ));
 	p->evts = malloc(p->maxn*sizeof(*p->evts));
+	p->poll_rc = 0;
 }
 
 void aem_poll_dtor(struct aem_poll *p)
@@ -245,7 +246,7 @@ void aem_poll_event_dump(struct aem_stringbuf *out, const struct aem_poll_event 
 }
 
 
-int aem_poll_poll(struct aem_poll *p)
+int aem_poll_wait(struct aem_poll *p)
 {
 	aem_assert(p);
 
@@ -257,6 +258,8 @@ int aem_poll_poll(struct aem_poll *p)
 
 	int timeout = -1;
 	int rc = poll(p->fds, p->n, timeout);
+
+	p->poll_rc = rc;
 
 	if (rc < 0) {
 		// error
@@ -278,6 +281,18 @@ int aem_poll_poll(struct aem_poll *p)
 		aem_logf_ctx(AEM_LOG_DEBUG, "timeout after %d", timeout);
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%d pending events", rc);
+
+	return rc;
+}
+
+int aem_poll_process(struct aem_poll *p)
+{
+	aem_assert(p);
+
+	int rc = p->poll_rc;
+
+	if (rc < 0)
+		return rc;
 
 	int rc_orig;
 	do {
@@ -369,6 +384,13 @@ int aem_poll_poll(struct aem_poll *p)
 	return rc;
 }
 
+int aem_poll_poll(struct aem_poll *p)
+{
+	aem_poll_wait(p);
+
+	return aem_poll_process(p);
+}
+
 void aem_poll_hup_all(struct aem_poll *p)
 {
 	aem_assert(p);
@@ -379,32 +401,12 @@ void aem_poll_hup_all(struct aem_poll *p)
 
 	aem_logf_ctx(AEM_LOG_DEBUG, "%p: HUP all", p);
 
-	while (p->n) {
-		size_t i = p->n-1;
+	// Pretend poll(2) returned POLLHUP on every fd
+	for (size_t i = 0; i < p->n; i++) {
 		struct pollfd *pollfd = &p->fds[i];
-		struct aem_poll_event *evt = p->evts[i];
-		aem_poll_event_verify(p, i);
-
-		if (aem_log_header(&aem_log_buf, AEM_LOG_DEBUG)) {
-			aem_stringbuf_printf(&aem_log_buf, "%p[%zd]: HUP ", p, i);
-			aem_poll_event_dump(&aem_log_buf, evt);
-			aem_stringbuf_puts(&aem_log_buf, "\n");
-			aem_log_str(&aem_log_buf);
-		}
-
-		aem_assert(!evt->revents);
-		evt->revents |= POLLHUP;
-
-		if (evt->on_event) {
-			evt->on_event(p, evt);
-			if (evt->i != -1)
-				aem_logf_ctx(AEM_LOG_BUG, "Event failed to deregister itself!");
-			// Assert that it deregistered itself.
-			aem_assert(evt->i == -1);
-		} else {
-			aem_logf_ctx(AEM_LOG_WARN, "%p[%zd]: fd %d has no on_event callback!", p, i, pollfd->fd);
-		}
-
+		pollfd->revents |= POLLHUP;
 	}
 
+	p->poll_rc = p->n;
+	aem_poll_process(p);
 }

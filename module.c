@@ -1,7 +1,6 @@
 #include <dlfcn.h>
 
 #define AEM_INTERNAL
-#include <aem/linked_list.h>
 #include <aem/pathutil.h>
 #include <aem/translate.h>
 
@@ -9,21 +8,11 @@
 
 int aem_module_disable_dereg(struct aem_module *mod)
 {
-	if (aem_log_header(&aem_log_buf, AEM_LOG_ERROR)) {
-		aem_stringbuf_puts(&aem_log_buf, "Module ");
-		aem_module_identify(&aem_log_buf, mod);
-		aem_stringbuf_puts(&aem_log_buf, " can't be unloaded.\n");
-		aem_log_str(&aem_log_buf);
-	}
-	return -1;
+	return 0;
 }
 
 struct aem_stringbuf aem_module_path = {0};
 struct aem_log_module *aem_module_logmodule = &aem_log_module_default;
-
-struct aem_module aem_modules = {
-	.mod_prev = &aem_modules, .mod_next = &aem_modules
-};
 
 void aem_module_path_set(const char *dir)
 {
@@ -44,7 +33,6 @@ void aem_module_init(struct aem_module *mod)
 	aem_stringbuf_init(&mod->path);
 	mod->handle = NULL;
 	mod->def = NULL;
-	AEM_LL2_INIT(mod, mod);
 	mod->logmodule = aem_module_logmodule;
 	mod->state = AEM_MODULE_UNREGISTERED;
 }
@@ -125,18 +113,11 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 		aem_logf_ctx(AEM_LOG_WARN, "Module %s has NULL version!", aem_stringbuf_get(&mod->name));
 	}
 
-	if (def->singleton) {
-		// Make sure we don't load a singleton module twice.
-		AEM_LL_FOR_ALL(mod2, &aem_modules, mod_next) {
-			if (mod->def == mod2->def) {
-				aem_logf_ctx(AEM_LOG_ERROR, "Singleton module \"%s\" already loaded!", def->name);
-				return -1;
-			}
+	if (def->check_reg) {
+		int rc = def->check_reg(mod);
+		if (!rc) {
+			return -1;
 		}
-	} else if (!def->reg) {
-		// Singleton modules that are just function libraries don't need register methods.
-		aem_logf_ctx(AEM_LOG_ERROR, "Non-singleton module \"%s\" has no register method!", aem_stringbuf_get(&mod->name));
-		return -1;
 	}
 
 	// Register module
@@ -148,11 +129,9 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 	}
 
 	if (def->reg && (rc = def->reg(mod, args))) {
-		aem_logf_ctx(AEM_LOG_ERROR, "Error while registering module \"%s\": %d", aem_stringbuf_get(&mod->name), rc);
+		aem_logf_ctx(AEM_LOG_ERROR, "Error %d while registering module \"%s\"", rc, aem_stringbuf_get(&mod->name));
 		return rc;
 	}
-
-	AEM_LL2_INSERT_BEFORE(&aem_modules, mod, mod);
 
 	mod->state = AEM_MODULE_REGISTERED;
 
@@ -166,6 +145,20 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 	return 0;
 }
 
+int aem_module_unload_check(struct aem_module *mod)
+{
+	if (!mod)
+		return -1;
+
+	const struct aem_module_def *def = mod->def;
+	if (!def)
+		return -1;
+
+	if (!def->check_dereg)
+		return 1;
+
+	return def->check_dereg(mod);
+}
 int aem_module_unload(struct aem_module *mod)
 {
 	if (!mod)
@@ -174,37 +167,19 @@ int aem_module_unload(struct aem_module *mod)
 	if (mod->state == AEM_MODULE_REGISTERED) {
 		const struct aem_module_def *def = mod->def;
 		aem_assert(def);
-		if (def->check_dereg) {
-			int rc = def->check_dereg(mod);
-			if (rc)
-				return rc;
-		}
-	}
-
-	aem_logf_ctx(AEM_LOG_NOTICE, "Unloading module \"%s\"", aem_stringbuf_get(&mod->name));
-	AEM_LL2_REMOVE(mod, mod);
-
-	if (mod->state == AEM_MODULE_REGISTERED) {
-		const struct aem_module_def *def = mod->def;
-		aem_assert(def);
+		aem_logf_ctx(AEM_LOG_DEBUG, "Deregistering module \"%s\"", aem_stringbuf_get(&mod->name));
 		if (def->dereg) {
-			aem_logf_ctx(AEM_LOG_DEBUG, "Deregistering module \"%s\"", aem_stringbuf_get(&mod->name));
-			int rc = def->dereg(mod);
-			if (!rc) {
-				aem_logf_ctx(AEM_LOG_DEBUG, "Deregistered module \"%s\"", aem_stringbuf_get(&mod->name));
-			} else {
-				aem_logf_ctx(AEM_LOG_ERROR, "Error while deregistering module \"%s\": %d", aem_stringbuf_get(&mod->name), rc);
-				return rc;
-			}
+			def->dereg(mod);
+			aem_logf_ctx(AEM_LOG_DEBUG, "Deregistered module \"%s\"", aem_stringbuf_get(&mod->name));
 		} else {
-			aem_logf_ctx(AEM_LOG_DEBUG2, "Module \"%s\" doesn't need to deregister anything.", aem_stringbuf_get(&mod->name));
+			aem_logf_ctx(AEM_LOG_DEBUG, "Module \"%s\" didn't need to deregister anything.", aem_stringbuf_get(&mod->name));
 		}
 		mod->state = AEM_MODULE_UNREGISTERED;
 	}
-
 	mod->def = NULL;
 
 	if (mod->handle) {
+		aem_logf_ctx(AEM_LOG_NOTICE, "Unloading module \"%s\"", aem_stringbuf_get(&mod->name));
 		if (dlclose(mod->handle)) {
 			aem_logf_ctx(AEM_LOG_ERROR, "Failed to dlclose() module \"%s\": %s", aem_stringbuf_get(&mod->name), dlerror());
 			// TODO: Clear mod->handle?
@@ -241,70 +216,4 @@ void aem_module_identify(struct aem_stringbuf *out, struct aem_module *mod)
 	} else {
 		aem_stringbuf_puts(out, " (null def)");
 	}
-}
-
-int aem_modules_load(struct aem_stringslice *config)
-{
-	aem_assert(config);
-
-	while (aem_stringslice_ok(*config)) {
-		struct aem_stringslice line = aem_stringslice_match_line(config);
-
-		// Ignore leading whitespace
-		aem_stringslice_match_ws(&line);
-
-		// Ignore empty lines
-		if (!aem_stringslice_ok(line))
-			continue;
-
-		// Ignore comment lines beginning with "#"
-		if (aem_stringslice_match(&line, "#"))
-			continue;
-
-		struct aem_stringslice name = aem_stringslice_match_word(&line);
-		line = aem_stringslice_trim(line);
-
-		if (!aem_stringslice_ok(name)) {
-			aem_logf_ctx(AEM_LOG_ERROR, "Invalid syntax: expected module name");
-			return -1;
-		}
-
-		struct aem_module *mod = malloc(sizeof(*mod));
-		if (!mod) {
-			aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed!");
-			return -1;
-		}
-		aem_module_init(mod);
-		aem_stringbuf_putss(&mod->name, name);
-		int rc = aem_module_load(mod, line);
-
-		if (rc) {
-			aem_module_dtor(mod);
-			free(mod);
-
-			return rc;
-		}
-	}
-
-	return 0;
-}
-
-struct aem_module *aem_module_lookup(struct aem_stringslice name)
-{
-	// First, search module names
-	AEM_LL_FOR_ALL(mod, &aem_modules, mod_next) {
-		aem_assert(mod->def);
-		if (aem_stringslice_eq(name, aem_stringbuf_get(&mod->name))) {
-			return mod;
-		}
-	}
-	// Second, search module definition names
-	AEM_LL_FOR_ALL(mod, &aem_modules, mod_next) {
-		aem_assert(mod->def);
-		if (aem_stringslice_eq(name, mod->def->name)) {
-			return mod;
-		}
-	}
-
-	return NULL;
 }

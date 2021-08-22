@@ -51,7 +51,7 @@ TESTS=test_utf8 \
 TEST_PROGS=${TESTS} childproc_child
 
 test_childproc:	test/bin/childproc_child
-test_module: 	test/lib/module_empty.so test/lib/module_invalid.so test/lib/module_failreg.so test/lib/module_test.so test/lib/module_test_singleton.so
+test_module: 	test/lib/module_empty.so test/lib/module_failreg.so test/lib/module_test.so test/lib/module_test_singleton.so
 
 $(shell mkdir -p ${DEPDIR}/test)
 $(shell mkdir -p test/bin test/lib)

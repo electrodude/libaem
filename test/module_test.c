@@ -22,12 +22,10 @@ static int module_test_register(struct aem_module *mod, struct aem_stringslice a
 
 	return 0;
 }
-static int module_test_deregister(struct aem_module *mod)
+static void module_test_deregister(struct aem_module *mod)
 {
 	aem_logf_ctx(AEM_LOG_NOTICE, "Deregistering %s", aem_stringbuf_get(&mod->name));
 	//aem_logf_ctx(aem_log_module_current->loglevel, "Current log level: %s", aem_log_level_describe(aem_log_module_current->loglevel));
-
-	return 0;
 }
 
 const struct aem_module_def aem_module_def = {
@@ -36,6 +34,4 @@ const struct aem_module_def aem_module_def = {
 
 	.reg = module_test_register,
 	.dereg = module_test_deregister,
-
-	.singleton = 0,
 };

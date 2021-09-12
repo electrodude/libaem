@@ -180,7 +180,7 @@ size_t aem_stack_transfer(struct aem_stack *restrict dest, struct aem_stack *res
 
 	size_t new_top = src->n - n;
 
-	aem_stack_pushn(dest, n, src->s[new_top]);
+	aem_stack_pushn(dest, n, &src->s[new_top]);
 	aem_stack_trunc(src, new_top);
 
 	return n;

@@ -32,11 +32,32 @@ struct aem_gc_object {
 };
 
 
+/// GC root
+struct aem_gc_root {
+	struct aem_gc_root *root_prev; // AEM_LL2
+	struct aem_gc_root *root_next;
+
+	void (*mark)(struct aem_gc_root *root, struct aem_gc_context *ctx);
+};
+
+#define AEM_GC_ROOT_MARK_DECL(_tp, _obj) void _tp##_root_mark(struct aem_gc_root *root, struct aem_gc_context *ctx)
+#define AEM_GC_GET_ROOT(_tp, _root) struct _tp *_root = caa_container_of(root, struct _tp, root);
+
+// You must set root->mark yourself before calling this.
+void aem_gc_root_register(struct aem_gc_root *root, struct aem_gc_context *ctx);
+void aem_gc_root_deregister(struct aem_gc_context *ctx, struct aem_gc_root *root);
+
+// Convenience macro that automagically sets _root->root.mark - use with AEM_GC_ROOT_MARK_DECL
+#define AEM_GC_ROOT_REGISTER(_tp, _root, _ctx) do { struct aem_gc_root *aem_gc_root = &(_root)->root; struct aem_gc_context *aem_gc_ctx = (_ctx); aem_gc_root->mark = _tp##_root_mark; aem_gc_root_register(aem_gc_root, aem_gc_ctx); } while (0)
+
+
 /// GC context
 struct aem_gc_context {
 	struct aem_gc_object objects;
 
 	// objects.iter is master iterator
+
+	struct aem_gc_root roots;
 };
 
 void aem_gc_init(struct aem_gc_context *ctx);

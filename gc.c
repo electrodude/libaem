@@ -21,12 +21,33 @@ void aem_gc_free_default(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 }
 
 
+/// GC root
+void aem_gc_root_register(struct aem_gc_root *root, struct aem_gc_context *ctx)
+{
+	aem_assert(ctx);
+	aem_assert(root);
+
+	aem_assert(root->mark);
+
+	AEM_LL2_INSERT_BEFORE(&ctx->roots, root, root);
+}
+
+void aem_gc_root_deregister(struct aem_gc_context *ctx, struct aem_gc_root *root)
+{
+	aem_assert(ctx);
+	aem_assert(root);
+
+	AEM_LL2_REMOVE(root, root);
+}
+
+
 /// GC context
 void aem_gc_init(struct aem_gc_context *ctx)
 {
 	aem_assert(ctx);
 
 	AEM_LL1_INIT(&ctx->objects, ctx_next);
+	AEM_LL2_INIT(&ctx->roots, root);
 
 	aem_iter_gen_init_master(&ctx->objects.iter);
 }
@@ -34,6 +55,9 @@ void aem_gc_init(struct aem_gc_context *ctx)
 void aem_gc_dtor(struct aem_gc_context *ctx)
 {
 	aem_assert(ctx);
+
+	AEM_LL_WHILE_FIRST(root, &ctx->roots, root_next)
+		aem_gc_root_deregister(ctx, root);
 
 	aem_gc_run(ctx);
 
@@ -65,6 +89,12 @@ void aem_gc_run(struct aem_gc_context *ctx)
 		if (curr->refs) {
 			aem_gc_mark(curr, ctx);
 		}
+	}
+
+	// Mark all root objects
+	AEM_LL_FOR_ALL(root, &ctx->roots, root_next) {
+		aem_assert(root->mark);
+		root->mark(root, ctx);
 	}
 
 	// Destruct all dead objects

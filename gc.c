@@ -1,24 +1,31 @@
 #include <stdlib.h>
 
 #define AEM_INTERNAL
-#define aem_log_module_current (&gc_log_module)
 #include <aem/log.h>
 #include <aem/linked_list.h>
 
 #include "gc.h"
 
+#undef aem_log_module_current
+#define aem_log_module_current (&gc_log_module)
 static struct aem_log_module gc_log_module = {.loglevel = AEM_LOG_INFO};
 
+/// GC object
 void aem_gc_free_default(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 {
 	(void)ctx; // unused parameter
+
+	aem_assert(obj);
 
 	free(obj);
 }
 
 
+/// GC context
 void aem_gc_init(struct aem_gc_context *ctx)
 {
+	aem_assert(ctx);
+
 	AEM_LL1_INIT(&ctx->objects, ctx_next);
 
 	aem_iter_gen_init_master(&ctx->objects.iter);
@@ -26,6 +33,8 @@ void aem_gc_init(struct aem_gc_context *ctx)
 
 void aem_gc_dtor(struct aem_gc_context *ctx)
 {
+	aem_assert(ctx);
+
 	aem_gc_run(ctx);
 
 	if (!AEM_LL_EMPTY(&ctx->objects, ctx_next)) {
@@ -35,6 +44,8 @@ void aem_gc_dtor(struct aem_gc_context *ctx)
 
 void aem_gc_register(struct aem_gc_object *obj, const struct aem_gc_vtbl *vtbl, struct aem_gc_context *ctx)
 {
+	aem_assert(obj);
+
 	obj->vtbl = vtbl;
 
 	aem_iter_gen_init(&obj->iter, &ctx->objects.iter);
@@ -49,7 +60,7 @@ void aem_gc_run(struct aem_gc_context *ctx)
 	// Reset iterator master
 	aem_iter_gen_reset_master(&ctx->objects.iter);
 
-	// Mark all roots
+	// Mark all externally referenced objects
 	AEM_LL_FOR_ALL(curr, &ctx->objects, ctx_next) {
 		if (curr->refs) {
 			aem_gc_mark(curr, ctx);
@@ -82,6 +93,9 @@ void aem_gc_run(struct aem_gc_context *ctx)
 
 void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 {
+	aem_assert(obj);
+	aem_assert(ctx);
+
 	int id = aem_iter_gen_id(&obj->iter, &ctx->objects.iter);
 
 	if (id < 0)

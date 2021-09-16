@@ -5,6 +5,7 @@
 
 #include <aem/iter_gen.h>
 
+/// GC object
 struct aem_gc_object;
 struct aem_gc_context;
 
@@ -30,6 +31,8 @@ struct aem_gc_object {
 	size_t refs;
 };
 
+
+/// GC context
 struct aem_gc_context {
 	struct aem_gc_object objects;
 
@@ -51,18 +54,18 @@ void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 		aem_gc_mark(&_obj_->gc, ctx); \
 } while (0)
 
-#define AEM_GC_FREE_DECL(_tp, _obj) void _tp##_free(struct aem_gc_object *obj, struct aem_gc_context *ctx)
-#define AEM_GC_DTOR_DECL(_tp, _obj) void _tp##_dtor(struct aem_gc_object *obj, struct aem_gc_context *ctx)
-#define AEM_GC_MARK_DECL(_tp, _obj) void _tp##_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx)
+#define AEM_GC_FREE_DECL(_tp, _obj) void _tp##_gc_free(struct aem_gc_object *obj, struct aem_gc_context *ctx)
+#define AEM_GC_DTOR_DECL(_tp, _obj) void _tp##_gc_dtor(struct aem_gc_object *obj, struct aem_gc_context *ctx)
+#define AEM_GC_MARK_DECL(_tp, _obj) void _tp##_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 
 #define AEM_GC_GET_OBJ(_tp, _obj) struct _tp *_obj = caa_container_of(obj, struct _tp, gc);
 
 #define AEM_GC_VTBL_INST(_tp)     \
 struct aem_gc_vtbl _tp##_vtbl = { \
 	.name = #_tp,             \
-	.free = _tp##_free,       \
-	.dtor = _tp##_dtor,       \
-	.mark = _tp##_mark,       \
+	.free = _tp##_gc_free,       \
+	.dtor = _tp##_gc_dtor,       \
+	.mark = _tp##_gc_mark,       \
 };
 
 

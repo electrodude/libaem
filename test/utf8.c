@@ -10,7 +10,7 @@ int main(int argc, char **argv)
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test utf8");
 
-	size_t n = 128;
+	size_t n = 256;
 
 	aem_logf_ctx(AEM_LOG_INFO, "write utf8");
 	struct aem_stringbuf str;

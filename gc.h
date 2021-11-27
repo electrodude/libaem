@@ -41,7 +41,7 @@ struct aem_gc_root {
 };
 
 #define AEM_GC_ROOT_MARK_DECL(_tp, _obj) void _tp##_root_mark(struct aem_gc_root *root, struct aem_gc_context *ctx)
-#define AEM_GC_GET_ROOT(_tp, _root) struct _tp *_root = caa_container_of(root, struct _tp, root);
+#define AEM_GC_GET_ROOT(_tp, _root) struct _tp *_root = aem_container_of(root, struct _tp, root);
 
 // You must set root->mark yourself before calling this.
 void aem_gc_root_register(struct aem_gc_root *root, struct aem_gc_context *ctx);
@@ -79,7 +79,7 @@ void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 #define AEM_GC_DTOR_DECL(_tp, _obj) void _tp##_gc_dtor(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 #define AEM_GC_MARK_DECL(_tp, _obj) void _tp##_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx)
 
-#define AEM_GC_GET_OBJ(_tp, _obj) struct _tp *_obj = caa_container_of(obj, struct _tp, gc);
+#define AEM_GC_GET_OBJ(_tp, _obj) struct _tp *_obj = aem_container_of(obj, struct _tp, gc);
 
 #define AEM_GC_VTBL_INST(_tp)     \
 struct aem_gc_vtbl _tp##_vtbl = { \

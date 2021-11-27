@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 
+#include <aem/compiler.h>
 #include <aem/iter_gen.h>
 
 /// GC object

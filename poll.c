@@ -204,11 +204,9 @@ static void aem_poll_verify(struct aem_poll *p)
 		//pollfd->events = evt->events;
 		aem_poll_event_verify(p, i);
 		if (!evt->events) {
-			if (aem_log_header(&aem_log_buf, AEM_LOG_WARN)) {
-				aem_stringbuf_printf(&aem_log_buf, "Empty event %zd: ", i);
-				aem_poll_event_dump(&aem_log_buf, evt);
-				aem_stringbuf_puts(&aem_log_buf, "\n");
-				aem_log_str(&aem_log_buf);
+			AEM_LOG_MULTI(out, AEM_LOG_WARN) {
+				aem_stringbuf_printf(out, "Empty event %zd: ", i);
+				aem_poll_event_dump(out, evt);
 			}
 		}
 	}
@@ -313,11 +311,9 @@ int aem_poll_process(struct aem_poll *p)
 			if (revents & POLLNVAL)
 				aem_logf_ctx(AEM_LOG_BUG, "POLLNVAL on fd %d for poll %p, evt %zd", pollfd->fd, p, i);
 
-			if (aem_log_header(&aem_log_buf, AEM_LOG_DEBUG)) {
-				aem_stringbuf_printf(&aem_log_buf, "%p[%zd]: ", p, i);
-				aem_poll_event_dump(&aem_log_buf, evt);
-				aem_stringbuf_puts(&aem_log_buf, "\n");
-				aem_log_str(&aem_log_buf);
+			AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
+				aem_stringbuf_printf(out, "%p[%zd]: ", p, i);
+				aem_poll_event_dump(out, evt);
 			}
 
 			if (evt->on_event)
@@ -332,11 +328,9 @@ int aem_poll_process(struct aem_poll *p)
 			}
 
 			if (evt->revents) {
-				if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
-					aem_stringbuf_printf(&aem_log_buf, "Unhandled revents on event %zd: ", i);
-					aem_poll_event_dump(&aem_log_buf, evt);
-					aem_stringbuf_puts(&aem_log_buf, "\n");
-					aem_log_str(&aem_log_buf);
+				AEM_LOG_MULTI(out, AEM_LOG_BUG) {
+					aem_stringbuf_printf(out, "Unhandled revents on event %zd: ", i);
+					aem_poll_event_dump(out, evt);
 				}
 			}
 

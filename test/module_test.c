@@ -7,11 +7,10 @@ struct aem_log_module module_test_log_module = {.loglevel = AEM_LOG_NOTICE};
 static int module_test_register(struct aem_module *mod, struct aem_stringslice args)
 {
 	mod->logmodule = &module_test_log_module;
-	if (aem_log_header(&aem_log_buf, AEM_LOG_NOTICE)) {
-		aem_stringbuf_puts(&aem_log_buf, "Arguments: \"");
-		aem_stringbuf_putss(&aem_log_buf, args);
-		aem_stringbuf_puts(&aem_log_buf, "\"\n");
-		aem_log_str(&aem_log_buf);
+	AEM_LOG_MULTI(out, AEM_LOG_NOTICE) {
+		aem_stringbuf_puts(out, "Arguments: \"");
+		aem_stringbuf_putss(out, args);
+		aem_stringbuf_puts(out, "\"");
 	}
 	if (aem_stringslice_len(args)) {
 		aem_stringbuf_putc(&mod->name, '-');

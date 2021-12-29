@@ -55,11 +55,9 @@ int aem_module_resolve_path(struct aem_module *mod)
 	// Determine path to module file
 	aem_stringbuf_reset(&mod->path);
 	if (aem_sandbox_path(&mod->path, aem_stringslice_new_str(&aem_module_path), name, ".so")) {
-		if (aem_log_header(&aem_log_buf, AEM_LOG_ERROR)) {
-			aem_stringbuf_puts(&aem_log_buf, "Invalid module name: ");
-			aem_string_escape(&aem_log_buf, name);
-			aem_stringbuf_puts(&aem_log_buf, "\n");
-			aem_log_str(&aem_log_buf);
+		AEM_LOG_MULTI(out, AEM_LOG_ERROR) {
+			aem_stringbuf_puts(out, "Invalid module name: ");
+			aem_string_escape(out, name);
 		}
 		return -1;
 	}
@@ -121,11 +119,9 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 	}
 
 	// Register module
-	if (aem_log_header(&aem_log_buf, AEM_LOG_DEBUG)) {
-		aem_stringbuf_puts(&aem_log_buf, "Registering module ");
-		aem_module_identify(&aem_log_buf, mod);
-		aem_stringbuf_puts(&aem_log_buf, "\n");
-		aem_log_str(&aem_log_buf);
+	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
+		aem_stringbuf_puts(out, "Registering module ");
+		aem_module_identify(out, mod);
 	}
 
 	if (def->reg && (rc = def->reg(mod, args))) {
@@ -135,11 +131,9 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 
 	mod->state = AEM_MODULE_REGISTERED;
 
-	if (aem_log_header(&aem_log_buf, AEM_LOG_NOTICE)) {
-		aem_stringbuf_puts(&aem_log_buf, "Registered module ");
-		aem_module_identify(&aem_log_buf, mod);
-		aem_stringbuf_puts(&aem_log_buf, "\n");
-		aem_log_str(&aem_log_buf);
+	AEM_LOG_MULTI(out, AEM_LOG_NOTICE) {
+		aem_stringbuf_puts(out, "Registered module ");
+		aem_module_identify(out, mod);
 	}
 
 	return 0;

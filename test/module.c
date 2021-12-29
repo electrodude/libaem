@@ -49,11 +49,10 @@ int module_unload(struct module *mod)
 		return -1;
 
 	if (!aem_module_unload_check(&mod->mod)) {
-		if (aem_log_header(&aem_log_buf, AEM_LOG_ERROR)) {
-			aem_stringbuf_puts(&aem_log_buf, "Module ");
-			aem_module_identify(&aem_log_buf, &mod->mod);
-			aem_stringbuf_puts(&aem_log_buf, " can't be unloaded.\n");
-			aem_log_str(&aem_log_buf);
+		AEM_LOG_MULTI(out, AEM_LOG_ERROR) {
+			aem_stringbuf_puts(out, "Module ");
+			aem_module_identify(out, &mod->mod);
+			aem_stringbuf_puts(out, " can't be unloaded.");
 		}
 		return -1;
 	}
@@ -128,11 +127,10 @@ int modules_load(struct aem_stringslice *config)
 		struct module *mod = module_load(name, line, &rc);
 
 		if (rc) {
-			if (aem_log_header(&aem_log_buf, AEM_LOG_ERROR)) {
-				aem_stringbuf_puts(&aem_log_buf, "Failed to load module ");
-				aem_stringbuf_putss(&aem_log_buf, name);
-				aem_stringbuf_printf(&aem_log_buf, ": %d\n", rc);
-				aem_log_str(&aem_log_buf);
+			AEM_LOG_MULTI(out, AEM_LOG_ERROR) {
+				aem_stringbuf_puts(out, "Failed to load module ");
+				aem_stringbuf_putss(out, name);
+				aem_stringbuf_printf(out, ": %d", rc);
 			}
 			return rc;
 		}
@@ -173,13 +171,12 @@ static void test_modules_load(const char *spec, const char *remain, int rc_expec
 
 	if (rc != rc_expect) {
 		test_errors++;
-		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
-			aem_stringbuf_puts(&aem_log_buf, "modules_load(");
-			debug_slice(&aem_log_buf, spec_ss);
-			aem_stringbuf_printf(&aem_log_buf, ") returned (%d, ", rc);
-			debug_slice(&aem_log_buf, spec_ret);
-			aem_stringbuf_printf(&aem_log_buf, "), expected (%d, \"%s\")\n", rc_expect, remain);
-			aem_log_str(&aem_log_buf);
+		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
+			aem_stringbuf_puts(out, "modules_load(");
+			debug_slice(out, spec_ss);
+			aem_stringbuf_printf(out, ") returned (%d, ", rc);
+			debug_slice(out, spec_ret);
+			aem_stringbuf_printf(out, "), expected (%d, \"%s\")", rc_expect, remain);
 		}
 	}
 }
@@ -227,18 +224,18 @@ int main(int argc, char **argv)
 	test_modules_load("module_test 2\nmodule_test_singleton\nmodule_test 3", "module_test 3", -1);
 	test_module_load("module_test_singleton", "" , -1, NULL);
 
-	if (aem_log_header(&aem_log_buf, AEM_LOG_NOTICE)) {
-		aem_stringbuf_puts(&aem_log_buf, "\033[95;1mCurrently loaded modules:\033[0;1m\n");
+	AEM_LOG_MULTI(out, AEM_LOG_NOTICE) {
+		aem_stringbuf_puts(out, "\033[95;1mCurrently loaded modules:\033[0;1m\n");
 		AEM_LL_FOR_ALL(mod, &modules, mod_next) {
 			aem_assert(mod->mod.def);
-			aem_stringbuf_puts(&aem_log_buf, "\tModule ");
-			aem_module_identify(&aem_log_buf, &mod->mod);
-			aem_stringbuf_printf(&aem_log_buf, ", path ");
-			aem_stringbuf_append(&aem_log_buf, &mod->mod.path);
-			aem_stringbuf_puts(&aem_log_buf, "\n");
+			aem_stringbuf_puts(out, "\tModule ");
+			aem_module_identify(out, &mod->mod);
+			aem_stringbuf_printf(out, ", path ");
+			aem_stringbuf_append(out, &mod->mod.path);
+			aem_stringbuf_puts(out, "\n");
 		}
-		aem_stringbuf_puts(&aem_log_buf, "\033[0;m");
-		aem_log_str(&aem_log_buf);
+		out->n--; // Remove last \n
+		aem_stringbuf_puts(out, "\033[0;m");
 	}
 
 	test_module_unload("module_test_singleton",  0);

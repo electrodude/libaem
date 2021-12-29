@@ -6,13 +6,12 @@
 #define NO_OUTPUT (-0xDEADBEEF)
 static void test_stringslice_match_long_base(struct aem_stringslice slice, int base, struct aem_stringslice slice_expect, int result_expect, long int out_expect)
 {
-	if (aem_log_header(&aem_log_buf, AEM_LOG_INFO)) {
-		aem_stringbuf_puts(&aem_log_buf, "stringslice_match_long_base(");
-		debug_slice(&aem_log_buf, slice);
-		aem_stringbuf_printf(&aem_log_buf, ", %d) expect (", base);
-		debug_slice(&aem_log_buf, slice_expect);
-		aem_stringbuf_printf(&aem_log_buf, ", %d, %ld)\n", result_expect, out_expect);
-		aem_log_str(&aem_log_buf);
+	AEM_LOG_MULTI(out, AEM_LOG_INFO) {
+		aem_stringbuf_puts(out, "stringslice_match_long_base(");
+		debug_slice(out, slice);
+		aem_stringbuf_printf(out, ", %d) expect (", base);
+		debug_slice(out, slice_expect);
+		aem_stringbuf_printf(out, ", %d, %ld)", result_expect, out_expect);
 	}
 
 	if (aem_stringslice_len(slice_expect) > aem_stringslice_len(slice))
@@ -30,27 +29,25 @@ static void test_stringslice_match_long_base(struct aem_stringslice slice, int b
 
 	if (result != result_expect || !ss_eq(slice_ret, slice_expect) || out != out_expect) {
 		test_errors++;
-		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
-			aem_stringbuf_puts(&aem_log_buf, "stringslice_match_long_base(");
-			debug_slice(&aem_log_buf, slice);
-			aem_stringbuf_printf(&aem_log_buf, ", %d) returned (", base);
-			debug_slice(&aem_log_buf, slice_ret);
-			aem_stringbuf_printf(&aem_log_buf, ", %d, %ld), expected (", result, out);
-			debug_slice(&aem_log_buf, slice_expect);
-			aem_stringbuf_printf(&aem_log_buf, ", %d, %ld)\n", result_expect, out_expect);
-			aem_log_str(&aem_log_buf);
+		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
+			aem_stringbuf_puts(out, "stringslice_match_long_base(");
+			debug_slice(out, slice);
+			aem_stringbuf_printf(out, ", %d) returned (", base);
+			debug_slice(out, slice_ret);
+			aem_stringbuf_printf(out, ", %d, %ld), expected (", result, out);
+			debug_slice(out, slice_expect);
+			aem_stringbuf_printf(out, ", %d, %ld)", result_expect, out_expect);
 		}
 	}
 }
 static void test_stringslice_match_uint_base(struct aem_stringslice slice, int base, struct aem_stringslice slice_expect, int result_expect, unsigned int out_expect)
 {
-	if (aem_log_header(&aem_log_buf, AEM_LOG_INFO)) {
-		aem_stringbuf_puts(&aem_log_buf, "stringslice_match_uint_base(");
-		debug_slice(&aem_log_buf, slice);
-		aem_stringbuf_printf(&aem_log_buf, ", %d) expect (", base);
-		debug_slice(&aem_log_buf, slice_expect);
-		aem_stringbuf_printf(&aem_log_buf, ", %d, %d)\n", result_expect, out_expect);
-		aem_log_str(&aem_log_buf);
+	AEM_LOG_MULTI(out, AEM_LOG_INFO) {
+		aem_stringbuf_puts(out, "stringslice_match_uint_base(");
+		debug_slice(out, slice);
+		aem_stringbuf_printf(out, ", %d) expect (", base);
+		debug_slice(out, slice_expect);
+		aem_stringbuf_printf(out, ", %d, %d)", result_expect, out_expect);
 	}
 
 	if (aem_stringslice_len(slice_expect) > aem_stringslice_len(slice))
@@ -68,28 +65,26 @@ static void test_stringslice_match_uint_base(struct aem_stringslice slice, int b
 
 	if (result != result_expect || !ss_eq(slice_ret, slice_expect) || out != out_expect) {
 		test_errors++;
-		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
-			aem_stringbuf_puts(&aem_log_buf, "stringslice_match_uint_base(");
-			debug_slice(&aem_log_buf, slice);
-			aem_stringbuf_printf(&aem_log_buf, ", %d) returned (", base);
-			debug_slice(&aem_log_buf, slice_ret);
-			aem_stringbuf_printf(&aem_log_buf, ", %d, %d), expected (", result, out);
-			debug_slice(&aem_log_buf, slice_expect);
-			aem_stringbuf_printf(&aem_log_buf, ", %d, %d)\n", result_expect, out_expect);
-			aem_log_str(&aem_log_buf);
+		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
+			aem_stringbuf_puts(out, "stringslice_match_uint_base(");
+			debug_slice(out, slice);
+			aem_stringbuf_printf(out, ", %d) returned (", base);
+			debug_slice(out, slice_ret);
+			aem_stringbuf_printf(out, ", %d, %d), expected (", result, out);
+			debug_slice(out, slice_expect);
+			aem_stringbuf_printf(out, ", %d, %d)", result_expect, out_expect);
 		}
 	}
 }
 
 static void test_stringslice_match_long_auto(struct aem_stringslice slice, struct aem_stringslice slice_expect, int result_expect, long int out_expect)
 {
-	if (aem_log_header(&aem_log_buf, AEM_LOG_INFO)) {
-		aem_stringbuf_puts(&aem_log_buf, "stringslice_match_long_auto(");
-		debug_slice(&aem_log_buf, slice);
-		aem_stringbuf_printf(&aem_log_buf, ") expect (");
-		debug_slice(&aem_log_buf, slice_expect);
-		aem_stringbuf_printf(&aem_log_buf, ", %d, %ld)\n", result_expect, out_expect);
-		aem_log_str(&aem_log_buf);
+	AEM_LOG_MULTI(out, AEM_LOG_INFO) {
+		aem_stringbuf_puts(out, "stringslice_match_long_auto(");
+		debug_slice(out, slice);
+		aem_stringbuf_printf(out, ") expect (");
+		debug_slice(out, slice_expect);
+		aem_stringbuf_printf(out, ", %d, %ld)", result_expect, out_expect);
 	}
 
 	if (aem_stringslice_len(slice_expect) > aem_stringslice_len(slice))
@@ -104,15 +99,14 @@ static void test_stringslice_match_long_auto(struct aem_stringslice slice, struc
 
 	if (result != result_expect || !ss_eq(slice_ret, slice_expect) || out != out_expect) {
 		test_errors++;
-		if (aem_log_header(&aem_log_buf, AEM_LOG_BUG)) {
-			aem_stringbuf_puts(&aem_log_buf, "stringslice_match_long_auto(");
-			debug_slice(&aem_log_buf, slice);
-			aem_stringbuf_printf(&aem_log_buf, ") returned (");
-			debug_slice(&aem_log_buf, slice_ret);
-			aem_stringbuf_printf(&aem_log_buf, ", %d, %ld), expected (", result, out);
-			debug_slice(&aem_log_buf, slice_expect);
-			aem_stringbuf_printf(&aem_log_buf, ", %d, %ld)\n", result_expect, out_expect);
-			aem_log_str(&aem_log_buf);
+		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
+			aem_stringbuf_puts(out, "stringslice_match_long_auto(");
+			debug_slice(out, slice);
+			aem_stringbuf_printf(out, ") returned (");
+			debug_slice(out, slice_ret);
+			aem_stringbuf_printf(out, ", %d, %ld), expected (", result, out);
+			debug_slice(out, slice_expect);
+			aem_stringbuf_printf(out, ", %d, %ld)", result_expect, out_expect);
 		}
 	}
 }

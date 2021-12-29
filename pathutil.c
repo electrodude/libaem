@@ -47,11 +47,9 @@ int aem_sandbox_path(struct aem_stringbuf *out, struct aem_stringslice base, str
 	while (aem_stringslice_ok(subpath)) {
 		struct aem_stringslice component = aem_stringslice_match_pathcomponent(&subpath, &trailing_slash);
 
-		if (aem_log_header(&aem_log_buf, AEM_LOG_DEBUG3)) {
-			aem_stringbuf_puts(&aem_log_buf, "Component: ");
-			aem_string_escape(&aem_log_buf, component);
-			aem_stringbuf_puts(&aem_log_buf, "\n");
-			aem_log_str(&aem_log_buf);
+		AEM_LOG_MULTI(out, AEM_LOG_DEBUG3) {
+			aem_stringbuf_puts(out, "Component: ");
+			aem_string_escape(out, component);
 		}
 
 		if (!aem_stringslice_ok(component)) {

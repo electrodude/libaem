@@ -9,7 +9,7 @@ CFLAGS+=-I$(realpath $(dir $(LIBAEM_DIR)))
 LIBS+=$(LIBAEM_DIR)/libaem.a
 
 DEPDIR=.deps
-DEPFLAGS=-MD -MP -MF $(DEPDIR)/$*.d
+DEPFLAGS=-MD -MP -MF $(DEPDIR)/$(subst /,--,$*).d
 
 $(shell mkdir -p $(DEPDIR))
 

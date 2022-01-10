@@ -35,7 +35,7 @@ SOURCES_LIBAEM_TEST=$(shell echo test.c)
 OBJECTS_LIBAEM_TEST=$(patsubst %.c,%.o,${SOURCES_LIBAEM_TEST})
 
 DEPDIR=.deps
-DEPFLAGS=-MD -MP -MF ${DEPDIR}/$*.d
+DEPFLAGS=-MD -MP -MF ${DEPDIR}/$(subst /,--,$*).d
 
 all:	libaem.a
 
@@ -53,7 +53,7 @@ TEST_PROGS=${TESTS} childproc_child
 test_childproc:	test/bin/childproc_child
 test_module: 	test/lib/module_empty.so test/lib/module_failreg.so test/lib/module_test.so test/lib/module_test_singleton.so
 
-$(shell mkdir -p ${DEPDIR}/test)
+$(shell mkdir -p ${DEPDIR})
 $(shell mkdir -p test/bin test/lib)
 
 test:	${TESTS}
@@ -68,7 +68,7 @@ test_%:	test/bin/%
 	cd test && ${TEST_PROG_PFX} ./bin/$*
 
 clean:
-	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o test/bin/* test/lib/* ${DEPDIR}/*.d ${DEPDIR}/test/*.d
+	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o test/bin/* test/lib/* ${DEPDIR}/*.d
 
 libaem.a:	${OBJECTS_LIBAEM}
 	${AR} $@ $^

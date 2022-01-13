@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #define AEM_DEBUG_UTF8 0
 
 #define AEM_INTERNAL
@@ -50,122 +52,103 @@ proposal only covers 31.
 not a Tx byte.
 */
 
-int aem_stringbuf_put(struct aem_stringbuf *str, unsigned int c)
+// gcc-11.2.0 -O3 compiles away this table for both aem_stringbuf_put
+// and aem_stringslice_get_rune, but clang-13 -O3 doesn't.
+static const struct utf8_info {
+	uint32_t max;
+	unsigned char top;
+	unsigned char mask;
+} utf8_info[] = {
+	{.max = 0x0000080, .top = 0x00, .mask = 0x7f},
+	{.max = 0x0000800, .top = 0xc0, .mask = 0x1f},
+	{.max = 0x0010000, .top = 0xe0, .mask = 0x0f},
+	{.max = 0x0200000, .top = 0xf0, .mask = 0x07},
+	{.max = 0x4000000, .top = 0xf8, .mask = 0x03},
+	{.max =         0, .top = 0xfc, .mask = 0x03},
+};
+#define MAX_LEN (sizeof(utf8_info)/sizeof(utf8_info[0]))
+int aem_stringbuf_put(struct aem_stringbuf *str, uint32_t c)
 {
-	if (c < 0x80) {
-		aem_stringbuf_putc(str, c);
-		goto put0;
-	} else if (c < 0x800) {
-		aem_stringbuf_putc(str, 0xc0 | ((c >>  6) & 0x1f));
-		goto put1;
-	} else if (c < 0x10000) {
-		aem_stringbuf_putc(str, 0xe0 | ((c >> 12) & 0x0f));
-		goto put2;
-	} else if (c < 0x200000) {
-		aem_stringbuf_putc(str, 0xf0 | ((c >> 18) & 0x07));
-		goto put3;
-	} else if (c < 0x4000000) {
-		aem_stringbuf_putc(str, 0xf8 | ((c >> 24) & 0x03));
-		goto put4;
-	} else {
-		aem_stringbuf_putc(str, 0xfc | ((c >> 30) & 0x03));
-		goto put5;
-	}
+	// Find relevant table row
+	size_t len;
+	for (len = 0; len < MAX_LEN-1; len++)
+		if (c < utf8_info[len].max)
+			break;
 
-put5:
-	aem_stringbuf_putc(str, 0x80 | ((c >> 24) & 0x3f));
-put4:
-	aem_stringbuf_putc(str, 0x80 | ((c >> 18) & 0x3f));
-put3:
-	aem_stringbuf_putc(str, 0x80 | ((c >> 12) & 0x3f));
-put2:
-	aem_stringbuf_putc(str, 0x80 | ((c >>  6) & 0x3f));
-put1:
-	aem_stringbuf_putc(str, 0x80 | ((c >>  0) & 0x3f));
-put0:
+	aem_assert(len < MAX_LEN);
+
+	// Do first byte according to table
+	const struct utf8_info *info = &utf8_info[len];
+	size_t shift = len*6;
+	aem_stringbuf_putc(str, info->top | ((c >> shift) & info->mask));
+
+	// Do continuation bytes
+	while (len--) {
+		shift -= 6;
+		aem_stringbuf_putc(str, 0x80 | ((c >> shift) & 0x3f));
+	};
 
 	return 0;
 }
 
-int aem_stringslice_get(struct aem_stringslice *slice)
+int aem_stringslice_get_rune(struct aem_stringslice *slice, uint32_t *out_p)
 {
-	const char *start = slice->start; // make backup of start
+	aem_assert(slice);
+	struct aem_stringslice out = *slice;
 
-	int c = aem_stringslice_getc(slice);
-	if (c < 0 || c >= 0x100)  // end of input or invalid
-		return c;
+	// Get first byte
+	int c0 = aem_stringslice_getc(slice);
+	if (c0 < 0) // EOF
+		return 0;
 
-#if AEM_DEBUG_UTF8
-	unsigned char c0 = c;
-#endif
+	uint32_t c = (unsigned int)c0;
 
-	size_t n = 0;
+	aem_assert(c0 < 0x100);
 
-	if (c < 0x80) {
-		n = 0;
-		c &= 0x7f;
-	} else if (c < 0xc0) {
-#if AEM_DEBUG_UTF8
-		aem_logf_ctx(AEM_LOG_DEBUG, "Unexpected continuation 0x%02x", c);
-#endif
-		//c &= 0x3f;
-		return -1;
-	} else if (c < 0xe0) {
-		n = 1;
-		c &= 0x1f;
-	} else if (c < 0xf0) {
-		n = 2;
-		c &= 0x0f;
-	} else if (c < 0xf8) {
-		n = 3;
-		c &= 0x07;
-	} else if (c < 0xfc) {
-		n = 4;
-		c &= 0x03;
-	} else if (c < 0x100) {
-		n = 5;
-		c &= 0x03;
-	} else {
-#if AEM_DEBUG_UTF8
-		aem_logf_ctx(AEM_LOG_DEBUG, "Illegal first byte");
-#endif
-		return -1;
+	size_t len;
+	for (len = 0; len < MAX_LEN; len++) {
+		const struct utf8_info *info = &utf8_info[len];
+		if ((c & ~info->mask) == info->top)
+			break;
 	}
 
+	if (len >= MAX_LEN) {
 #if AEM_DEBUG_UTF8
-	struct aem_stringbuf *log = aem_log_header(&aem_log_buf, AEM_LOG_DEBUG);
-	if (log)
-		aem_stringbuf_printf(log, "utf8 parse: %zd: 0x%02x", n, c0);
+		aem_logf_ctx(AEM_LOG_DEBUG, "Unexpected byte 0x%02x", c);
 #endif
+		slice->start = out.start;
+		return 0;
+	}
 
-	for (size_t i = 0; i < n; i++) {
-		if (!aem_stringslice_ok(*slice))
-			return -1;
+	aem_assert(len < MAX_LEN);
 
+	c &= utf8_info[len].mask;
+
+	// Get continuation bytes
+	for (size_t i = 0; i < len; i++) {
 		int c2 = aem_stringslice_getc(slice);
-#if AEM_DEBUG_UTF8
-		if (log)
-			aem_stringbuf_printf(log, ", 0x%02x", (unsigned char)c2);
-#endif
 		if (c2 < 0 || (c2 & 0xc0) != 0x80) {
-			slice->start = start;
-#if AEM_DEBUG_UTF8
-			if (log)
-				aem_stringbuf_puts(log, " => invalid");
-#endif
-			return -1;
+			// EOF or not a continuation byte
+			slice->start = out.start;
+			return 0;
 		}
 
-		c <<= 6;
-		c |= c2 & 0x3f;
+		c = (c << 6) | (c2 & 0x3f);
 	}
 
-#if AEM_DEBUG_UTF8
-	if (log) {
-		aem_stringbuf_printf(log, " => 0x%08x\n", c);
-		aem_log_str(log);
-	}
-#endif
+	// Store result
+	if (out_p)
+		*out_p = c;
+
+	return 1;
+}
+
+// BUG: 0xFFFFFFFF and <invalid> both return -1 and are therefore indistinguishable
+int aem_stringslice_get(struct aem_stringslice *slice)
+{
+	uint32_t c;
+	if (!aem_stringslice_get_rune(slice, &c))
+		return -1;
 
 	return c;
 }

@@ -1,6 +1,7 @@
 #ifndef AEM_STRINGSLICE_H
 #define AEM_STRINGSLICE_H
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #ifdef __unix__
@@ -57,14 +58,34 @@ static inline size_t aem_stringslice_len(const struct aem_stringslice slice)
 // Get next byte from stringslice (-1 if end), advance to next byte
 static inline int aem_stringslice_getc(struct aem_stringslice *slice)
 {
-	if (!aem_stringslice_ok(*slice))
+	if (!slice || !aem_stringslice_ok(*slice))
 		return -1;
 
 	return (unsigned char)*slice->start++;
 }
 
-// Get a UTF-8 rune
+// Get a UTF-8 rune, or returns zero on invalid sequence or EOF.
 // Implementation in utf8.c
+int aem_stringslice_get_rune(struct aem_stringslice *slice, uint32_t *out_p);
+// The same, but returns a stringslice of the bytes of the rune's encoding, or
+// empty on failure.
+static inline struct aem_stringslice aem_stringslice_match_rune(struct aem_stringslice *slice, uint32_t *out_p)
+{
+	if (!slice)
+		return AEM_STRINGSLICE_EMPTY;
+
+	struct aem_stringslice out = *slice;
+	int ok = aem_stringslice_get_rune(slice, out_p);
+	if (!ok)
+		*slice = out;
+	out.end = slice->start;
+
+	return out;
+}
+// Get a UTF-8 rune.
+// Returns -1 on both 0xFFFFFFFF and error; you must manually check whether
+// slice->start moved to find out which.  Should probably be deprecated in the
+// future because of this.
 int aem_stringslice_get(struct aem_stringslice *slice);
 
 // Get raw data

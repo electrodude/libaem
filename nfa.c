@@ -3,6 +3,7 @@
 #include <errno.h>
 
 #define AEM_INTERNAL
+#include <aem/ansi-term.h>
 #include <aem/log.h>
 // for AEM_NFA_THREAD_STATE
 #include <aem/stack.h>
@@ -561,11 +562,8 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 		enum aem_nfa_op op = insn & ((1 << AEM_NFA_OP_LEN) - 1);
 		insn >>= AEM_NFA_OP_LEN;
 
-#if AEM_NFA_TRACING
-		// Get tracing information
-		struct aem_nfa_trace_info *dbg = &nfa->trace_dbg[pc];
+		// Record start of line
 		size_t line_start = out->n;
-#endif
 
 		// Check mark
 		const char *mark = marks ?
@@ -579,11 +577,9 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 			color_op = "\x1b[91m";
 		}
 		aem_stringbuf_printf(out, "%s %0*zx: ", mark, pc_width, pc);
-		if (aem_log_color)
-			aem_stringbuf_puts(out, color_op);
+		aem_stringbuf_puts(out, color_op);
 		aem_stringbuf_puts(out, op_name);
-		if (aem_log_color)
-			aem_stringbuf_puts(out, "\x1b[0m");
+		aem_stringbuf_puts(out, "\x1b[0m");
 
 		// Pad to widest instruction
 		for (size_t i = strlen(op_name); i < 8; i++)
@@ -594,35 +590,35 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 			int lo = insn & 0xff;
 			int hi = insn >> 8;
 			if (hi != lo) {
-				aem_stringbuf_puts(out, "[");
+				aem_stringbuf_puts(out, "\x1b[95m[\x1b[0m");
 				desc_char(out, lo);
-				aem_stringbuf_puts(out, "-");
+				aem_stringbuf_puts(out, "\x1b[95m-\x1b[0m");
 				desc_char(out, hi);
-				aem_stringbuf_puts(out, "]");
+				aem_stringbuf_puts(out, "\x1b[95m]\x1b[0m");
 			} else {
-				aem_stringbuf_puts(out, "'");
+				aem_stringbuf_puts(out, "\x1b[95m'\x1b[0m");
 				desc_char(out, lo);
-				aem_stringbuf_puts(out, "'");
+				aem_stringbuf_puts(out, "\x1b[95m'\x1b[0m");
 			}
 			break;
 		}
 		case AEM_NFA_CLASS: {
 			int neg = insn & 0x1;
 			int front = insn & 0x2;
-			if (front)
-				aem_stringbuf_puts(out, ">");
-			if (neg)
-				aem_stringbuf_puts(out, "!");
+			if (front || neg) {
+				aem_stringbuf_puts(out, "\x1b[95m");
+				if (front)
+					aem_stringbuf_puts(out, ">");
+				if (neg)
+					aem_stringbuf_puts(out, "!");
+				aem_stringbuf_puts(out, "\x1b[0m");
+			}
 			enum aem_nfa_cclass cclass = insn >> 2;
 			const char *name = aem_nfa_cclass_name(cclass);
 			if (name) {
 				aem_stringbuf_puts(out, name);
 			} else {
-				if (aem_log_color)
-					aem_stringbuf_puts(out, "\x1b[91m");
-				aem_stringbuf_printf(out, "<%#x>", cclass);
-				if (aem_log_color)
-					aem_stringbuf_puts(out, "\x1b[0m");
+				aem_stringbuf_printf(out, "\x1b[91m<%#x>\x1b[0m", cclass);
 			}
 			break;
 		}
@@ -652,19 +648,21 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 			aem_stringbuf_printf(out, "op %x %zx", op, insn);
 			break;
 		}
+
 #if AEM_NFA_TRACING
+		// Get tracing information
+		struct aem_nfa_trace_info *dbg = &nfa->trace_dbg[pc];
+
+		for (size_t width = aem_ansi_len(aem_stringslice_new(&out->s[line_start], &out->s[out->n])); width < 40; width++)
+			aem_stringbuf_putc(out, ' ');
+		aem_stringbuf_printf(out, "%*d", match_width, dbg->match);
 		if (aem_stringslice_ok(dbg->where)) {
-			while (out->n - line_start < 40)
-				aem_stringbuf_putc(out, ' ');
-			aem_stringbuf_printf(out, "%*d  ", match_width, dbg->match);
-			//aem_stringbuf_puts(out, "/");
+			aem_stringbuf_puts(out, "  ");
 			aem_stringbuf_putss(out, dbg->where);
-			//aem_stringbuf_puts(out, "/");
 		}
 #endif
-		if (aem_log_color)
-			aem_stringbuf_puts(out, "\x1b[0m");
-		aem_stringbuf_puts(out, "\n");
+
+		aem_stringbuf_puts(out, "\x1b[0m\n");
 	}
 }
 

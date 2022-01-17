@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #define AEM_INTERNAL
+#include <aem/ansi-term.h>
 #include <aem/stringbuf.h>
 
 #include "log.h"
@@ -73,19 +74,19 @@ struct aem_log_module aem_log_module_default_internal = {.loglevel = AEM_LOG_NOT
 const char *aem_log_level_color(enum aem_log_level loglevel)
 {
 	switch (loglevel) {
-		case AEM_LOG_FATAL   : return "\033[101;5m";
-		case AEM_LOG_SECURITY: return "\033[101;30;5m";
-		case AEM_LOG_BUG     : return "\033[103;30m";
-		case AEM_LOG_NYI     : return "\033[101;30m";
-		case AEM_LOG_ERROR   : return "\033[31;1m";
-		case AEM_LOG_WARN    : return "\033[33;1m";
-		case AEM_LOG_NOTICE  : return "\033[94;1m";
-		case AEM_LOG_INFO    : return "\033[0m";
-		case AEM_LOG_DEBUG   : return "\033[37;2m";
-		case AEM_LOG_DEBUG2  : return "\033[90m";
-		case AEM_LOG_DEBUG3  : return "\033[90;2m";
-		default              : return "\033[101;30m";
+		case AEM_LOG_FATAL   : return "\x1b[101;5m";
+		case AEM_LOG_SECURITY: return "\x1b[101;30;5m";
+		case AEM_LOG_BUG     : return "\x1b[103;30m";
+		case AEM_LOG_NYI     : return "\x1b[101;30m";
+		case AEM_LOG_ERROR   : return "\x1b[31;1m";
+		case AEM_LOG_WARN    : return "\x1b[33;1m";
+		case AEM_LOG_NOTICE  : return "\x1b[94;1m";
+		case AEM_LOG_INFO    : return "\x1b[0m";
+		case AEM_LOG_DEBUG   : return "\x1b[37;2m";
+		case AEM_LOG_DEBUG2  : return "\x1b[90m";
+		case AEM_LOG_DEBUG3  : return "\x1b[90;2m";
 	}
+	return "\x1b[101;30m";
 }
 
 const char *aem_log_level_describe(enum aem_log_level loglevel)
@@ -102,8 +103,8 @@ const char *aem_log_level_describe(enum aem_log_level loglevel)
 		case AEM_LOG_DEBUG   : return "debug";
 		case AEM_LOG_DEBUG2  : return "debug2";
 		case AEM_LOG_DEBUG3  : return "debug3";
-		default              : return "(unknown)";
 	}
+	return "(unknown)";
 }
 char aem_log_level_letter(enum aem_log_level loglevel)
 {
@@ -119,8 +120,8 @@ char aem_log_level_letter(enum aem_log_level loglevel)
 		case AEM_LOG_DEBUG   : return 'd';
 		case AEM_LOG_DEBUG2  : return '2';
 		case AEM_LOG_DEBUG3  : return '3';
-		default              : return '?';
 	}
+	return '?';
 }
 
 enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
@@ -202,7 +203,7 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 	//aem_stringbuf_putc(str, aem_log_level_describe(loglevel));
 	aem_stringbuf_putc(str, ':');
 	if (aem_log_color)
-		aem_stringbuf_puts(str, "\033[0m"); // Reset text style
+		aem_stringbuf_puts(str, "\x1b[0m"); // Reset text style
 	aem_stringbuf_putc(str, ' ');
 
 	return str;
@@ -227,9 +228,12 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 
 	// Reset color
 	if (aem_log_color)
-		aem_stringbuf_puts(str, "\033[0m");
+		aem_stringbuf_puts(str, "\x1b[0m");
 	// Add newline
 	aem_stringbuf_puts(str, "\n");
+
+	if (!aem_log_color)
+		aem_ansi_strip_inplace(str);
 
 	// TODO: If message exceeds line width, wrap and insert continuation headers.
 
@@ -245,6 +249,15 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 #endif
 
 	return rc;
+}
+
+void aem_log_multi_impl(struct aem_stringbuf *str)
+{
+	aem_assert(str);
+	aem_stringbuf_putc(str, '\n');
+	if (!aem_log_color)
+		aem_ansi_strip_inplace(str);
+	aem_log_str(str);
 }
 
 int aem_log_str(struct aem_stringbuf *str)

@@ -74,19 +74,19 @@ struct aem_log_module aem_log_module_default_internal = {.loglevel = AEM_LOG_NOT
 const char *aem_log_level_color(enum aem_log_level loglevel)
 {
 	switch (loglevel) {
-		case AEM_LOG_FATAL   : return "\x1b[101;5m";
-		case AEM_LOG_SECURITY: return "\x1b[101;30;5m";
-		case AEM_LOG_BUG     : return "\x1b[103;30m";
-		case AEM_LOG_NYI     : return "\x1b[101;30m";
-		case AEM_LOG_ERROR   : return "\x1b[31;1m";
-		case AEM_LOG_WARN    : return "\x1b[33;1m";
-		case AEM_LOG_NOTICE  : return "\x1b[94;1m";
-		case AEM_LOG_INFO    : return "\x1b[0m";
-		case AEM_LOG_DEBUG   : return "\x1b[37;2m";
-		case AEM_LOG_DEBUG2  : return "\x1b[90m";
-		case AEM_LOG_DEBUG3  : return "\x1b[90;2m";
+		case AEM_LOG_FATAL   : return AEM_SGR("101;5"   );
+		case AEM_LOG_SECURITY: return AEM_SGR("101;30;5");
+		case AEM_LOG_BUG     : return AEM_SGR("103;30"  );
+		case AEM_LOG_NYI     : return AEM_SGR("101;30"  );
+		case AEM_LOG_ERROR   : return AEM_SGR("31;1"    );
+		case AEM_LOG_WARN    : return AEM_SGR("33;1"    );
+		case AEM_LOG_NOTICE  : return AEM_SGR("94;1"    );
+		case AEM_LOG_INFO    : return AEM_SGR("0"       );
+		case AEM_LOG_DEBUG   : return AEM_SGR("37;2"    );
+		case AEM_LOG_DEBUG2  : return AEM_SGR("90"      );
+		case AEM_LOG_DEBUG3  : return AEM_SGR("90;2"    );
 	}
-	return "\x1b[101;30m";
+	return AEM_SGR("101;30");
 }
 
 const char *aem_log_level_describe(enum aem_log_level loglevel)
@@ -228,7 +228,7 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 
 	// Reset color
 	if (aem_log_color)
-		aem_stringbuf_puts(str, "\x1b[0m");
+		aem_stringbuf_puts(str, AEM_SGR("0"));
 	// Add newline
 	aem_stringbuf_puts(str, "\n");
 

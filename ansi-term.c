@@ -13,6 +13,7 @@ struct aem_stringslice aem_ansi_match_csi(struct aem_stringslice *in)
 	if (!aem_stringslice_match(&curr, "\x1b["))
 		return AEM_STRINGSLICE_EMPTY;
 
+	struct aem_stringslice out = curr;
 	int c = aem_stringslice_getc(&curr);
 	while (0x30 <= c && c < 0x40)
 		c = aem_stringslice_getc(&curr);
@@ -26,8 +27,8 @@ struct aem_stringslice aem_ansi_match_csi(struct aem_stringslice *in)
 	}
 	// TODO: Do real terminals just eat bytes until they find [\x40-\x7F]?
 
-	struct aem_stringslice out = {.start = in->start, .end = curr.start};
 	*in = curr;
+	out.end = curr.start;
 	return out;
 }
 
@@ -76,4 +77,26 @@ void aem_ansi_strip_inplace(struct aem_stringbuf *str)
 	struct aem_stringslice src = aem_stringslice_new_str(str);
 	str->n = 0;
 	aem_ansi_strip(str, src);
+}
+
+void aem_ansi_pad(struct aem_stringbuf *str, size_t start, size_t width)
+{
+	aem_assert(str);
+	// Can't start past end
+	if (start > str->n) {
+		start = str->n;
+	}
+
+	// Get length of what we have so far
+	struct aem_stringslice slice = aem_stringslice_new(&str->s[start], &str->s[str->n]);
+	size_t len = aem_ansi_len(slice);
+
+	// Already at or past desired position
+	if (len >= width)
+		return;
+
+	// Padd with spaces
+	size_t deficit = width - len;
+	for (size_t i = 0; i < deficit; i++)
+		aem_stringbuf_putc(str, ' ');
 }

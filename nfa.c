@@ -490,6 +490,22 @@ static void desc_char(struct aem_stringbuf *out, int c)
 		break;
 	}
 }
+static void desc_range(struct aem_stringbuf *out, unsigned int lo, unsigned int hi)
+{
+	aem_assert(out);
+
+	if (hi != lo) {
+		aem_stringbuf_puts(out, AEM_SGR("95") "[" AEM_SGR("0"));
+		desc_char(out, lo);
+		aem_stringbuf_puts(out, AEM_SGR("95") "-" AEM_SGR("0"));
+		desc_char(out, hi);
+		aem_stringbuf_puts(out, AEM_SGR("95") "]" AEM_SGR("0"));
+	} else {
+		aem_stringbuf_puts(out, AEM_SGR("95") "'" AEM_SGR("0"));
+		desc_char(out, lo);
+		aem_stringbuf_puts(out, AEM_SGR("95") "'" AEM_SGR("0"));
+	}
+}
 void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const aem_nfa_bitfield *marks)
 {
 	aem_assert(out);
@@ -570,55 +586,45 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 			bitfield_test(marks, pc) ? ">" : " "
 			: " ";
 
-		const char *color_op = "\x1b[96m";
-		const char *op_name = aem_nfa_op_name(op);
-		if (!op_name) {
-			op_name = "invalid";
-			color_op = "\x1b[91m";
-		}
 		aem_stringbuf_printf(out, "%s %0*zx: ", mark, pc_width, pc);
-		aem_stringbuf_puts(out, color_op);
+		size_t op_start = out->n;
+		const char *op_name = aem_nfa_op_name(op);
+		if (op_name) {
+			aem_stringbuf_puts(out, AEM_SGR("96"));
+		} else {
+			op_name = "invalid";
+			aem_stringbuf_puts(out, AEM_SGR("91"));
+		}
 		aem_stringbuf_puts(out, op_name);
-		aem_stringbuf_puts(out, "\x1b[0m");
+		aem_stringbuf_puts(out, AEM_SGR("0"));
 
 		// Pad to widest instruction
-		for (size_t i = strlen(op_name); i < 8; i++)
-			aem_stringbuf_putc(out, ' ');
+		aem_ansi_pad(out, op_start, 8);
 
 		switch (op) {
 		case AEM_NFA_RANGE: {
 			int lo = insn & 0xff;
 			int hi = insn >> 8;
-			if (hi != lo) {
-				aem_stringbuf_puts(out, "\x1b[95m[\x1b[0m");
-				desc_char(out, lo);
-				aem_stringbuf_puts(out, "\x1b[95m-\x1b[0m");
-				desc_char(out, hi);
-				aem_stringbuf_puts(out, "\x1b[95m]\x1b[0m");
-			} else {
-				aem_stringbuf_puts(out, "\x1b[95m'\x1b[0m");
-				desc_char(out, lo);
-				aem_stringbuf_puts(out, "\x1b[95m'\x1b[0m");
-			}
+			desc_range(out, lo, hi);
 			break;
 		}
 		case AEM_NFA_CLASS: {
 			int neg = insn & 0x1;
 			int front = insn & 0x2;
 			if (front || neg) {
-				aem_stringbuf_puts(out, "\x1b[95m");
+				aem_stringbuf_puts(out, AEM_SGR("95"));
 				if (front)
 					aem_stringbuf_puts(out, ">");
 				if (neg)
 					aem_stringbuf_puts(out, "!");
-				aem_stringbuf_puts(out, "\x1b[0m");
+				aem_stringbuf_puts(out, AEM_SGR("0"));
 			}
 			enum aem_nfa_cclass cclass = insn >> 2;
 			const char *name = aem_nfa_cclass_name(cclass);
 			if (name) {
 				aem_stringbuf_puts(out, name);
 			} else {
-				aem_stringbuf_printf(out, "\x1b[91m<%#x>\x1b[0m", cclass);
+				aem_stringbuf_printf(out, AEM_SGR("91") "<%#x>" AEM_SGR("0"), cclass);
 			}
 			break;
 		}
@@ -653,8 +659,7 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 		// Get tracing information
 		struct aem_nfa_trace_info *dbg = &nfa->trace_dbg[pc];
 
-		for (size_t width = aem_ansi_len(aem_stringslice_new(&out->s[line_start], &out->s[out->n])); width < 40; width++)
-			aem_stringbuf_putc(out, ' ');
+		aem_ansi_pad(out, line_start, 40);
 		aem_stringbuf_printf(out, "%*d", match_width, dbg->match);
 		if (aem_stringslice_ok(dbg->where)) {
 			aem_stringbuf_puts(out, "  ");
@@ -662,7 +667,7 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 		}
 #endif
 
-		aem_stringbuf_puts(out, "\x1b[0m\n");
+		aem_stringbuf_puts(out, AEM_SGR("0") "\n");
 	}
 }
 
@@ -840,7 +845,10 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			// TODO: Allow chained range instructions, for e.g. [0-9A-Za-z]
 			int lo = insn & 0xff;
 			int hi = insn >> 8;
-			aem_logf_ctx(AEM_LOG_DEBUG3, "range [%02x-%02x]", lo, hi);
+			AEM_LOG_MULTI(out, AEM_LOG_DEBUG3) {
+				aem_stringbuf_puts(out, "range ");
+				desc_range(out, lo, hi);
+			}
 			if (!(lo <= c && c <= hi)) {
 				thr->state = AEM_NFA_THR_DEAD;
 			} else {

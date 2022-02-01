@@ -5,6 +5,7 @@
 #define AEM_INTERNAL
 #include <aem/ansi-term.h>
 #include <aem/log.h>
+#include <aem/nfa-util.h>
 // for AEM_NFA_THREAD_STATE
 #include <aem/stack.h>
 #include <aem/stringbuf.h>
@@ -55,28 +56,34 @@ static int bitfield_test(const aem_nfa_bitfield *bf, size_t i)
 AEM_ENUM_DEFINE(aem_nfa_op, AEM_NFA_OP)
 AEM_ENUM_DEFINE(aem_nfa_cclass, AEM_NFA_CCLASS)
 
-int aem_nfa_cclass_match(int neg, enum aem_nfa_cclass cclass, int c)
+int aem_nfa_cclass_match(int neg, enum aem_nfa_cclass cclass, uint32_t c)
 {
 	int match = 0;
+	// ctype functions only understand unsigned chars
+	if (c < 0x100) {
+		unsigned char c8 = c;
+		switch (cclass) {
+			// ctype classes
+			case AEM_NFA_CCLASS_ALNUM : match = isalnum (c8); break;
+			case AEM_NFA_CCLASS_ALPHA : match = isalpha (c8); break;
+			case AEM_NFA_CCLASS_BLANK : match = isblank (c8); break;
+			case AEM_NFA_CCLASS_CNTRL : match = iscntrl (c8); break;
+			case AEM_NFA_CCLASS_DIGIT : match = isdigit (c8); break;
+			case AEM_NFA_CCLASS_GRAPH : match = isgraph (c8); break;
+			case AEM_NFA_CCLASS_LOWER : match = islower (c8); break;
+			case AEM_NFA_CCLASS_PRINT : match = isprint (c8); break;
+			case AEM_NFA_CCLASS_PUNCT : match = ispunct (c8); break;
+			case AEM_NFA_CCLASS_SPACE : match = isspace (c8); break;
+			case AEM_NFA_CCLASS_UPPER : match = isupper (c8); break;
+			case AEM_NFA_CCLASS_XDIGIT: match = isxdigit(c8); break;
+			default:
+		}
+	}
 	switch (cclass) {
-		// ctype classes
-		case AEM_NFA_CCLASS_ALNUM : match = isalnum(c) ; break;
-		case AEM_NFA_CCLASS_ALPHA : match = isalpha(c) ; break;
-		case AEM_NFA_CCLASS_BLANK : match = isblank(c) ; break;
-		case AEM_NFA_CCLASS_CNTRL : match = iscntrl(c) ; break;
-		case AEM_NFA_CCLASS_DIGIT : match = isdigit(c) ; break;
-		case AEM_NFA_CCLASS_GRAPH : match = isgraph(c) ; break;
-		case AEM_NFA_CCLASS_LOWER : match = islower(c) ; break;
-		case AEM_NFA_CCLASS_PRINT : match = isprint(c) ; break;
-		case AEM_NFA_CCLASS_PUNCT : match = ispunct(c) ; break;
-		case AEM_NFA_CCLASS_SPACE : match = isspace(c) ; break;
-		case AEM_NFA_CCLASS_UPPER : match = isupper(c) ; break;
-		case AEM_NFA_CCLASS_XDIGIT: match = isxdigit(c); break;
 		// custom
-		case AEM_NFA_CCLASS_LINE  : match = c >= ' ' && c != -1; break;
+		case AEM_NFA_CCLASS_ANY   : match = 1                    ; break;
+		case AEM_NFA_CCLASS_LINE  : match = c >= ' ' || c == '\t'; break;
 		default:
-			aem_logf_ctx(AEM_LOG_BUG, "Invalid character class: %#x", cclass);
-			return -2;
 	}
 
 	return neg ? !match : match;
@@ -98,12 +105,14 @@ struct aem_nfa *aem_nfa_init(struct aem_nfa *nfa)
 	nfa->alloc_captures = 0;
 #endif
 
-	nfa->thr_init = NULL;
-	nfa->alloc_bitfields = 0;
-
 #if AEM_NFA_TRACING
 	nfa->trace_dbg = NULL;
 #endif
+
+	nfa->thr_init = NULL;
+	nfa->alloc_bitfields = 0;
+
+	nfa->n_matches = 0;
 
 	return nfa;
 }
@@ -234,15 +243,20 @@ static aem_nfa_insn aem_nfa_mk_insn(enum aem_nfa_op op, aem_nfa_insn arg)
 	return (arg << AEM_NFA_OP_LEN) | op;
 }
 
-aem_nfa_insn aem_nfa_insn_range(unsigned int lo, unsigned int hi)
+aem_nfa_insn aem_nfa_insn_range(uint32_t lo, uint32_t hi)
 {
 	if (lo >> 8) {
-		aem_logf_ctx(AEM_LOG_BUG, "Invalid lo: %02x", lo);
+		aem_logf_ctx(AEM_LOG_BUG, "Invalid lo: %#02x", lo);
 	}
-	// TODO: Not enough bits for hi or lo for real UTF-8
+	if (hi >> (32 - 8)) {
+		aem_logf_ctx(AEM_LOG_BUG, "Invalid hi: %#02x", hi);
+	}
+	// TODO: Not enough bits for hi or lo.  Each needs at least 21 for
+	// "official" UTF-8, and we'd like to support more for our extended
+	// 32-bit clean UTF-8.
 	return aem_nfa_mk_insn(AEM_NFA_RANGE, ((aem_nfa_insn)hi << 8) | (aem_nfa_insn)lo);
 }
-aem_nfa_insn aem_nfa_insn_char(unsigned int c)
+aem_nfa_insn aem_nfa_insn_char(uint32_t c)
 {
 	return aem_nfa_insn_range(c, c);
 }
@@ -461,51 +475,16 @@ void aem_nfa_optimize(struct aem_nfa *nfa)
 
 		aem_logf_ctx(AEM_LOG_NOTICE, "unreachable: %zx %s %zx", pc, aem_nfa_op_name(op), insn);
 		//aem_nfa_put_insn(nfa, pc, (1 << AEM_NFA_OP_LEN) - 1);
+#if AEM_NFA_TRACING
 		struct aem_nfa_trace_info *dbg = &nfa->trace_dbg[pc];
 		aem_nfa_set_dbg(nfa, pc, aem_stringslice_new_cstr("unreachable"), dbg->match);
+#endif
 	}
 #endif
 }
 
 
 /// NFA inspection
-static void desc_char(struct aem_stringbuf *out, int c)
-{
-	switch (c) {
-#define AEM_STRINGBUF_PUTQ_CASE(find, replace) \
-	case find: aem_stringbuf_puts(out, replace); break;
-		AEM_STRINGBUF_PUTQ_CASE('\n', "\\n")
-		AEM_STRINGBUF_PUTQ_CASE('\r', "\\r")
-		AEM_STRINGBUF_PUTQ_CASE('\t', "\\t")
-		AEM_STRINGBUF_PUTQ_CASE('\0', "\\0")
-		AEM_STRINGBUF_PUTQ_CASE('\'', "\\'")
-		AEM_STRINGBUF_PUTQ_CASE('\\', "\\\\")
-#undef AEM_STRINGBUF_PUTQ_CASE
-	default:
-		if (c >= 32 && c < 127) {
-			aem_stringbuf_putc(out, c);
-		} else {
-			aem_stringbuf_printf(out, "%02x", c);
-		}
-		break;
-	}
-}
-static void desc_range(struct aem_stringbuf *out, unsigned int lo, unsigned int hi)
-{
-	aem_assert(out);
-
-	if (hi != lo) {
-		aem_stringbuf_puts(out, AEM_SGR("95") "[" AEM_SGR("0"));
-		desc_char(out, lo);
-		aem_stringbuf_puts(out, AEM_SGR("95") "-" AEM_SGR("0"));
-		desc_char(out, hi);
-		aem_stringbuf_puts(out, AEM_SGR("95") "]" AEM_SGR("0"));
-	} else {
-		aem_stringbuf_puts(out, AEM_SGR("95") "'" AEM_SGR("0"));
-		desc_char(out, lo);
-		aem_stringbuf_puts(out, AEM_SGR("95") "'" AEM_SGR("0"));
-	}
-}
 void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const aem_nfa_bitfield *marks)
 {
 	aem_assert(out);
@@ -582,9 +561,7 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 		size_t line_start = out->n;
 
 		// Check mark
-		const char *mark = marks ?
-			bitfield_test(marks, pc) ? ">" : " "
-			: " ";
+		const char *mark = marks && bitfield_test(marks, pc) ? ">" : " ";
 
 		aem_stringbuf_printf(out, "%s %0*zx: ", mark, pc_width, pc);
 		size_t op_start = out->n;
@@ -603,9 +580,9 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 
 		switch (op) {
 		case AEM_NFA_RANGE: {
-			int lo = insn & 0xff;
-			int hi = insn >> 8;
-			desc_range(out, lo, hi);
+			uint32_t lo = insn & 0xff;
+			uint32_t hi = insn >> 8;
+			aem_nfa_desc_range(out, lo, hi);
 			break;
 		}
 		case AEM_NFA_CLASS: {
@@ -680,6 +657,9 @@ struct aem_nfa_run {
 	struct aem_stack curr;
 	struct aem_stack next;
 #endif
+	struct aem_stringslice in_curr;
+	struct aem_stringslice consumed;
+	struct aem_stringslice rune_curr;
 	const struct aem_nfa *nfa;
 	aem_nfa_bitfield *map_curr;
 	aem_nfa_bitfield *map_next;
@@ -692,7 +672,7 @@ struct aem_nfa_run {
 	size_t n_insns;
 	size_t n_captures;
 
-	int c_prev;
+	uint32_t c_prev;
 };
 
 struct aem_nfa_thread {
@@ -806,7 +786,7 @@ static int aem_nfa_thread_check(const struct aem_nfa_run *run, size_t pc)
 	return bitfield_test(run->map_curr, pc);
 }
 
-static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *thr, const char *p, int c)
+static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *thr, uint32_t c)
 {
 	aem_assert(run);
 	aem_assert(thr);
@@ -843,19 +823,22 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 		switch (op) {
 		case AEM_NFA_RANGE: {
 			// TODO: Allow chained range instructions, for e.g. [0-9A-Za-z]
-			int lo = insn & 0xff;
-			int hi = insn >> 8;
+			uint32_t lo = insn & 0xff;
+			uint32_t hi = insn >> 8;
 			AEM_LOG_MULTI(out, AEM_LOG_DEBUG3) {
 				aem_stringbuf_puts(out, "range ");
-				desc_range(out, lo, hi);
+				aem_nfa_desc_range(out, lo, hi);
 			}
-			if (!(lo <= c && c <= hi)) {
-				thr->state = AEM_NFA_THR_DEAD;
-			} else {
+
+			// No more input => dead
+			if (!aem_stringslice_ok(run->rune_curr))
+				goto dead;
+
+			if (!(lo <= c && c <= hi))
+				goto dead;
 #if AEM_NFA_TRACING
-				bitfield_set(thr->match.visited, pc_curr);
+			bitfield_set(thr->match.visited, pc_curr);
 #endif
-			}
 			return -1;
 		}
 		case AEM_NFA_CLASS: {
@@ -863,21 +846,24 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			int front = insn & 0x2;
 			enum aem_nfa_cclass cclass = insn >> 2;
 			aem_logf_ctx(AEM_LOG_DEBUG3, "class %s%s", neg ? "!" : "", aem_nfa_cclass_name(cclass));
-			int match = aem_nfa_cclass_match(neg, cclass, c);
-			// frontier: previous character must have not matched
+
+			int ok = aem_stringslice_ok(run->rune_curr);
+			int match = ok && aem_nfa_cclass_match(0, cclass, c);
+			if (neg)
+				match = !match;
+			// Frontier: previous character must have not matched
 			if (front && match)
 				match = !aem_nfa_cclass_match(neg, cclass, run->c_prev);
-			if (!match) {
-				thr->state = AEM_NFA_THR_DEAD;
-			} else {
-				// frontiers don't consume anything
-				if (front)
-					break;
-#if AEM_NFA_TRACING
-				bitfield_set(thr->match.visited, pc_curr);
-#endif
-			}
 
+			if (!match)
+				goto dead;
+
+			// Frontiers don't consume anything
+			if (front)
+				break;
+#if AEM_NFA_TRACING
+			bitfield_set(thr->match.visited, pc_curr);
+#endif
 			return -1;
 		}
 
@@ -892,9 +878,9 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			aem_logf_ctx(AEM_LOG_DEBUG3, "capture %s %zx", end ? "end" : "start", insn);
 			struct aem_stringslice *capture = &thr->match.captures[insn];
 			if (end)
-				capture->end = p;
+				capture->end = run->rune_curr.start;
 			else
-				capture->start = p;
+				capture->start = run->rune_curr.start;
 			break;
 		}
 #endif
@@ -957,9 +943,10 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 		aem_assert(thr->state == AEM_NFA_THR_LIVE);
 	}
 
-	aem_logf_ctx(AEM_LOG_BUG, "Can't get here!");
-	aem_assert(0);
+	aem_assert(!"Can't get here!");
 
+dead:
+	thr->state = AEM_NFA_THR_DEAD;
 	return -1;
 }
 
@@ -1051,12 +1038,12 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 	aem_assert(nfa);
 	aem_assert(in);
 
-	struct aem_stringslice in_init = *in;
-
 	int rc = -1;
 
 	// TODO: If nfa->n_insns and nfa->n_captures are read atomically (or perhaps just in the right order), no locking should be required between aem_nfa_run and extending the nfa.
 	struct aem_nfa_run run = {0};
+	run.in_curr = *in;
+	run.consumed = aem_stringslice_new_len(run.in_curr.start, 0);
 	run.nfa = nfa;
 	run.n_insns = nfa->n_insns;
 #if AEM_NFA_CAPTURES
@@ -1102,7 +1089,6 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 	aem_nfa_thread_init(&thr_singleton, &run, 0);
 #endif
 
-	const char *p_matched = in->start;
 	for (;;) {
 		// Move next => curr, clear next, break if no live threads
 		aem_nfa_bitfield *map_tmp = run.map_curr;
@@ -1134,14 +1120,12 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 		aem_assert(run.curr.n);
 #endif
 
-		const char *p = in->start;
-		//int c = aem_stringslice_get(in);
-		int c = aem_stringslice_getc(in);
-		aem_assert(-1 <= c && c < 0xff);
+		uint32_t c = 0xFFFFFFFF;
+		run.rune_curr = aem_stringslice_match_rune(&run.in_curr, &c);
 
 		AEM_LOG_MULTI(out, AEM_LOG_DEBUG3) {
 			aem_stringbuf_puts(out, "char ");
-			desc_char(out, c);
+			aem_nfa_desc_char(out, c);
 		}
 
 		// For each thread
@@ -1175,7 +1159,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 
 			bitfield_clear(run.map_curr, pc);
 
-			int rc2 = aem_nfa_thread_step(&run, thr, p, c);
+			int rc2 = aem_nfa_thread_step(&run, thr, c);
 
 			if (rc2 >= 0) {
 				// Match
@@ -1209,11 +1193,11 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 				break;
 			case AEM_NFA_THR_MATCHED:
 				//aem_logf_ctx(AEM_LOG_DEBUG3, "matched");
-				p_matched = p;
+				run.consumed.end = run.rune_curr.start;
 				/*
 				AEM_LOG_MULTI(out, AEM_LOG_DEBUG3) {
 					aem_stringbuf_puts(out, "Consumed input: ");
-					aem_string_escape(out, aem_stringslice_new(in_init.start, p_matched));
+					aem_string_escape(out, run.consumed);
 				}
 				*/
 #if AEM_NFA_THREAD_STATE
@@ -1278,11 +1262,9 @@ out:
 #endif
 
 	// Rewind input on failure
-	// TODO: Can't we just always do in->start = p_matched; ?
-	if (rc < 0)
-		*in = in_init;
-	else
-		in->start = p_matched;
+	// TODO: Can't we just always do in->start = run.consumed.end; ?
+	if (rc >= 0)
+		in->start = run.consumed.end;
 
 #if AEM_NFA_THREAD_STATE
 	// In case any stubborn threads insist on matching EOFs instead of

@@ -6,8 +6,8 @@
 #include <aem/enum.h>
 #include <aem/stringslice.h>
 
-
-// TODO: BUG when !AEM_NFA_CAPTURES
+// TODO: Make these three always enabled for aem_nfa_run, and make
+// a second, faster version of aem_nfa_run that doesn't do them.
 #define AEM_NFA_CAPTURES 1
 #define AEM_NFA_TRACING 1
 
@@ -42,11 +42,12 @@ const char *aem_nfa_op_name(enum aem_nfa_op op);
 	def(AEM_NFA_CCLASS_UPPER, upper) \
 	def(AEM_NFA_CCLASS_XDIGIT, xdigit) \
 	/* custom */ \
+	def(AEM_NFA_CCLASS_ANY, any) \
 	def(AEM_NFA_CCLASS_LINE, line) /* for '^', '$', and '.' */
 
 AEM_ENUM_DECLARE(aem_nfa_cclass, AEM_NFA_CCLASS)
 const char *aem_nfa_cclass_name(enum aem_nfa_cclass cclass);
-int aem_nfa_cclass_match(int neg, enum aem_nfa_cclass cclass, int c);
+int aem_nfa_cclass_match(int neg, enum aem_nfa_cclass cclass, uint32_t c);
 
 typedef uint32_t aem_nfa_insn;
 
@@ -75,14 +76,17 @@ struct aem_nfa {
 	size_t alloc_captures;
 #endif
 #if AEM_NFA_TRACING
-	// TODO: We also need to track which match it came from.
 	struct aem_nfa_trace_info *trace_dbg;
 #endif
 
 	aem_nfa_bitfield *thr_init;
 	size_t alloc_bitfields;
+
+	unsigned int n_matches;
 };
 
+#define AEM_NFA_EMPTY ((struct aem_nfa){0})
+// Equivalent to *nfa = AEM_NFA_EMPTY
 struct aem_nfa *aem_nfa_init(struct aem_nfa *nfa);
 void aem_nfa_dtor(struct aem_nfa *nfa);
 struct aem_nfa *aem_nfa_dup(struct aem_nfa *dst, const struct aem_nfa *src);
@@ -97,8 +101,8 @@ void aem_nfa_set_dbg(struct aem_nfa *nfa, size_t i, struct aem_stringslice dbg, 
 #else
 static inline void aem_nfa_set_dbg(struct aem_nfa *nfa, size_t i, struct aem_stringslice dbg, int match) { (void)nfa; (void)i; (void)dbg; }
 #endif
-aem_nfa_insn aem_nfa_insn_range(unsigned int lo, unsigned int hi);
-aem_nfa_insn aem_nfa_insn_char(unsigned int c);
+aem_nfa_insn aem_nfa_insn_range(uint32_t lo, uint32_t hi);
+aem_nfa_insn aem_nfa_insn_char(uint32_t c);
 aem_nfa_insn aem_nfa_insn_class(unsigned int neg, unsigned int front, enum aem_nfa_cclass cclass);
 #if AEM_NFA_CAPTURES
 aem_nfa_insn aem_nfa_insn_capture(unsigned int end, size_t n);

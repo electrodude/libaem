@@ -6,16 +6,16 @@
 #include <aem/regex.h>
 #include <aem/translate.h>
 
-static void test_regex_parse(struct aem_nfa *nfa, const char *pattern, unsigned int match, int rc_expect)
+static void test_regex_compile(struct aem_nfa *nfa, const char *pattern, unsigned int match, int rc_expect)
 {
-	aem_logf_ctx(AEM_LOG_INFO, "regex_parse(\"%s\", %d) expect (%d)", pattern, match, rc_expect);
+	aem_logf_ctx(AEM_LOG_INFO, "regex_compile(\"%s\", %d) expect (%d)", pattern, match, rc_expect);
 
 	struct aem_stringslice in = aem_stringslice_new_cstr(pattern);
-	int rc = aem_regex_parse(nfa, in, match);
+	int rc = aem_regex_compile(nfa, in, match);
 
 	if (rc != rc_expect) {
 		test_errors++;
-		aem_logf_ctx(AEM_LOG_BUG, "regex_parse(\"%s\", %d) returned (%d), expected (%d)!", pattern, match, rc, rc_expect);
+		aem_logf_ctx(AEM_LOG_BUG, "regex_compile(\"%s\", %d) returned (%d), expected (%d)!", pattern, match, rc, rc_expect);
 	}
 }
 
@@ -40,8 +40,10 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 			aem_stringbuf_puts(out, "Captures:");
 			int first = 1;
 			for (size_t i = 0; i < nfa->n_captures; i++) {
+#if 0
 				if (!aem_stringslice_ok(match.captures[i]))
 					continue;
+#endif
 				if (!first)
 					aem_stringbuf_puts(out, ";");
 				aem_stringbuf_printf(out, " %zd: \"", i);
@@ -91,19 +93,18 @@ int main(int argc, char **argv)
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "init");
 
-	struct aem_nfa nfa = {0};
-	aem_nfa_init(&nfa);
+	struct aem_nfa nfa = AEM_NFA_EMPTY;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "construct nfa");
 
-	test_regex_parse(&nfa, "[b\\0a]([a-fP-Z]{6})", 1, 0);
-	test_regex_parse(&nfa, "[^d\\0-ac]([a-fP-Z]{6})", 1, 0);
-	test_regex_parse(&nfa, "[^ba]((:[a-fP-Z]{3}){2})$", 1, 0);
-	//test_regex_parse(&nfa, "", 2, 0);
-	test_regex_parse(&nfa, "(chicken soup)", 2, 0);
-	test_regex_parse(&nfa, "asdf", 3, 0);
-	test_regex_parse(&nfa, ".+efg", 4, 0);
-	test_regex_parse(&nfa, "a+a+b", 5, 0);
+	test_regex_compile(&nfa, "[b\\0a]([a-fP-Z]{6})", 1, 0);
+	test_regex_compile(&nfa, "[^d\\0-ac]([a-fP-Z]{6})", 1, 0);
+	test_regex_compile(&nfa, "[^ba\\ufffff-\\uffffff]((:[a-fP-Z]{3}){2})$", 1, 0);
+	//test_regex_compile(&nfa, "", 2, 0);
+	test_regex_compile(&nfa, "(chicken soup)", 2, 0);
+	test_regex_compile(&nfa, "asdf", 3, 0);
+	test_regex_compile(&nfa, ".+efg", 4, 0);
+	test_regex_compile(&nfa, "a+a+b", 5, 0);
 
 	struct aem_nfa nfa2 = {0};
 	nfa2 = nfa;
@@ -111,25 +112,29 @@ int main(int argc, char **argv)
 
 #if !(AEM_NFA_CAPTURES)
 	// These cause the VM to get stuck in an infinite loop because it thinks just making captures constitutes progress.
-	test_regex_parse(&nfa, "((()+))", 6, 1);
-	test_regex_parse(&nfa, "(()()()(()))+", 7, 1);
+	//test_regex_compile(&nfa, "((()+))", 6, 1);
+	//test_regex_compile(&nfa, "(()()()(()))+", 7, 1);
 #endif
-	test_regex_parse(&nfa, "((a.)+)((.b)+)", 8, 0);
-	aem_nfa_dtor(&nfa2);
+	test_regex_compile(&nfa, "((a.)+)((.b)+)", 8, 0);
+	//test_regex_compile(&nfa, "[^-\\]_a-zA-Z0-9]+!", 9, 0);
 
-	test_regex_parse(&nfa, "pfx(1|(2))*sf?x", 10, 0);
-	test_regex_parse(&nfa, "\\w\\W(\\L|\\d)+", 11, 0);
-	test_regex_parse(&nfa, ".*\\<word\\>.*(\\<begin|end\\>)", 12, 0);
-	test_regex_parse(&nfa, "bound\\w{6}", 13, 0);
-	test_regex_parse(&nfa, "bound\\w{7,}", 14, 0);
-	test_regex_parse(&nfa, "bound\\w{,8}", 15, 0);
-	test_regex_parse(&nfa, "bound\\w{5,9}", 16, 0);
-	test_regex_parse(&nfa, "bound\\w{,}", 17, 0);
+	test_regex_compile(&nfa, "pfx(1|(2))*sf?x", 10, 0);
+	test_regex_compile(&nfa, "\\w\\W(\\L|\\d)+", 11, 0);
+	test_regex_compile(&nfa, ".*\\<word\\>.*(\\<begin|end\\>)", 12, 0);
+	test_regex_compile(&nfa, "bound\\w{6}", 13, 0);
+	test_regex_compile(&nfa, "bound\\w{7,}", 14, 0);
+	test_regex_compile(&nfa, "bound\\w{,8}", 15, 0);
+	test_regex_compile(&nfa, "bound\\w{5,9}", 16, 0);
+	test_regex_compile(&nfa, "bound\\w{,}", 17, 0);
 
 	aem_nfa_optimize(&nfa);
 
 	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
-		aem_stringbuf_puts(out, "NFA VM disassembly:\n");
+		aem_stringbuf_printf(out, "NFA VM disassembly (%zd insns", nfa.n_insns);
+#if AEM_NFA_CAPTURES
+		aem_stringbuf_printf(out, ", %zd captures", nfa.n_captures);
+#endif
+		aem_stringbuf_puts(out, "):\n");
 		aem_nfa_disas(out, &nfa, nfa.thr_init);
 	}
 
@@ -159,10 +164,13 @@ int main(int argc, char **argv)
 	test_nfa_run(&nfa, " word begin", 12, "");
 	test_nfa_run(&nfa, "word 0end ", 12, " ");
 
+	// TODO: Unicode tests
+
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "dtor");
 
 	aem_nfa_dtor(&nfa);
+	aem_nfa_dtor(&nfa2);
 
 	return show_test_results();
 }

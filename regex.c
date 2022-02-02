@@ -188,12 +188,7 @@ struct re_compile_ctx {
 	unsigned int n_captures;
 	unsigned int match;
 
-	// If enabled, input regex text memory must remain valid as long as NFA still has that debug info.
-	// If disabled, optimizations are enabled that may confuse tracing.
-	int debug : 1;
-
-	// If true, only create captures for pairs of () that would otherwise be unnecessary.
-	int explicit_captures : 1;
+	enum aem_regex_flags flags;
 };
 
 static int match_escape(struct re_compile_ctx *ctx, uint32_t *c_p, int *esc_p)
@@ -402,7 +397,7 @@ static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 		}
 		out.end = ctx->in.start;
 
-		if (ctx->explicit_captures && pattern->type == RE_NODE_ALTERNATION)
+		if ((ctx->flags & AEM_REGEX_FLAG_EXPLICIT_CAPTURES) && pattern->type == RE_NODE_ALTERNATION)
 			return pattern;
 
 		struct re_node *capture = re_node_new(RE_NODE_CAPTURE);
@@ -512,7 +507,7 @@ static struct re_node *re_parse_postfix(struct re_compile_ctx *ctx)
 	if (!aem_stringslice_ok(out))
 		return atom;
 
-	if (ctx->explicit_captures && atom->type == RE_NODE_CAPTURE) {
+	if ((ctx->flags & AEM_REGEX_FLAG_EXPLICIT_CAPTURES) && atom->type == RE_NODE_CAPTURE) {
 #if AEM_NFA_CAPTURES
 		const struct re_node_capture capture = atom->args.capture;
 		aem_logf_ctx(AEM_LOG_NOTICE, "Deleting capture %zd/%zd", capture.capture, ctx->n_captures);
@@ -605,7 +600,7 @@ void re_set_debug(struct re_compile_ctx *ctx, size_t i, struct aem_stringslice d
 {
 	aem_assert(ctx);
 
-	if (!ctx->debug)
+	if (!(ctx->flags & AEM_REGEX_FLAG_DEBUG))
 		dbg = AEM_STRINGSLICE_EMPTY;
 
 	aem_nfa_set_dbg(ctx->nfa, i, dbg, ctx->match);
@@ -908,21 +903,16 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 	return entry;
 }
 
-int aem_regex_compile(struct aem_nfa *nfa, struct aem_stringslice re, unsigned int match)
+static int aem_regex_compile(struct re_compile_ctx *ctx)
 {
-	aem_assert(nfa);
+	aem_assert(ctx);
+	aem_assert(ctx->nfa);
 
-	struct re_compile_ctx ctx = {0};
-	ctx.debug = 1; // TODO: Expose this setting
-	ctx.explicit_captures = 0; // TODO: Expose this setting
-	ctx.in = re;
-	ctx.nfa = nfa;
-	ctx.match = match;
-	struct re_node *root = re_parse_pattern(&ctx);
-	if (aem_stringslice_ok(ctx.in)) {
+	struct re_node *root = re_parse_pattern(ctx);
+	if (aem_stringslice_ok(ctx->in)) {
 		AEM_LOG_MULTI(out, AEM_LOG_ERROR) {
 			aem_stringbuf_puts(out, "Garbage after RE: ");
-			aem_string_escape(out, ctx.in);
+			aem_string_escape(out, ctx->in);
 		}
 		re_node_free(root);
 		return 1;
@@ -937,88 +927,107 @@ int aem_regex_compile(struct aem_nfa *nfa, struct aem_stringslice re, unsigned i
 		re_node_sexpr(out, root);
 	}
 
-	size_t n_insns = nfa->n_insns;
-	size_t entry = re_node_compile(&ctx, root);
+	size_t entry = re_node_compile(ctx, root);
 	re_node_free(root);
 
 	if (entry == RE_PARSE_ERROR) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Invalid regex!");
+		return 1;
+	}
+
+	// Mark entry point as such.
+	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
+	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
+
+	return 0;
+}
+
+static int aem_string_compile(struct re_compile_ctx *ctx)
+{
+	aem_assert(ctx);
+	aem_assert(ctx->nfa);
+
+	size_t entry = ctx->nfa->n_insns;
+	for (;;) {
+		uint32_t c;
+		/* TODO
+		int esc;
+		if (!match_escape(ctx, &c, &esc))
+			break;
+		*/
+		struct aem_stringslice atom = aem_stringslice_match_rune(&ctx->in, &c);
+		if (!aem_stringslice_ok(atom))
+			break;
+		aem_assert(atom.end == ctx->in.start);
+		size_t op = aem_nfa_append_insn(ctx->nfa, aem_nfa_insn_char(c));
+		re_set_debug(ctx, op, atom);
+	}
+
+	if (aem_stringslice_ok(ctx->in)) {
+		aem_logf_ctx(AEM_LOG_ERROR, "Invalid UTF-8 sequence?");
+		return 1;
+	}
+
+	// Mark entry point as such.
+	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
+	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
+
+	return 0;
+}
+
+static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, unsigned int match, enum aem_regex_flags flags, int (*compile)(struct re_compile_ctx *ctx))
+{
+	aem_assert(nfa);
+	aem_assert(in);
+	aem_assert(compile);
+
+	if (match == AEM_NFA_MATCH_ALLOC)
+		match = nfa->n_matches;
+
+	struct re_compile_ctx ctx = {0};
+	ctx.in = *in;
+	ctx.nfa = nfa;
+	ctx.match = match;
+	ctx.flags = flags;
+
+	size_t n_insns = nfa->n_insns;
+#if AEM_NFA_CAPTURES
+	size_t n_captures = nfa->n_captures;
+#endif
+
+	int rc = compile(&ctx);
+
+	if (rc) { // Failure
 		// Restore NFA to how it was before we started breaking stuff
 		nfa->n_insns = n_insns;
-		return 1;
+		nfa->n_captures = n_captures;
+		return rc;
 	}
 
 #if AEM_NFA_CAPTURES
 	// Make sure every thread allocates as many captures as any thread will ever need.
-	if (ctx.n_captures > nfa->n_captures)
-		nfa->n_captures = ctx.n_captures;
+	if (ctx.n_captures > ctx.nfa->n_captures)
+		ctx.nfa->n_captures = ctx.n_captures;
 #endif
 
 	// If we get to the end, record a match and save
 	// the complete regex in the MATCH instruction.
-	size_t last = aem_nfa_append_insn(nfa, aem_nfa_insn_match(ctx.match));
-	re_set_debug(&ctx, last, re);
+	size_t last = aem_nfa_append_insn(ctx.nfa, aem_nfa_insn_match(ctx.match));
+	re_set_debug(&ctx, last, *in);
 
-	// Mark entry point as such.
-	nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
+	if (ctx.nfa->n_matches < match + 1)
+		ctx.nfa->n_matches = match + 1;
 
-	return 0;
-}
-
-int aem_nfa_add_regex(struct aem_nfa *nfa, struct aem_stringslice re)
-{
-	aem_assert(nfa);
-
-	unsigned int match = nfa->n_matches;
-
-	int rc = aem_regex_compile(nfa, re, match);
-
-	if (!rc)
-		nfa->n_matches++;
+	*in = ctx.in;
 
 	return rc;
 }
 
-int aem_nfa_add_string(struct aem_nfa *nfa, struct aem_stringslice str)
+int aem_nfa_add_regex(struct aem_nfa *nfa, struct aem_stringslice re, unsigned int match, enum aem_regex_flags flags)
 {
-	aem_assert(nfa);
-
-	unsigned int match = nfa->n_matches;
-
-	struct re_compile_ctx ctx = {0};
-	ctx.debug = 1; // TODO: Expose this setting
-	ctx.explicit_captures = 0; // TODO: Expose this setting
-	ctx.in = str;
-	ctx.nfa = nfa;
-	ctx.match = match;
-
-	size_t entry = nfa->n_insns;
-	for (;;) {
-		uint32_t c;
-		struct aem_stringslice atom = aem_stringslice_match_rune(&ctx.in, &c);
-		if (!aem_stringslice_ok(atom))
-			break;
-		aem_assert(atom.end == ctx.in.start);
-		size_t op = aem_nfa_append_insn(nfa, aem_nfa_insn_char(c));
-		re_set_debug(&ctx, op, atom);
-	}
-
-	if (aem_stringslice_ok(ctx.in)) {
-		aem_logf_ctx(AEM_LOG_ERROR, "Invalid UTF-8 sequence?");
-		// Restore NFA to how it was before we started breaking stuff
-		nfa->n_insns = entry;
-		return 1;
-	}
-
-	// If we get to the end, record a match and save
-	// the complete regex in the MATCH instruction.
-	size_t last = aem_nfa_append_insn(nfa, aem_nfa_insn_match(ctx.match));
-	re_set_debug(&ctx, last, str);
-
-	// Mark entry point as such.
-	nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
-
-	nfa->n_matches++;
-
-	return 0;
+	return aem_nfa_add(nfa, &re, match, flags, aem_regex_compile);
+}
+int aem_nfa_add_string(struct aem_nfa *nfa, struct aem_stringslice str, unsigned int match, enum aem_regex_flags flags)
+{
+	return aem_nfa_add(nfa, &str, match, flags, aem_string_compile);
 }

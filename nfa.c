@@ -289,7 +289,7 @@ aem_nfa_insn aem_nfa_insn_capture(unsigned int end, size_t n)
 }
 #endif
 
-aem_nfa_insn aem_nfa_insn_match(unsigned int match)
+aem_nfa_insn aem_nfa_insn_match(int match)
 {
 	return aem_nfa_mk_insn(AEM_NFA_MATCH, match);
 }
@@ -494,26 +494,8 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 	for (size_t n = nfa->n_insns; n; n /= 16)
 		pc_width++;
 
-	unsigned int max_match = 0;
-	for (size_t pc = 0; pc < nfa->n_insns; pc++) {
-		// Decode instruction
-		aem_nfa_insn insn = nfa->pgm[pc];
-		enum aem_nfa_op op = insn & ((1 << AEM_NFA_OP_LEN) - 1);
-		insn >>= AEM_NFA_OP_LEN;
-
-		switch (op) {
-		case AEM_NFA_MATCH:
-			if (insn > max_match)
-				max_match = insn;
-			break;
-		default:
-			// do nothing
-			break;
-		}
-	}
-
 	unsigned int match_width = 0;
-	for (size_t n = max_match; n; n /= 10)
+	for (int n = nfa->n_matches; n > 0; n /= 10)
 		match_width++;
 
 #if 0

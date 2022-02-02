@@ -82,7 +82,7 @@ struct aem_nfa {
 	aem_nfa_bitfield *thr_init;
 	size_t alloc_bitfields;
 
-	unsigned int n_matches;
+	int n_matches;
 };
 
 #define AEM_NFA_EMPTY ((struct aem_nfa){0})
@@ -107,7 +107,7 @@ aem_nfa_insn aem_nfa_insn_class(unsigned int neg, unsigned int front, enum aem_n
 #if AEM_NFA_CAPTURES
 aem_nfa_insn aem_nfa_insn_capture(unsigned int end, size_t n);
 #endif
-aem_nfa_insn aem_nfa_insn_match(unsigned int match);
+aem_nfa_insn aem_nfa_insn_match(int match);
 aem_nfa_insn aem_nfa_insn_jmp(size_t pc);
 aem_nfa_insn aem_nfa_insn_fork(size_t pc);
 

@@ -186,7 +186,7 @@ struct re_compile_ctx {
 	struct aem_stringslice in;
 	struct aem_nfa *nfa;
 	unsigned int n_captures;
-	unsigned int match;
+	int match;
 
 	enum aem_regex_flags flags;
 };
@@ -975,13 +975,13 @@ static int aem_string_compile(struct re_compile_ctx *ctx)
 	return 0;
 }
 
-static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, unsigned int match, enum aem_regex_flags flags, int (*compile)(struct re_compile_ctx *ctx))
+static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, enum aem_regex_flags flags, int (*compile)(struct re_compile_ctx *ctx))
 {
 	aem_assert(nfa);
 	aem_assert(in);
 	aem_assert(compile);
 
-	if (match == AEM_NFA_MATCH_ALLOC)
+	if (match < 0)
 		match = nfa->n_matches;
 
 	struct re_compile_ctx ctx = {0};
@@ -1023,11 +1023,11 @@ static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, unsigned
 	return rc;
 }
 
-int aem_nfa_add_regex(struct aem_nfa *nfa, struct aem_stringslice re, unsigned int match, enum aem_regex_flags flags)
+int aem_nfa_add_regex(struct aem_nfa *nfa, struct aem_stringslice re, int match, enum aem_regex_flags flags)
 {
 	return aem_nfa_add(nfa, &re, match, flags, aem_regex_compile);
 }
-int aem_nfa_add_string(struct aem_nfa *nfa, struct aem_stringslice str, unsigned int match, enum aem_regex_flags flags)
+int aem_nfa_add_string(struct aem_nfa *nfa, struct aem_stringslice str, int match, enum aem_regex_flags flags)
 {
 	return aem_nfa_add(nfa, &str, match, flags, aem_string_compile);
 }

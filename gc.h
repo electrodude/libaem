@@ -82,8 +82,10 @@ void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 
 #define AEM_GC_GET_OBJ(_tp, _obj) struct _tp *_obj = aem_container_of(obj, struct _tp, gc);
 
+#define AEM_GC_VTBL_DECL(_tp) struct aem_gc_vtbl _tp##_vtbl
+
 #define AEM_GC_VTBL_INST(_tp)     \
-struct aem_gc_vtbl _tp##_vtbl = { \
+AEM_GC_VTBL_DECL(_tp) = { \
 	.name = #_tp,             \
 	.free = _tp##_gc_free,       \
 	.dtor = _tp##_gc_dtor,       \

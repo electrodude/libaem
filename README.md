@@ -16,6 +16,7 @@ AEM's personal C library
 * `aem_iter_gen`: graph iterator helper
 
 * `aem_gc`: simple mark/sweep garbage collector
+* `aem_pmcrcu`: Single-threaded implementations of `call_rcu`, `synchronize_rcu`, and `rcu_barrier`
 * `aem_module`: Dynamic module loader
 
 

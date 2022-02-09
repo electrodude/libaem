@@ -7,7 +7,7 @@
 #include <aem/compiler.h>
 #include <aem/log.h>
 #include <aem/net.h>
-#include <aem/pmcrcu.h>
+#include <aem/rcu.h>
 #include <aem/streams.h>
 #include <aem/translate.h>
 

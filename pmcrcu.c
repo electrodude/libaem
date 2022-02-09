@@ -32,7 +32,7 @@ void aem_pmcrcu_call_rcu(struct aem_pmcrcu_rcu_head *head,
 	aem_pmcrcu_head = head;
 }
 
-int aem_pmcrcu_process_one_callback(void)
+static int aem_pmcrcu_process_one_callback(void)
 {
 	struct aem_pmcrcu_rcu_head *head = aem_pmcrcu_head;
 	if (!head)

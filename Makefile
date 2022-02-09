@@ -22,6 +22,12 @@ TEST_PROG_PFX=gdb
 endif
 endif
 
+ifeq (${RCU_IMPL},urcu)
+CFLAGS+=$(shell pkg-config --cflags --static liburcu)
+LDFLAGS+=$(shell pkg-config --libs --static liburcu)
+CFLAGS+=-DAEM_HAVE_URCU
+endif
+
 CFLAGS+=-std=c99 -fPIC -fno-strict-aliasing -Wall -Wextra -Wwrite-strings -Werror-implicit-function-declaration
 LDFLAGS+=-ldl -rdynamic
 

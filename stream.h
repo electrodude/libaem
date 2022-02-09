@@ -1,7 +1,7 @@
 #ifndef AEM_STREAM_H
 #define AEM_STREAM_H
 
-#include <aem/pmcrcu.h>
+#include <aem/rcu.h>
 #include <aem/stringbuf.h>
 #include <aem/stringslice.h>
 

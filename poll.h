@@ -38,9 +38,8 @@ struct aem_poll_event {
 	 * context, and use `aem_container_of` to find the parent object.
 	 *
 	 * This callback *must not* free the memory containing `evt` while
-	 * `aem_poll_poll(p)` is active.  Use <aem/pmcrcu.h> or a real RCU
-	 * implementation to ensure object freeing is postponed to occur
-	 * outside of `aem_poll_poll`.
+	 * `aem_poll_poll(p)` is active.  Use RCU (e.g. <aem/rcu.h>) to ensure
+	 * object freeing is postponed to occur outside of `aem_poll_poll`.
 	 */
 	void (*on_event)(struct aem_poll *p, struct aem_poll_event *evt);
 	ssize_t i;

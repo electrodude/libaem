@@ -1,21 +1,33 @@
 CC=gcc
-LD=gcc
 AR=ar rcu
 RANLIB=ranlib
 
-#TEST_PROG_PFX=valgrind -q
-
-CFLAGS+=-std=c99 -fPIC -Wall -Wextra
-LDFLAGS+=
-LDFLAGS+=-ldl -rdynamic
-
+ifeq (${DEBUG},)
 CFLAGS+=-O3
-LDFLAGS+=-O3
-#CFLAGS+=-Og -g -DAEM_DEBUG -DAEM_BREAK_ON_ABORT -DAEM_BREAK_ON_BUG
-#LDFLAGS+=-g
+else
+CFLAGS+=-g -Og -DAEM_DEBUG -DAEM_BREAK_ON_ABORT
+#CFLAGS+=-DAEM_BREAK_ON_BUG
+LDFLAGS+=-g
+ifeq (${DEBUG},asan)
+CFLAGS+=-fsanitize=address -fno-omit-frame-pointer
+LDFLAGS+=-lasan
+endif
+ifeq (${DEBUG},valgrind)
+CFLAGS+=-DVALGRIND
+TEST_PROG_PFX=valgrind -q
+#TEST_PROG_PFX=valgrind -q --leak-check=full --show-leak-kinds=all
+endif
+ifeq (${DEBUG},gdb)
+TEST_PROG_PFX=gdb
+endif
+endif
+
+CFLAGS+=-std=c99 -fPIC -fno-strict-aliasing -Wall -Wextra -Wwrite-strings -Werror-implicit-function-declaration
+LDFLAGS+=-ldl -rdynamic
 
 CFLAGS+=-I./test/
 
+# Anything that isn't Windows is Unix
 ifeq (,$(findstring Windows,${OS}))
         HOST_SYS:=$(shell uname -s)
 else
@@ -36,8 +48,9 @@ OBJECTS_LIBAEM_TEST=$(patsubst %.c,%.o,${SOURCES_LIBAEM_TEST})
 
 DEPDIR=.deps
 DEPFLAGS=-MD -MP -MF ${DEPDIR}/$(subst /,--,$*).d
+$(shell mkdir -p ${DEPDIR})
 
-all:	libaem.a
+all: libaem.a
 
 TESTS=test_utf8 \
       test_module \
@@ -53,33 +66,29 @@ TEST_PROGS=${TESTS} childproc_child
 test_childproc:	test/bin/childproc_child
 test_module: 	test/lib/module_empty.so test/lib/module_failreg.so test/lib/module_test.so test/lib/module_test_singleton.so
 
-$(shell mkdir -p ${DEPDIR})
 $(shell mkdir -p test/bin test/lib)
 
-test:	${TESTS}
+test: ${TESTS}
 
-test/bin/%:	test/%.o test/test_common.o libaem.a
-	${LD} $^ ${LDFLAGS} -o $@
+test/bin/%: test/%.o test/test_common.o libaem.a
+	${CC} $^ ${LDFLAGS} -o $@
 
-test/lib/%.so:	test/%.o test/test_common.o libaem.a
-	${LD} -shared $^ ${LDFLAGS} -o $@
+test/lib/%.so: test/%.o test/test_common.o libaem.a
+	${CC} -shared $^ ${LDFLAGS} -o $@
 
-test_%:	test/bin/%
+test_%: test/bin/%
 	cd test && ${TEST_PROG_PFX} ./bin/$*
 
 clean:
-	rm -vf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o test/bin/* test/lib/* ${DEPDIR}/*.d
+	rm -rvf ${OBJECTS_LIBAEM} ${OBJECTS_LIBAEM_TEST} libaem.a test/*.o test/bin test/lib ${DEPDIR}
 
-libaem.a:	${OBJECTS_LIBAEM}
+libaem.a: ${OBJECTS_LIBAEM}
 	${AR} $@ $^
 	${RANLIB} $@
 
-%.o:	%.c
-	${CC} ${CFLAGS} ${DEPFLAGS} -c $< -o $@
+%.o: %.c
+	${CC} ${CFLAGS} ${DEPFLAGS} -o $@ -c $<
 
-.PHONY:	all test clean
+.PHONY: all test clean
 
 include $(wildcard ${DEPDIR}/*.d)
-include $(wildcard ${DEPDIR}/test/*.d)
-
-# vim: set ts=16 :

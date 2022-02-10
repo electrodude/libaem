@@ -1,6 +1,10 @@
 #ifndef AEM_H
 #define AEM_H
 
+#ifdef __GNUC__
+#define AEM_CONFIG_HAVE_STMT_EXPR
+#endif
+
 #ifdef AEM_DEBUG
 // Debug mode
 

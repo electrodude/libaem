@@ -101,7 +101,8 @@ static inline int aem_stringslice_read_data(struct aem_stringslice *slice, void 
 
 	return 0;
 }
-#define AEM_STRINGSLICE_RD_TYPE(slice, T) ({ \
+// TODO #ifdef AEM_CONFIG_HAVE_STMT_EXPR
+#define AEM_STRINGSLICE_RD_TYPE(slice, T) __extension__({ \
 	T out; \
 	aem_stringslice_read_data(slice, &out, sizeof(out)); \
 	out; \

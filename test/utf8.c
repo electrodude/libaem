@@ -32,8 +32,8 @@ int main(int argc, char **argv)
 		uint32_t c = hash(i);
 		aem_logf_ctx(AEM_LOG_DEBUG2, "%zd: put %08x", i, c);
 		size_t n = str.n;
-		if (aem_stringbuf_put(&str, c)) {
-			aem_logf_ctx(AEM_LOG_BUG, "aem_stringbuf_put: couldn't put %u", c);
+		if (aem_stringbuf_put_rune(&str, c)) {
+			aem_logf_ctx(AEM_LOG_BUG, "aem_stringbuf_put_rune: couldn't put %u", c);
 			return 1;
 		}
 		struct aem_stringslice rune1 = {.start = &str .s[n ], .end = &str .s[str .n]};

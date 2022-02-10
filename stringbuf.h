@@ -130,7 +130,8 @@ static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c);
 
 // Append a UTF-8 rune
 // Implementation in utf8.c
-int aem_stringbuf_put(struct aem_stringbuf *str, uint32_t c);
+#define aem_stringbuf_put aem_stringbuf_put_rune
+int aem_stringbuf_put_rune(struct aem_stringbuf *str, uint32_t c);
 
 // Append a null-terminated string
 static inline void aem_stringbuf_puts(struct aem_stringbuf *str, const char *s);

@@ -10,6 +10,8 @@
 #include <aem/log.h>
 #endif
 
+#include "utf8.h"
+
 /*
 Functions to read and write UTF-8 codepoints (runes)
 
@@ -52,33 +54,29 @@ proposal only covers 31.
 not a Tx byte.
 */
 
-// gcc-11.2.0 -O3 compiles away this table for both aem_stringbuf_put
+// gcc-11.2.0 -O3 compiles away this table for both aem_stringbuf_put_rune
 // and aem_stringslice_get_rune, but clang-13 -O3 doesn't.
-static const struct utf8_info {
-	uint32_t max;
-	unsigned char top;
-	unsigned char mask;
-} utf8_info[] = {
-	{.max = 0x0000080, .top = 0x00, .mask = 0x7f},
-	{.max = 0x0000800, .top = 0xc0, .mask = 0x1f},
-	{.max = 0x0010000, .top = 0xe0, .mask = 0x0f},
-	{.max = 0x0200000, .top = 0xf0, .mask = 0x07},
-	{.max = 0x4000000, .top = 0xf8, .mask = 0x03},
-	{.max =         0, .top = 0xfc, .mask = 0x03},
+const struct aem_utf8_info aem_utf8_info[AEM_UTF8_INFO_LEN] = {
+	{.max = 0x0000007F, .top = 0x00, .mask = 0x7f},
+	{.max = 0x000007FF, .top = 0xc0, .mask = 0x1f},
+	{.max = 0x0000FFFF, .top = 0xe0, .mask = 0x0f},
+	{.max = 0x001FFFFF, .top = 0xf0, .mask = 0x07},
+	{.max = 0x03FFFFFF, .top = 0xf8, .mask = 0x03},
+	{.max = 0xFFFFFFFF, .top = 0xfc, .mask = 0x03},
 };
-#define MAX_LEN (sizeof(utf8_info)/sizeof(utf8_info[0]))
-int aem_stringbuf_put(struct aem_stringbuf *str, uint32_t c)
+
+int aem_stringbuf_put_rune(struct aem_stringbuf *str, uint32_t c)
 {
 	// Find relevant table row
 	size_t len;
-	for (len = 0; len < MAX_LEN-1; len++)
-		if (c < utf8_info[len].max)
+	for (len = 0; len < AEM_UTF8_INFO_LEN-1; len++)
+		if (c <= aem_utf8_info[len].max)
 			break;
 
-	aem_assert(len < MAX_LEN);
+	aem_assert(len < AEM_UTF8_INFO_LEN);
 
 	// Do first byte according to table
-	const struct utf8_info *info = &utf8_info[len];
+	const struct aem_utf8_info *info = &aem_utf8_info[len];
 	size_t shift = len*6;
 	aem_stringbuf_putc(str, info->top | ((c >> shift) & info->mask));
 
@@ -106,13 +104,13 @@ int aem_stringslice_get_rune(struct aem_stringslice *slice, uint32_t *out_p)
 	aem_assert(c0 < 0x100);
 
 	size_t len;
-	for (len = 0; len < MAX_LEN; len++) {
-		const struct utf8_info *info = &utf8_info[len];
+	for (len = 0; len < AEM_UTF8_INFO_LEN; len++) {
+		const struct aem_utf8_info *info = &aem_utf8_info[len];
 		if ((c & ~info->mask) == info->top)
 			break;
 	}
 
-	if (len >= MAX_LEN) {
+	if (len >= AEM_UTF8_INFO_LEN) {
 #if AEM_DEBUG_UTF8
 		aem_logf_ctx(AEM_LOG_DEBUG, "Unexpected byte 0x%02x", c);
 #endif
@@ -120,9 +118,9 @@ int aem_stringslice_get_rune(struct aem_stringslice *slice, uint32_t *out_p)
 		return 0;
 	}
 
-	aem_assert(len < MAX_LEN);
+	aem_assert(len < AEM_UTF8_INFO_LEN);
 
-	c &= utf8_info[len].mask;
+	c &= aem_utf8_info[len].mask;
 
 	// Get continuation bytes
 	for (size_t i = 0; i < len; i++) {

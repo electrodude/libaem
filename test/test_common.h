@@ -1,6 +1,8 @@
 #ifndef AEM_TEST_COMMON_H
 #define AEM_TEST_COMMON_H
 
+#include <errno.h>
+#include <string.h>
 #include <time.h>
 
 #include <aem/log.h>
@@ -18,6 +20,8 @@ extern int test_errors;
 
 int ss_eq(struct aem_stringslice s1, struct aem_stringslice s2);
 void debug_slice(struct aem_stringbuf *out, struct aem_stringslice in);
+
+void test_init(int argc, char **argv);
 
 int show_test_results_impl(const char *file, int line, const char *func);
 #define show_test_results() show_test_results_impl(__FILE__, __LINE__, __func__)

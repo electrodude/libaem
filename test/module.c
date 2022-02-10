@@ -197,9 +197,10 @@ static void test_module_unload(const char *name, int rc_expect)
 
 int main(int argc, char **argv)
 {
-	aem_log_stderr();
 	aem_log_module_default.loglevel = AEM_LOG_FATAL;
 	aem_log_module_default_internal.loglevel = AEM_LOG_FATAL;
+
+	test_init(argc, argv);
 
 	struct aem_log_module logmodule_modules = {.loglevel = AEM_LOG_DEBUG};
 	aem_module_logmodule = &logmodule_modules;

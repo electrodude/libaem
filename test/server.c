@@ -205,7 +205,7 @@ void usage(const char *cmd)
 
 int main(int argc, char **argv)
 {
-	aem_log_stderr();
+	test_init(argc, argv);
 
 	const char *bind_path = "localhost";
 	const char *service = "12345";

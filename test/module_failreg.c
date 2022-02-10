@@ -6,6 +6,7 @@ struct aem_log_module module_failreg_log_module = {.loglevel = AEM_LOG_NOTICE};
 
 static int module_failreg_register(struct aem_module *mod, struct aem_stringslice args)
 {
+	(void)args;
 	mod->logmodule = &module_failreg_log_module;
 
 	aem_logf_ctx(AEM_LOG_ERROR, "My register method always fails!");

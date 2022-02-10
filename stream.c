@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
 #define AEM_INTERNAL
-#include <aem/compiler.h>
 #include <aem/log.h>
+#include <aem/memory.h>
 
 #include "stream.h"
 

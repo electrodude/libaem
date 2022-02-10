@@ -5,6 +5,7 @@
 #define AEM_INTERNAL
 #include <aem/ansi-term.h>
 #include <aem/log.h>
+#include <aem/memory.h>
 #include <aem/nfa-util.h>
 // for AEM_NFA_THREAD_STATE
 #include <aem/stack.h>
@@ -15,23 +16,6 @@
 #include "nfa.h"
 
 /// Helpers
-#define AEM_ARRAY_RESIZE(arr, alloc) \
-	do { \
-		__typeof__(arr) _arr_new = realloc((arr), (alloc) * sizeof *(arr)); \
-		aem_assert(_arr_new); \
-		(arr) = _arr_new; \
-	} while (0)
-#define AEM_ARRAY_GROW(arr, nr, alloc) \
-	do { \
-		if ((nr) > (alloc)) { \
-			size_t _alloc_new = (alloc)*2; \
-			if (_alloc_new < (nr)) \
-				_alloc_new = (nr)+1; \
-			AEM_ARRAY_RESIZE(arr, _alloc_new); \
-			(alloc) = _alloc_new; \
-		} \
-	} while (0)
-
 static void bitfield_set(aem_nfa_bitfield *bf, size_t i)
 {
 	aem_assert(bf);
@@ -142,7 +126,7 @@ struct aem_nfa *aem_nfa_dup(struct aem_nfa *dst, const struct aem_nfa *src)
 
 	dst->n_insns = src->n_insns;
 	dst->alloc_insns = src->alloc_insns;
-	AEM_ARRAY_RESIZE(dst->pgm, dst->alloc_insns);
+	aem_assert(!AEM_ARRAY_RESIZE(dst->pgm, dst->alloc_insns));
 	for (size_t i = 0; i < dst->alloc_insns; i++) {
 		dst->pgm[i] = src->pgm[i];
 	}
@@ -150,20 +134,20 @@ struct aem_nfa *aem_nfa_dup(struct aem_nfa *dst, const struct aem_nfa *src)
 #if AEM_NFA_CAPTURES
 	dst->n_captures = src->n_captures;
 	dst->alloc_captures = src->alloc_captures;
-	AEM_ARRAY_RESIZE(dst->capture_owners, dst->alloc_captures);
+	aem_assert(!AEM_ARRAY_RESIZE(dst->capture_owners, dst->alloc_captures));
 	for (size_t i = 0; i < dst->alloc_captures; i++) {
 		dst->capture_owners[i] = src->capture_owners[i];
 	}
 #endif
 
 	dst->alloc_bitfields = src->alloc_bitfields;
-	AEM_ARRAY_RESIZE(dst->thr_init, dst->alloc_bitfields);
+	aem_assert(!AEM_ARRAY_RESIZE(dst->thr_init, dst->alloc_bitfields));
 	for (size_t i = 0; i < dst->alloc_bitfields; i++) {
 		dst->thr_init[i] = src->thr_init[i];
 	}
 
 #if AEM_NFA_TRACING
-	AEM_ARRAY_RESIZE(dst->trace_dbg, dst->alloc_insns);
+	aem_assert(!AEM_ARRAY_RESIZE(dst->trace_dbg, dst->alloc_insns));
 	for (size_t i = 0; i < dst->alloc_insns; i++) {
 		dst->trace_dbg[i] = src->trace_dbg[i];
 	}
@@ -180,19 +164,18 @@ size_t aem_nfa_put_insn(struct aem_nfa *nfa, size_t i, aem_nfa_insn insn)
 	if (i+1 >= nfa->n_insns) {
 		nfa->n_insns = i+1;
 		size_t alloc_insns = nfa->alloc_insns;
-		AEM_ARRAY_GROW(nfa->pgm, nfa->n_insns, nfa->alloc_insns);
-		for (size_t i = nfa->alloc_insns; i < alloc_insns; i++) {
+		int rc = AEM_ARRAY_GROW(nfa->pgm, nfa->n_insns, nfa->alloc_insns);
+		aem_assert(rc >= 0);
+#if AEM_NFA_TRACING
+		if (rc)
+			aem_assert(!AEM_ARRAY_RESIZE(nfa->trace_dbg, nfa->alloc_insns));
+#endif
+		for (size_t i = alloc_insns; i < nfa->alloc_insns; i++) {
 			nfa->pgm[i] = aem_nfa_insn_match(-1);
 #if AEM_NFA_TRACING
 			nfa->trace_dbg[i] = (struct aem_nfa_trace_info){.where = AEM_STRINGSLICE_EMPTY, .match = -1};
 #endif
 		}
-#if AEM_NFA_TRACING
-		if (alloc_insns != nfa->alloc_insns)
-			AEM_ARRAY_RESIZE(nfa->trace_dbg, nfa->alloc_insns);
-#else
-		(void)alloc_insns;
-#endif
 
 		// Resize bitfields
 		size_t list_32 = (nfa->n_insns + 31) >> 5;
@@ -200,7 +183,7 @@ size_t aem_nfa_put_insn(struct aem_nfa *nfa, size_t i, aem_nfa_insn insn)
 			size_t alloc_new = nfa->alloc_bitfields*2;
 			if (alloc_new < list_32)
 				alloc_new = list_32+1;
-			AEM_ARRAY_RESIZE(nfa->thr_init, alloc_new);
+			aem_assert(!AEM_ARRAY_RESIZE(nfa->thr_init, alloc_new));
 			for (size_t i = nfa->alloc_bitfields; i < alloc_new; i++) {
 				nfa->thr_init[i] = 0;
 			}

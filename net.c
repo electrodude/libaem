@@ -10,8 +10,8 @@
 #include <unistd.h>
 
 #define AEM_INTERNAL
-#include <aem/compiler.h>
 #include <aem/log.h>
+#include <aem/memory.h>
 #include <aem/unix.h>
 
 #ifdef POLLRDHUP

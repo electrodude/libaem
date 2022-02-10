@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include <aem/compiler.h>
 #include <aem/log.h>
+#include <aem/memory.h>
 #include <aem/net.h>
 #include <aem/rcu.h>
 #include <aem/streams.h>

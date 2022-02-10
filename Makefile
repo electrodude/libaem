@@ -40,7 +40,7 @@ else
         HOST_SYS=Windows
 endif
 
-SOURCES_LIBAEM=stringbuf.c stringslice.c utf8.c stack.c translate.c ansi-term.c pathutil.c registry.c regex.c nfa.c nfa-util.c stream.c streams.c pmcrcu.c log.c module.c gc.c
+SOURCES_LIBAEM=memory.c stringbuf.c stringslice.c utf8.c stack.c translate.c ansi-term.c pathutil.c registry.c regex.c nfa.c nfa-util.c stream.c streams.c pmcrcu.c log.c module.c gc.c
 ifeq (${HOST_SYS},Windows)
 SOURCES_LIBAEM+=serial.windows.c
 else

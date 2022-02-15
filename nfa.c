@@ -75,30 +75,6 @@ int aem_nfa_cclass_match(int neg, enum aem_nfa_cclass cclass, uint32_t c)
 
 
 /// NFA definition
-struct aem_nfa *aem_nfa_init(struct aem_nfa *nfa)
-{
-	aem_assert(nfa);
-
-	nfa->pgm = NULL;
-	nfa->n_insns = 0;
-	nfa->alloc_insns = 0;
-
-#if AEM_NFA_CAPTURES
-	nfa->n_captures = 0;
-#endif
-
-#if AEM_NFA_TRACING
-	nfa->trace_dbg = NULL;
-#endif
-
-	nfa->thr_init = NULL;
-	nfa->alloc_bitfields = 0;
-
-	nfa->n_matches = 0;
-
-	return nfa;
-}
-
 void aem_nfa_dtor(struct aem_nfa *nfa)
 {
 	if (!nfa)

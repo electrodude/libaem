@@ -84,8 +84,11 @@ struct aem_nfa {
 };
 
 #define AEM_NFA_EMPTY ((struct aem_nfa){0})
-// Equivalent to *nfa = AEM_NFA_EMPTY
-struct aem_nfa *aem_nfa_init(struct aem_nfa *nfa);
+static inline struct aem_nfa *aem_nfa_init(struct aem_nfa *nfa)
+{
+	*nfa = AEM_NFA_EMPTY;
+	return nfa;
+}
 void aem_nfa_dtor(struct aem_nfa *nfa);
 struct aem_nfa *aem_nfa_dup(struct aem_nfa *dst, const struct aem_nfa *src);
 

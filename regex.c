@@ -588,8 +588,17 @@ static struct re_node *re_parse_pattern(struct re_compile_ctx *ctx)
 	node->text = out;
 	re_node_push(node, branch);
 
-	struct re_node *rest = re_parse_pattern(ctx);
-	re_node_push(node, rest);
+	if (ctx->flags & AEM_REGEX_FLAG_DEBUG) {
+		// Better debug traces
+		struct re_node *rest = re_parse_pattern(ctx);
+		re_node_push(node, rest);
+	} else {
+		// Infinitesimally faster compilation
+		do {
+			struct re_node *rest = re_parse_branch(ctx);
+			re_node_push(node, rest);
+		} while (aem_stringslice_match(&ctx->in, "|"));
+	}
 
 	return node;
 }
@@ -607,7 +616,7 @@ void re_set_debug(struct re_compile_ctx *ctx, size_t i, struct aem_stringslice d
 }
 
 static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node);
-static size_t re_node_gen_alternation(struct re_compile_ctx *ctx, struct re_node *node)
+static size_t re_node_gen_alternation(struct re_compile_ctx *ctx, const struct re_node *node)
 {
 	aem_assert(ctx);
 	struct aem_nfa *nfa = ctx->nfa;
@@ -867,32 +876,7 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 		break;
 	}
 	case RE_NODE_ALTERNATION: {
-#if 0
-		re_node_gen_alternation(nfa, node);
-#else
-		aem_assert(node->children.n == 2);
-
-		size_t fork = aem_nfa_append_insn(nfa, aem_nfa_insn_fork(0-0));
-
-		struct re_node *child0 = node->children.s[0];
-		aem_assert(child0);
-		size_t left = re_node_compile(ctx, child0);
-		if (left == RE_PARSE_ERROR)
-			return RE_PARSE_ERROR;
-
-		size_t jmp = aem_nfa_append_insn(nfa, aem_nfa_insn_jmp(0-0));
-		aem_nfa_put_insn(nfa, fork, aem_nfa_insn_fork(nfa->n_insns));
-		re_set_debug(ctx, fork, node->text);
-
-		struct re_node *child1 = node->children.s[1];
-		aem_assert(child1);
-		size_t right = re_node_compile(ctx, child1);
-		if (right == RE_PARSE_ERROR)
-			return RE_PARSE_ERROR;
-
-		aem_nfa_put_insn(nfa, jmp, aem_nfa_insn_jmp(nfa->n_insns));
-		re_set_debug(ctx, jmp, node->text);
-#endif
+		re_node_gen_alternation(ctx, node);
 		break;
 	}
 	default:

@@ -80,13 +80,11 @@ struct aem_nfa *aem_nfa_init(struct aem_nfa *nfa)
 	aem_assert(nfa);
 
 	nfa->pgm = NULL;
-	nfa->capture_owners = NULL;
 	nfa->n_insns = 0;
 	nfa->alloc_insns = 0;
 
 #if AEM_NFA_CAPTURES
 	nfa->n_captures = 0;
-	nfa->alloc_captures = 0;
 #endif
 
 #if AEM_NFA_TRACING
@@ -107,7 +105,6 @@ void aem_nfa_dtor(struct aem_nfa *nfa)
 		return;
 
 	free(nfa->pgm);
-	free(nfa->capture_owners);
 	free(nfa->thr_init);
 #if AEM_NFA_TRACING
 	free(nfa->trace_dbg);
@@ -133,11 +130,6 @@ struct aem_nfa *aem_nfa_dup(struct aem_nfa *dst, const struct aem_nfa *src)
 
 #if AEM_NFA_CAPTURES
 	dst->n_captures = src->n_captures;
-	dst->alloc_captures = src->alloc_captures;
-	aem_assert(!AEM_ARRAY_RESIZE(dst->capture_owners, dst->alloc_captures));
-	for (size_t i = 0; i < dst->alloc_captures; i++) {
-		dst->capture_owners[i] = src->capture_owners[i];
-	}
 #endif
 
 	dst->alloc_bitfields = src->alloc_bitfields;
@@ -286,14 +278,6 @@ aem_nfa_insn aem_nfa_insn_fork(size_t pc)
 {
 	return aem_nfa_mk_insn(AEM_NFA_FORK, pc);
 }
-
-#if AEM_NFA_CAPTURES
-size_t aem_nfa_new_capture(struct aem_nfa *nfa, int owner)
-{
-	// TODO: do something with owner
-	return nfa->n_captures++;
-}
-#endif
 
 static void aem_nfa_mark_reachable(const struct aem_nfa *nfa, aem_nfa_bitfield *reachable, size_t pc)
 {

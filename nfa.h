@@ -67,13 +67,11 @@ struct aem_nfa_trace_info {
 #endif
 struct aem_nfa {
 	aem_nfa_insn *pgm;
-	int *capture_owners; // TODO: This is unnecessary, since every match can have its own capture namespace.
 	size_t n_insns;
 	size_t alloc_insns;
 
 #if AEM_NFA_CAPTURES
 	size_t n_captures;
-	size_t alloc_captures;
 #endif
 #if AEM_NFA_TRACING
 	struct aem_nfa_trace_info *trace_dbg;
@@ -110,10 +108,6 @@ aem_nfa_insn aem_nfa_insn_capture(unsigned int end, size_t n);
 aem_nfa_insn aem_nfa_insn_match(int match);
 aem_nfa_insn aem_nfa_insn_jmp(size_t pc);
 aem_nfa_insn aem_nfa_insn_fork(size_t pc);
-
-#if AEM_NFA_CAPTURES
-size_t aem_nfa_new_capture(struct aem_nfa *nfa, int owner);
-#endif
 
 void aem_nfa_optimize(struct aem_nfa *nfa);
 

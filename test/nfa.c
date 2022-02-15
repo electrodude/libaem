@@ -57,7 +57,7 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 #endif
 #if AEM_NFA_TRACING
 	if (match.visited) {
-		//show_match_trace(&run, thr_matched);
+		//aem_nfa_show_trace(&run, thr_matched);
 #if 0
 		AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
 			aem_stringbuf_puts(out, "Trace:");

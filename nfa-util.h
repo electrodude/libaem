@@ -3,7 +3,9 @@
 
 #include <stdint.h>
 
-// Private header; do not include this yourself.
+#ifndef AEM_INTERNAL
+#warning This is a private header; do not include it yourself.
+#endif
 
 struct aem_stringbuf;
 

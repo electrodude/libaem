@@ -198,7 +198,7 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i);
 
 // Set the i-th character from the beginning of the stringbuf.
 // Increases the size of the stringbuf if necessary.
-void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c);
+void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char pad, char c);
 
 void aem_stringbuf_rtrim(struct aem_stringbuf *str);
 

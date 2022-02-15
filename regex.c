@@ -341,7 +341,7 @@ static struct re_node *re_parse_brackets(struct re_compile_ctx *ctx)
 				// characters between it and the
 				// previous one.
 				child->args.range = range_new;
-				aem_stack_push(&node->children, child);
+				re_node_push(node, child);
 			} else {
 				// Overlapping/null ranges
 				re_node_free(child);
@@ -359,7 +359,7 @@ static struct re_node *re_parse_brackets(struct re_compile_ctx *ctx)
 				goto fail;
 			}
 			child->args.range = range_last;
-			aem_stack_push(&node->children, child);
+			re_node_push(node, child);
 		}
 
 		// Destroy old node->children
@@ -375,6 +375,7 @@ fail_nofree:
 	ctx->in = orig;
 	return NULL;
 }
+
 static struct re_node *re_parse_pattern(struct re_compile_ctx *ctx);
 static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 {
@@ -446,6 +447,7 @@ fail:
 	ctx->in = orig;
 	return NULL;
 }
+
 // Atom, possibly followed by a postfix repetition operator
 static struct re_node *re_parse_postfix(struct re_compile_ctx *ctx)
 {
@@ -537,7 +539,8 @@ fail:
 	ctx->in = orig;
 	return NULL;
 }
-// zero or more postfix'd atoms
+
+// Zero or more postfix'd atoms
 static struct re_node *re_parse_branch(struct re_compile_ctx *ctx)
 {
 	aem_assert(ctx);
@@ -566,6 +569,7 @@ static struct re_node *re_parse_branch(struct re_compile_ctx *ctx)
 
 	return node;
 }
+
 static struct re_node *re_parse_pattern(struct re_compile_ctx *ctx)
 {
 	aem_assert(ctx);
@@ -753,7 +757,19 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 				}
 			}
 			if (op == RE_PARSE_ERROR) {
-				aem_logf_ctx(AEM_LOG_WARN, "Unnecessary escape: \\%c", atom.c);
+				switch (atom.c) {
+				case '(':
+				case ')':
+				case '[':
+				case '?':
+				case '*':
+				case '+':
+				case '|':
+				case '\\':
+					break;
+				default:
+					aem_logf_ctx(AEM_LOG_WARN, "Unnecessary escape: \\%c", atom.c);
+				}
 				op = aem_nfa_append_insn(nfa, aem_nfa_insn_char(atom.c));
 			}
 			break;
@@ -855,7 +871,6 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 		const struct re_node_capture capture = node->args.capture;
 		size_t c0 = aem_nfa_append_insn(nfa, aem_nfa_insn_capture(0, capture.capture));
 		re_set_debug(ctx, c0, aem_stringslice_new_len(node->text.start, 1));
-		size_t inside = nfa->n_insns;
 #else
 		aem_logf_ctx_once(AEM_LOG_WARN, "Captures disabled at compile-time!");
 #endif

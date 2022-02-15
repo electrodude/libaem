@@ -60,14 +60,14 @@ int aem_nfa_cclass_match(int neg, enum aem_nfa_cclass cclass, uint32_t c)
 			case AEM_NFA_CCLASS_SPACE : match = isspace (c8); break;
 			case AEM_NFA_CCLASS_UPPER : match = isupper (c8); break;
 			case AEM_NFA_CCLASS_XDIGIT: match = isxdigit(c8); break;
-			default:
+			default: break;
 		}
 	}
 	switch (cclass) {
 		// custom
 		case AEM_NFA_CCLASS_ANY   : match = 1                    ; break;
 		case AEM_NFA_CCLASS_LINE  : match = c >= ' ' || c == '\t'; break;
-		default:
+		default: break;
 	}
 
 	return neg ? !match : match;
@@ -287,7 +287,7 @@ void aem_nfa_optimize(struct aem_nfa *nfa)
 	size_t list_32 = (nfa->n_insns + 31) >> 5;
 
 #if 1
-	/// Make chains of JMPs go straight to the end
+	/// Thread chains of JMPs straight to the end
 	for (size_t pc = 0; pc < nfa->n_insns; pc++) {
 		// Decode instruction
 		aem_nfa_insn insn = nfa->pgm[pc];
@@ -319,7 +319,7 @@ void aem_nfa_optimize(struct aem_nfa *nfa)
 				break;
 			}
 			if (dst != insn) {
-				aem_logf_ctx(AEM_LOG_NOTICE, "snap %zx %s %zx -> %zx", pc, aem_nfa_op_name(op), insn, dst);
+				aem_logf_ctx(AEM_LOG_DEBUG, "thread %zx %s %zx -> %zx", pc, aem_nfa_op_name(op), insn, dst);
 				aem_nfa_put_insn(nfa, pc, aem_nfa_mk_insn(op, dst));
 			}
 			break;
@@ -378,7 +378,7 @@ void aem_nfa_optimize(struct aem_nfa *nfa)
 				aem_logf_ctx(AEM_LOG_BUG, "Invalid pc: %zx/%zx", pc_next, nfa->n_insns);
 				break;
 			}
-			aem_logf_ctx(AEM_LOG_NOTICE, "split initial %zx fork %zx", pc, pc_next);
+			aem_logf_ctx(AEM_LOG_DEBUG, "split initial %zx fork %zx", pc, pc_next);
 			bitfield_clear(nfa->thr_init, pc);
 			bitfield_set(nfa->thr_init, pc+1);
 			bitfield_set(nfa->thr_init, pc_next);
@@ -416,7 +416,7 @@ void aem_nfa_optimize(struct aem_nfa *nfa)
 		enum aem_nfa_op op = insn & ((1 << AEM_NFA_OP_LEN) - 1);
 		insn >>= AEM_NFA_OP_LEN;
 
-		aem_logf_ctx(AEM_LOG_NOTICE, "unreachable: %zx %s %zx", pc, aem_nfa_op_name(op), insn);
+		aem_logf_ctx(AEM_LOG_DEBUG, "unreachable: %zx %s %zx", pc, aem_nfa_op_name(op), insn);
 		//aem_nfa_put_insn(nfa, pc, (1 << AEM_NFA_OP_LEN) - 1);
 #if AEM_NFA_TRACING
 		struct aem_nfa_trace_info *dbg = &nfa->trace_dbg[pc];
@@ -876,12 +876,10 @@ dead:
 }
 
 #if AEM_NFA_TRACING
-static void show_match_trace(const struct aem_nfa_run *run, const struct aem_nfa_thread *thr)
+void aem_nfa_show_trace(const struct aem_nfa *nfa, const struct aem_nfa_thread *thr)
 {
-	aem_assert(run);
-	aem_assert(thr);
-	const struct aem_nfa *nfa = run->nfa;
 	aem_assert(nfa);
+	aem_assert(thr);
 	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
 		const char *state_s = "?";
 		switch (thr->state) {
@@ -914,7 +912,8 @@ static void show_match_trace(const struct aem_nfa_run *run, const struct aem_nfa
 
 		struct aem_stringslice bounds = regex->where;
 		size_t base = aem_log_buf.n;
-		for (size_t i = 0; i < run->n_insns; i++) {
+		// TODO: Thread safety on nfa->n_insns
+		for (size_t i = 0; i < nfa->n_insns; i++) {
 			if (!bitfield_test(thr->match.visited, i))
 				continue;
 
@@ -951,7 +950,7 @@ static void show_match_trace(const struct aem_nfa_run *run, const struct aem_nfa
 			for (const char *p = overlap.start; p != overlap.end; p++) {
 				size_t j = base + (p - bounds.start);
 				aem_assert(j < 1000000);
-				aem_stringbuf_assign(out, base + (p - bounds.start), '^');
+				aem_stringbuf_assign(out, base + (p - bounds.start), ' ', '^');
 			}
 		}
 	}
@@ -1099,7 +1098,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 			case AEM_NFA_THR_LIVE:
 				//aem_logf_ctx(AEM_LOG_DEBUG3, "=> %zx", thr->pc);
 #if AEM_NFA_TRACING
-				//show_match_trace(&run, thr);
+				//aem_nfa_show_trace(run.nfa, thr);
 #endif
 #if AEM_NFA_THREAD_STATE
 				aem_nfa_thread_add(&run, 1, thr);
@@ -1110,7 +1109,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 			case AEM_NFA_THR_DEAD:
 				//aem_logf_ctx(AEM_LOG_DEBUG3, "dead");
 #if AEM_NFA_TRACING
-				//show_match_trace(&run, thr);
+				//aem_nfa_show_trace(run.nfa, thr);
 #endif
 #if AEM_NFA_THREAD_STATE
 				aem_nfa_thread_free(thr);
@@ -1131,7 +1130,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 				thr_matched = thr;
 #else
 #if AEM_NFA_TRACING
-				//show_match_trace(&run, thr);
+				//aem_nfa_show_trace(run.nfa, thr);
 #endif
 #endif
 				break;
@@ -1175,7 +1174,7 @@ out:
 			}
 #endif
 #if AEM_NFA_TRACING
-			show_match_trace(&run, thr_matched);
+			aem_nfa_show_trace(run.nfa, thr_matched);
 #endif
 		}
 		aem_nfa_thread_free(thr_matched);

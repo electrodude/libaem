@@ -154,7 +154,7 @@ int main(int argc, char **argv)
 	test_add_regex(&nfa, "\\n\\r?|\\r");
 	test_add_regex(&nfa, "(\\s|\\\\$)+");
 	test_add_regex(&nfa, "//.*$");
-	test_add_regex(&nfa, "/\\*(.|\\n|\\r)*\\*/");
+	test_add_regex(&nfa, "/\\*([^*]|\\*[^/]|\\n|\\r)*\\*/");
 	test_add_regex(&nfa, "^\\s*#\\w+");
 	test_add_regex(&nfa, "(\\a|_)(\\w|_)*");
 	test_add_regex(&nfa, "-?(\\d|_)*\\d(\\d|_)*");

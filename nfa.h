@@ -7,7 +7,7 @@
 #include <aem/stringslice.h>
 
 // TODO: Make these three always enabled for aem_nfa_run, and make
-// a second, faster version of aem_nfa_run that doesn't do them.
+// a second, faster (, caching?) version of aem_nfa_run that doesn't do them.
 #define AEM_NFA_CAPTURES 1
 #define AEM_NFA_TRACING 1
 

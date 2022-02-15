@@ -393,14 +393,16 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i)
 	return str->s[i];
 }
 
-void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char c)
+void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char pad, char c)
 {
 	aem_assert(str);
 
-	if (i + 1 > str->n) {
-		str->n = i + 1;
-
-		aem_stringbuf_reserve(str, str->n + i);
+	size_t n_new = i + 1;
+	if (n_new > str->n) {
+		aem_stringbuf_reserve_total(str, n_new);
+		for (size_t j = str->n; j < n_new && j < str->maxn; j++)
+			str->s[j] = pad;
+		str->n = n_new;
 	}
 
 	str->s[i] = c;

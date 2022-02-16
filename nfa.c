@@ -188,6 +188,7 @@ void aem_nfa_set_dbg(struct aem_nfa *nfa, size_t i, struct aem_stringslice where
 
 static aem_nfa_insn aem_nfa_mk_insn(enum aem_nfa_op op, aem_nfa_insn arg)
 {
+	AEM_STATIC_ASSERT(AEM_NFA_OP_MAX <= (1 << AEM_NFA_OP_LEN));
 	if (op >> AEM_NFA_OP_LEN) {
 		aem_logf_ctx(AEM_LOG_BUG, "Invalid op: %x", op);
 	}

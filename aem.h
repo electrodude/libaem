@@ -43,6 +43,7 @@
 
 #define AEM_STRINGIFY(s) #s
 #define AEM_STRINGIFY2(s) AEM_STRINGIFY(s)
+#define AEM_STATIC_ASSERT(cond) ((void)sizeof(struct{int:-!(cond);}))
 
 #ifdef _WIN32
 #define __thread __declspec(thread)

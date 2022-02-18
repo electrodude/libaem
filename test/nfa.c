@@ -11,7 +11,7 @@ static void test_regex_compile(struct aem_nfa *nfa, const char *pattern, unsigne
 	aem_logf_ctx(AEM_LOG_INFO, "regex_compile(\"%s\", %d) expect (%d)", pattern, match, rc_expect);
 
 	struct aem_stringslice in = aem_stringslice_new_cstr(pattern);
-	int rc = aem_nfa_add_regex(nfa, in, match, AEM_REGEX_FLAG_DEBUG);
+	int rc = aem_nfa_add_regex(nfa, in, match, AEM_REGEX_FLAG_DEBUG | AEM_REGEX_FLAG_BINARY);
 
 	if (rc != rc_expect) {
 		test_errors++;

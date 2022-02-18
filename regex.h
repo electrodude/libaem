@@ -14,6 +14,10 @@ enum aem_regex_flags {
 // Only for aem_nfa_add_regex
 	// If true, only create captures for pairs of () that would otherwise be unnecessary.
 	AEM_REGEX_FLAG_EXPLICIT_CAPTURES = 0x2,
+
+	// Disable UTF-8 conversion.  Would be named AEM_REGEX_FLAG_DISABLE_UTF8 if I weren't so opinionated; avoid unless you actually aren't matching text
+	// Patterns must still be properly escaped UTF-8 patterns even if this flag is set.
+	AEM_REGEX_FLAG_BINARY = 0x4,
 };
 
 // If you pass <0 as the match parameter to any of these functions, it will use

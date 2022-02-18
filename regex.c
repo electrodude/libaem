@@ -9,6 +9,7 @@
 #include <aem/stack.h>
 #include <aem/stringbuf.h>
 #include <aem/translate.h>
+#include <aem/utf8.h>
 
 #include "regex.h"
 
@@ -214,11 +215,25 @@ static int match_escape(struct re_compile_ctx *ctx, uint32_t *c_p, int *esc_p)
 		case 'r': c = '\r'  ; break;
 		case 'u': {
 			unsigned int out;
-			aem_assert(aem_stringslice_match_uint_base(&ctx->in, 16, &out));
+			if (!aem_stringslice_match_uint_base(&ctx->in, 16, &out))
+				return 0;
 			c = out;
+			// Don't use \u in binary mode
+			if ((ctx->flags & AEM_REGEX_FLAG_BINARY) && c >= 0x80) {
+				// TODO: Should probably be an error
+				aem_logf_ctx(AEM_LOG_WARN, "UTF-8 codepoint in binary mode: \\u%x", c);
+			}
+			break;
+		}
+		case 'x': {
+			// Don't use \x outside of binary mode
+			if (!(ctx->flags & AEM_REGEX_FLAG_BINARY))
+				goto unknown_escape;
+			c = aem_stringslice_match_hexbyte(&ctx->in);
 			break;
 		}
 		default:
+		unknown_escape:
 			esc = 2; // Unknown escape
 			break;
 		}
@@ -307,6 +322,7 @@ static struct re_node *re_parse_brackets(struct re_compile_ctx *ctx)
 		if (aem_stringslice_match(&ctx->in, "]"))
 			break;
 	}
+	node->text.end = ctx->in.start;
 
 	// Sort ranges
 	aem_stack_qsort(&node->children, aem_nfa_brackets_compar);
@@ -364,9 +380,14 @@ static struct re_node *re_parse_brackets(struct re_compile_ctx *ctx)
 
 		// Destroy old node->children
 		aem_stack_dtor(&stk);
+	} else {
+		// TODO: Else merge adjacent or overlapping ranges
 	}
 
-	node->text.end = ctx->in.start;
+	if (!(ctx->flags & AEM_REGEX_FLAG_BINARY)) {
+		aem_logf_ctx(AEM_LOG_NYI, "NYI: expand UTF-8 ranges");
+	}
+
 	return node;
 
 fail:
@@ -554,8 +575,6 @@ static struct re_node *re_parse_branch(struct re_compile_ctx *ctx)
 		struct re_node *atom = re_parse_postfix(ctx);
 		if (!atom) {
 			// TODO: No more is indistinguishable from a real error.
-			// TODO: Isn't re_parse_postfix guaranteed to restore this for us?
-			ctx->in = orig;
 			break;
 		}
 		re_node_push(node, atom);
@@ -693,6 +712,12 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 	case RE_NODE_RANGE: {
 		aem_assert(!node->children.n);
 		const struct re_node_range range = node->args.range;
+		if (range.max >= 0x100) {
+			AEM_LOG_MULTI(out, AEM_LOG_BUG) {
+				aem_stringbuf_puts(out, "Invalid byte range: ");
+				aem_nfa_desc_range(out, range.min, range.max);
+			}
+		}
 		size_t op = aem_nfa_append_insn(nfa, aem_nfa_insn_range(range.min, range.max));
 		re_set_debug(ctx, op, node->text);
 		break;
@@ -747,9 +772,9 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 					//case ' ': cclass = AEM_NFA_CCLASS_PRINT ; break;
 					case 'p': cclass = AEM_NFA_CCLASS_PUNCT ; break;
 					case 's': cclass = AEM_NFA_CCLASS_SPACE ; break;
-					// collides with unicode \u, so this never happens
+					// collides with unicode \u in text mode
 					case 'u': cclass = AEM_NFA_CCLASS_UPPER ; break;
-					// collides with hex \x, but that's disabled
+					// collides with hex \x in binary mode
 					case 'x': cclass = AEM_NFA_CCLASS_XDIGIT; break;
 				}
 				if (cclass != AEM_NFA_CCLASS_MAX) {
@@ -907,6 +932,9 @@ static int aem_regex_compile(struct re_compile_ctx *ctx)
 	aem_assert(ctx);
 	aem_assert(ctx->nfa);
 
+	if (!(ctx->flags & AEM_REGEX_FLAG_BINARY))
+		aem_logf_ctx_once(AEM_LOG_NYI, "NYI: new UTF-8 mode");
+
 	struct re_node *root = re_parse_pattern(ctx);
 	if (aem_stringslice_ok(ctx->in)) {
 		AEM_LOG_MULTI(out, AEM_LOG_ERROR) {
@@ -947,25 +975,22 @@ static int aem_string_compile(struct re_compile_ctx *ctx)
 	aem_assert(ctx->nfa);
 
 	size_t entry = ctx->nfa->n_insns;
+
 	for (;;) {
-		uint32_t c;
-		/* TODO
-		int esc;
-		if (!match_escape(ctx, &c, &esc))
+		struct aem_stringslice atom = ctx->in;
+		int c = aem_stringslice_getc(&ctx->in);
+		if (c < 0)
 			break;
-		*/
-		struct aem_stringslice atom = aem_stringslice_match_rune(&ctx->in, &c);
-		if (!aem_stringslice_ok(atom))
-			break;
-		aem_assert(atom.end == ctx->in.start);
+		atom.end = ctx->in.start;
 		size_t op = aem_nfa_append_insn(ctx->nfa, aem_nfa_insn_char(c));
 		re_set_debug(ctx, op, atom);
 	}
 
-	if (aem_stringslice_ok(ctx->in)) {
-		aem_logf_ctx(AEM_LOG_ERROR, "Invalid UTF-8 sequence?");
-		return 1;
-	}
+	aem_assert(!aem_stringslice_ok(ctx->in));
+
+	// Mark entry point as such.
+	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
+	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
 
 	// Mark entry point as such.
 	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
@@ -995,6 +1020,10 @@ static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int matc
 #endif
 
 	int rc = compile(&ctx);
+
+	if (aem_stringslice_ok(ctx.in)) {
+		aem_logf_ctx(AEM_LOG_NYI, "NYI: Complain about %zd trailing bytes", aem_stringslice_len(ctx.in));
+	}
 
 	if (rc) { // Failure
 		// Restore NFA to how it was before we started breaking stuff

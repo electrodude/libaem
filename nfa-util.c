@@ -22,7 +22,7 @@ void aem_nfa_desc_char(struct aem_stringbuf *out, uint32_t c)
 		if (c >= 32 && c < 127) {
 			aem_stringbuf_putc(out, c);
 		} else {
-			aem_stringbuf_printf(out, "\\u%x", c);
+			aem_stringbuf_printf(out, "\\x%02x", c);
 		}
 		break;
 	}

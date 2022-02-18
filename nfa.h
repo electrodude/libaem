@@ -47,7 +47,7 @@ const char *aem_nfa_op_name(enum aem_nfa_op op);
 
 AEM_ENUM_DECLARE(aem_nfa_cclass, AEM_NFA_CCLASS)
 const char *aem_nfa_cclass_name(enum aem_nfa_cclass cclass);
-int aem_nfa_cclass_match(int neg, enum aem_nfa_cclass cclass, uint32_t c);
+int aem_nfa_cclass_match(int neg, enum aem_nfa_cclass cclass, int c);
 
 typedef uint32_t aem_nfa_insn;
 

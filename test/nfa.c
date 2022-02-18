@@ -111,11 +111,10 @@ int main(int argc, char **argv)
 	nfa2 = nfa;
 	aem_nfa_dup(&nfa, &nfa2);
 
-#if !(AEM_NFA_CAPTURES)
-	// These cause the VM to get stuck in an infinite loop because it thinks just making captures constitutes progress.
-	//test_regex_compile(&nfa, "((()+))", 6, 1);
-	//test_regex_compile(&nfa, "(()()()(()))+", 7, 1);
-#endif
+	// Make sure the VM doesn't get stuck on infinite loops without making progress.
+	test_regex_compile(&nfa, "((()+))ignore", 6, 0);
+	test_regex_compile(&nfa, "(()()()(()))+ignore", 7, 0);
+	test_regex_compile(&nfa, "(((()+)*)*)*ignore", 6, 0);
 	test_regex_compile(&nfa, "((a.)+)((.b)+)", 8, 0);
 	//test_regex_compile(&nfa, "[^-\\]_a-zA-Z0-9]+!", 9, 0);
 

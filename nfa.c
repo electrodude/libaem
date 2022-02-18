@@ -587,8 +587,9 @@ struct aem_nfa_run {
 	struct aem_stringslice consumed;
 	struct aem_stringslice rune_curr;
 	const struct aem_nfa *nfa;
-	aem_nfa_bitfield *map_curr;
-	aem_nfa_bitfield *map_next;
+	aem_nfa_bitfield *map_curr; // Needs to be run on this character
+	aem_nfa_bitfield *map_next; // Needs to be run on next character
+	aem_nfa_bitfield *map_done; // Was already run on this character
 
 	// We store copies of these here in case another OS thread expands the
 	// NFA program while we're running.  But this isn't sufficient - what
@@ -688,8 +689,8 @@ static void aem_nfa_thread_add(struct aem_nfa_run *run, int next, size_t pc)
 	struct aem_stack *stk = next ? &run->next : &run->curr;
 #endif
 
-	// If some other thread already got to this PC first, drop this one in the first's favor.
-	if (bitfield_test(map, pc)) {
+	// If some other thread already got to this PC first, drop this one in favor of the first.
+	if (bitfield_test(map, pc) || (!next && bitfield_test(run->map_done, pc))) {
 		//aem_logf_ctx(AEM_LOG_DEBUG3, "dup thread @ %zx", pc);
 #if AEM_NFA_THREAD_STATE
 		aem_nfa_thread_free(thr);
@@ -709,7 +710,7 @@ static int aem_nfa_thread_check(const struct aem_nfa_run *run, size_t pc)
 {
 	aem_assert(run);
 	aem_assert(pc < run->n_insns);
-	return bitfield_test(run->map_curr, pc);
+	return bitfield_test(run->map_done, pc);
 }
 
 static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *thr, uint32_t c)
@@ -739,6 +740,7 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			thr->state = AEM_NFA_THR_DEAD;
 			return -1;
 		}
+		bitfield_set(run->map_done, thr->pc);
 
 #if AEM_NFA_TRACING
 		size_t pc_curr = thr->pc;
@@ -985,10 +987,12 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 	size_t list_32 = (run.n_insns + 31) >> 5;
 	run.map_curr = alloca(list_32 * sizeof(*run.map_curr));
 	run.map_next = alloca(list_32 * sizeof(*run.map_next));
+	run.map_done = alloca(list_32 * sizeof(*run.map_next));
 	//aem_logf_ctx(AEM_LOG_DEBUG3, "%zd %zd", run.n_insns, list_32);
 	for (size_t i = 0; i < list_32; i++) {
 		run.map_curr[i] = 0;
 		run.map_next[i] = 0;
+		run.map_done[i] = 0;
 	}
 
 	for (size_t pc = 0; pc < run.n_insns; pc++) {
@@ -1015,7 +1019,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 #endif
 
 	for (;;) {
-		// Move next => curr, clear next, break if no live threads
+		// Move next => curr, clear next and done, break if no live threads
 		aem_nfa_bitfield *map_tmp = run.map_curr;
 		run.map_curr = run.map_next;
 		run.map_next = map_tmp;
@@ -1023,6 +1027,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 		for (size_t i = 0; i < list_32; i++) {
 			run.map_next[i] = 0;
 			live |= run.map_curr[i];
+			run.map_done[i] = 0;
 		}
 
 #if AEM_NFA_THREAD_STATE
@@ -1062,6 +1067,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 #endif
 			struct aem_nfa_thread *thr = run.curr.s[i];
 			aem_assert(thr);
+			run.curr.s[i] = NULL;
 
 			size_t pc = thr->pc;
 
@@ -1070,9 +1076,6 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 		again:
 		for (size_t i = 0; i < run.n_insns; i++) {
 			size_t pc = i;
-
-			if (!aem_nfa_thread_check(&run, pc))
-				continue;
 
 			aem_logf_ctx(AEM_LOG_DEBUG3, "thr @ %zx", pc);
 

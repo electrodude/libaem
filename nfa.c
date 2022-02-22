@@ -773,10 +773,7 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			int neg = insn & 0x1;
 			int front = insn & 0x2;
 			enum aem_nfa_cclass cclass = insn >> 2;
-			aem_logf_ctx(AEM_LOG_DEBUG3, "class %s%s", neg ? "!" : "", aem_nfa_cclass_name(cclass));
-
-			if (c < 0)
-				goto dead;
+			aem_logf_ctx(AEM_LOG_DEBUG3, "class %s%s%s", front ? ">" : "", neg ? "!" : "", aem_nfa_cclass_name(cclass));
 
 			int match = aem_nfa_cclass_match(neg, cclass, c);
 			// Frontier: previous character must have not matched
@@ -786,12 +783,14 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			if (!match)
 				goto dead;
 
-			// Frontiers don't consume anything
-			if (front)
-				break;
 #if AEM_NFA_TRACING
 			bitfield_set(thr->match.visited, pc_curr);
 #endif
+
+			// Frontiers don't consume anything
+			if (front)
+				break;
+
 			return -1;
 		}
 
@@ -1151,6 +1150,10 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 		if (curr_live)
 			goto again;
 #endif
+		// Halt on EOF
+		if (c < 0)
+			break;
+
 		run.c_prev = c;
 	}
 

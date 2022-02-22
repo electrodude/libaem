@@ -104,7 +104,7 @@ static inline void aem_nfa_set_dbg(struct aem_nfa *nfa, size_t i, struct aem_str
 #endif
 aem_nfa_insn aem_nfa_insn_range(uint32_t lo, uint32_t hi);
 aem_nfa_insn aem_nfa_insn_char(uint32_t c);
-aem_nfa_insn aem_nfa_insn_class(unsigned int neg, unsigned int front, enum aem_nfa_cclass cclass);
+aem_nfa_insn aem_nfa_insn_class(unsigned int neg, unsigned int frontier, enum aem_nfa_cclass cclass);
 #if AEM_NFA_CAPTURES
 aem_nfa_insn aem_nfa_insn_capture(unsigned int end, size_t n);
 #endif

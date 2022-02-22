@@ -212,15 +212,15 @@ aem_nfa_insn aem_nfa_insn_char(uint32_t c)
 	return aem_nfa_insn_range(c, c);
 }
 
-aem_nfa_insn aem_nfa_insn_class(unsigned int neg, unsigned int front, enum aem_nfa_cclass cclass)
+aem_nfa_insn aem_nfa_insn_class(unsigned int neg, unsigned int frontier, enum aem_nfa_cclass cclass)
 {
 	if (neg >> 1) {
 		aem_logf_ctx(AEM_LOG_BUG, "Invalid neg: %02x", neg);
 	}
-	if (front >> 1) {
-		aem_logf_ctx(AEM_LOG_BUG, "Invalid front: %02x", front);
+	if (frontier >> 1) {
+		aem_logf_ctx(AEM_LOG_BUG, "Invalid frontier: %02x", frontier);
 	}
-	return aem_nfa_mk_insn(AEM_NFA_CLASS, (cclass << 2) | (front << 1) | neg);
+	return aem_nfa_mk_insn(AEM_NFA_CLASS, (cclass << 2) | (frontier << 1) | neg);
 }
 
 #if AEM_NFA_CAPTURES
@@ -512,10 +512,10 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 		}
 		case AEM_NFA_CLASS: {
 			int neg = insn & 0x1;
-			int front = insn & 0x2;
-			if (front || neg) {
+			int frontier = insn & 0x2;
+			if (frontier || neg) {
 				aem_stringbuf_puts(out, AEM_SGR("95"));
-				if (front)
+				if (frontier)
 					aem_stringbuf_puts(out, ">");
 				if (neg)
 					aem_stringbuf_puts(out, "!");
@@ -771,13 +771,13 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 		}
 		case AEM_NFA_CLASS: {
 			int neg = insn & 0x1;
-			int front = insn & 0x2;
+			int frontier = insn & 0x2;
 			enum aem_nfa_cclass cclass = insn >> 2;
-			aem_logf_ctx(AEM_LOG_DEBUG3, "class %s%s%s", front ? ">" : "", neg ? "!" : "", aem_nfa_cclass_name(cclass));
+			aem_logf_ctx(AEM_LOG_DEBUG3, "class %s%s%s", frontier ? ">" : "", neg ? "!" : "", aem_nfa_cclass_name(cclass));
 
 			int match = aem_nfa_cclass_match(neg, cclass, c);
 			// Frontier: previous character must have not matched
-			if (front && match)
+			if (frontier && match)
 				match = !aem_nfa_cclass_match(neg, cclass, run->c_prev);
 
 			if (!match)
@@ -788,7 +788,7 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 #endif
 
 			// Frontiers don't consume anything
-			if (front)
+			if (frontier)
 				break;
 
 			return -1;

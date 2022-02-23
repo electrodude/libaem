@@ -247,6 +247,8 @@ static int match_escape(struct re_compile_ctx *ctx, uint32_t *c_p, int *esc_p)
 
 	return 1;
 }
+
+/// RE => AST
 static struct re_node *re_parse_range(struct re_compile_ctx *ctx)
 {
 	aem_assert(ctx);
@@ -927,77 +929,6 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 	return entry;
 }
 
-static int aem_regex_compile(struct re_compile_ctx *ctx)
-{
-	aem_assert(ctx);
-	aem_assert(ctx->nfa);
-
-	if (!(ctx->flags & AEM_REGEX_FLAG_BINARY))
-		aem_logf_ctx_once(AEM_LOG_NYI, "NYI: new UTF-8 mode");
-
-	struct re_node *root = re_parse_pattern(ctx);
-	if (aem_stringslice_ok(ctx->in)) {
-		AEM_LOG_MULTI(out, AEM_LOG_ERROR) {
-			aem_stringbuf_puts(out, "Garbage after RE: ");
-			aem_string_escape(out, ctx->in);
-		}
-		re_node_free(root);
-		return 1;
-	}
-	if (!root) {
-		aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse regex!");
-		return 1;
-	}
-
-	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
-		aem_stringbuf_puts(out, "Parsed RE: ");
-		re_node_sexpr(out, root);
-	}
-
-	size_t entry = re_node_compile(ctx, root);
-	re_node_free(root);
-
-	if (entry == RE_PARSE_ERROR) {
-		aem_logf_ctx(AEM_LOG_ERROR, "Invalid regex!");
-		return 1;
-	}
-
-	// Mark entry point as such.
-	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
-	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
-
-	return 0;
-}
-
-static int aem_string_compile(struct re_compile_ctx *ctx)
-{
-	aem_assert(ctx);
-	aem_assert(ctx->nfa);
-
-	size_t entry = ctx->nfa->n_insns;
-
-	for (;;) {
-		struct aem_stringslice atom = ctx->in;
-		int c = aem_stringslice_getc(&ctx->in);
-		if (c < 0)
-			break;
-		atom.end = ctx->in.start;
-		size_t op = aem_nfa_append_insn(ctx->nfa, aem_nfa_insn_char(c));
-		re_set_debug(ctx, op, atom);
-	}
-
-	aem_assert(!aem_stringslice_ok(ctx->in));
-
-	// Mark entry point as such.
-	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
-	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
-
-	// Mark entry point as such.
-	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
-	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
-
-	return 0;
-}
 
 static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, enum aem_regex_flags flags, int (*compile)(struct re_compile_ctx *ctx))
 {
@@ -1050,12 +981,78 @@ static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int matc
 
 	return rc;
 }
+#define AEM_NFA_ADD_DEFINE(name) \
+int aem_nfa_add_##name(struct aem_nfa *nfa, struct aem_stringslice pat, int match, enum aem_regex_flags flags) \
+{ \
+	return aem_nfa_add(nfa, &pat, match, flags, aem_##name##_compile); \
+}
 
-int aem_nfa_add_regex(struct aem_nfa *nfa, struct aem_stringslice re, int match, enum aem_regex_flags flags)
+static int aem_regex_compile(struct re_compile_ctx *ctx)
 {
-	return aem_nfa_add(nfa, &re, match, flags, aem_regex_compile);
+	aem_assert(ctx);
+	aem_assert(ctx->nfa);
+
+	if (!(ctx->flags & AEM_REGEX_FLAG_BINARY))
+		aem_logf_ctx_once(AEM_LOG_NYI, "NYI: new UTF-8 mode");
+
+	struct re_node *root = re_parse_pattern(ctx);
+	if (aem_stringslice_ok(ctx->in)) {
+		AEM_LOG_MULTI(out, AEM_LOG_ERROR) {
+			aem_stringbuf_puts(out, "Garbage after RE: ");
+			aem_string_escape(out, ctx->in);
+		}
+		re_node_free(root);
+		return 1;
+	}
+	if (!root) {
+		aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse regex!");
+		return 1;
+	}
+
+	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
+		aem_stringbuf_puts(out, "Parsed RE: ");
+		re_node_sexpr(out, root);
+	}
+
+	size_t entry = re_node_compile(ctx, root);
+	re_node_free(root);
+
+	if (entry == RE_PARSE_ERROR) {
+		aem_logf_ctx(AEM_LOG_ERROR, "Invalid regex!");
+		return 1;
+	}
+
+	// Mark entry point as such.
+	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
+	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
+
+	return 0;
 }
-int aem_nfa_add_string(struct aem_nfa *nfa, struct aem_stringslice str, int match, enum aem_regex_flags flags)
+AEM_NFA_ADD_DEFINE(regex)
+
+static int aem_string_compile(struct re_compile_ctx *ctx)
 {
-	return aem_nfa_add(nfa, &str, match, flags, aem_string_compile);
+	aem_assert(ctx);
+	aem_assert(ctx->nfa);
+
+	size_t entry = ctx->nfa->n_insns;
+
+	for (;;) {
+		struct aem_stringslice atom = ctx->in;
+		int c = aem_stringslice_getc(&ctx->in);
+		if (c < 0)
+			break;
+		atom.end = ctx->in.start;
+		size_t op = aem_nfa_append_insn(ctx->nfa, aem_nfa_insn_char(c));
+		re_set_debug(ctx, op, atom);
+	}
+
+	aem_assert(!aem_stringslice_ok(ctx->in));
+
+	// Mark entry point as such.
+	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
+	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
+
+	return 0;
 }
+AEM_NFA_ADD_DEFINE(string)

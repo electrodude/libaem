@@ -23,6 +23,7 @@ struct re_node {
 		RE_NODE_RANGE,
 		RE_NODE_BRACKETS,
 		RE_NODE_ATOM,
+		RE_NODE_CLASS,
 		RE_NODE_CAPTURE,
 		RE_NODE_REPEAT,
 		RE_NODE_BRANCH,
@@ -30,7 +31,7 @@ struct re_node {
 	} type;
 	struct aem_stringslice text;
 	struct aem_stack children;
-	union {
+	union re_node_args {
 		struct re_node_range {
 			uint32_t min;
 			uint32_t max;
@@ -41,6 +42,11 @@ struct re_node {
 			uint32_t c;
 			int esc;
 		} atom;
+		struct re_node_class {
+			enum aem_nfa_cclass cclass;
+			uint8_t neg      : 1;
+			uint8_t frontier : 1;
+		} cclass;
 		struct re_node_capture {
 #if AEM_NFA_CAPTURES
 			size_t capture;
@@ -122,6 +128,13 @@ static void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 			aem_stringbuf_puts(out, " ");
 		break;
 	case RE_NODE_ATOM:
+		aem_stringbuf_putc(out, '\'');
+		aem_stringbuf_putss(out, node->text);
+		aem_stringbuf_putc(out, '\'');
+		if (node->children.n)
+			aem_stringbuf_puts(out, " ");
+		break;
+	case RE_NODE_CLASS:
 		aem_stringbuf_putc(out, '\'');
 		aem_stringbuf_putss(out, node->text);
 		aem_stringbuf_putc(out, '\'');
@@ -441,28 +454,117 @@ static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 		int esc;
 		if (!match_escape(ctx, &c, &esc))
 			goto fail;
-		if (!esc) {
+
+		enum re_node_type type = RE_NODE_ATOM;
+		union re_node_args args = {.atom = {.c = c, .esc = esc}};
+
+		switch (esc) {
+		case 0: // Unescaped
 			switch (c) {
+			case '.':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = 0, .frontier = 0, .cclass = AEM_NFA_CCLASS_LINE};
+				break;
+			case '^':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = 0, .frontier = 1, .cclass = AEM_NFA_CCLASS_LINE};
+				break;
+			case '$':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = 1, .frontier = 1, .cclass = AEM_NFA_CCLASS_LINE};
+				break;
 			case ')':
 			case '?':
 			case '*':
 			case '+':
 			case '|':
 			case '\\':
+				// Not an atom
 				goto fail;
 			default:
+				// Plain character
 				break;
 			}
+			break;
+		case 1: // Substituted escape: do nothing else
+			break;
+		case 2: {
+			// Unsubstitued escape
+			int neg = isupper(c) != 0;
+			switch (tolower(c)) {
+			case '<':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = 0, .frontier = 1, .cclass = AEM_NFA_CCLASS_ALNUM};
+				break;
+			case '>':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = 1, .frontier = 1, .cclass = AEM_NFA_CCLASS_ALNUM};
+				break;
+			case 'w':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = 0, .frontier = 0, .cclass = AEM_NFA_CCLASS_ALNUM};
+				break;
+			case 'a':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_ALPHA};
+				break;
+			case 'b':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_BLANK};
+				break;
+			case 'd':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_DIGIT};
+				break;
+			case 'l':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_LOWER};
+				break;
+			case 'p':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_PUNCT};
+				break;
+			case 's':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_SPACE};
+				break;
+			// collides with unicode \u in text mode
+			case 'u':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_UPPER};
+				break;
+			// collides with hex \x in binary mode
+			case 'x':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_XDIGIT};
+				break;
+			case '(':
+			case ')':
+			case '[':
+			case '?':
+			case '*':
+			case '+':
+			case '|':
+			case '\\':
+				break;
+			default:
+				aem_logf_ctx(AEM_LOG_WARN, "Unnecessary escape: \\%c", c);
+			}
+			break;
+		}
+		default:
+			aem_logf_ctx(AEM_LOG_BUG, "Invalid esc: %d (char %08x)", esc, c);
+			break;
 		}
 
-		struct re_node *node = re_node_new(RE_NODE_ATOM);
+		struct re_node *node = re_node_new(type);
 		if (!node)
 			goto fail;
 
 		out.end = ctx->in.start;
 		node->text = out;
-		node->args.atom.c = c;
-		node->args.atom.esc = esc;
+		node->args = args;
+
 		return node;
 	}
 
@@ -573,7 +675,6 @@ static struct re_node *re_parse_branch(struct re_compile_ctx *ctx)
 		return NULL;
 
 	while (aem_stringslice_ok(ctx->in)) {
-		struct aem_stringslice orig = ctx->in;
 		struct re_node *atom = re_parse_postfix(ctx);
 		if (!atom) {
 			// TODO: No more is indistinguishable from a real error.
@@ -731,78 +832,20 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 	case RE_NODE_ATOM: {
 		aem_assert(!node->children.n);
 		const struct re_node_atom atom = node->args.atom;
-		size_t op = RE_PARSE_ERROR;
-		switch (atom.esc) {
-		case 0: // Unescaped
-		case 1: // Substituted escape
-			switch (atom.c) {
-			case '.':
-				op = aem_nfa_append_insn(nfa, aem_nfa_insn_class(0, 0, AEM_NFA_CCLASS_LINE));
-				break;
-			case '^':
-				op = aem_nfa_append_insn(nfa, aem_nfa_insn_class(0, 1, AEM_NFA_CCLASS_LINE));
-				break;
-			case '$':
-				op = aem_nfa_append_insn(nfa, aem_nfa_insn_class(1, 1, AEM_NFA_CCLASS_LINE));
-				break;
-			default:
-				op = aem_nfa_append_insn(nfa, aem_nfa_insn_char(atom.c));
-			}
-			break;
-		case 2:
-			// Unsubstitued escape
-			switch (atom.c) {
-			case '<':
-				op = aem_nfa_append_insn(nfa, aem_nfa_insn_class(0, 1, AEM_NFA_CCLASS_ALNUM));
-				break;
-			case '>':
-				op = aem_nfa_append_insn(nfa, aem_nfa_insn_class(1, 1, AEM_NFA_CCLASS_ALNUM));
-				break;
-			}
-
-			if (op == RE_PARSE_ERROR) {
-				int neg = isupper(atom.c) != 0;
-				enum aem_nfa_cclass cclass = AEM_NFA_CCLASS_MAX;
-				switch (tolower(atom.c)) {
-					case 'w': cclass = AEM_NFA_CCLASS_ALNUM ; break;
-					case 'a': cclass = AEM_NFA_CCLASS_ALPHA ; break;
-					case 'b': cclass = AEM_NFA_CCLASS_BLANK ; break;
-					//case ' ': cclass = AEM_NFA_CCLASS_CNTRL ; break;
-					case 'd': cclass = AEM_NFA_CCLASS_DIGIT ; break;
-					//case ' ': cclass = AEM_NFA_CCLASS_GRAPH ; break;
-					case 'l': cclass = AEM_NFA_CCLASS_LOWER ; break;
-					//case ' ': cclass = AEM_NFA_CCLASS_PRINT ; break;
-					case 'p': cclass = AEM_NFA_CCLASS_PUNCT ; break;
-					case 's': cclass = AEM_NFA_CCLASS_SPACE ; break;
-					// collides with unicode \u in text mode
-					case 'u': cclass = AEM_NFA_CCLASS_UPPER ; break;
-					// collides with hex \x in binary mode
-					case 'x': cclass = AEM_NFA_CCLASS_XDIGIT; break;
-				}
-				if (cclass != AEM_NFA_CCLASS_MAX) {
-					op = aem_nfa_append_insn(nfa, aem_nfa_insn_class(neg, 0, cclass));
-				}
-			}
-			if (op == RE_PARSE_ERROR) {
-				switch (atom.c) {
-				case '(':
-				case ')':
-				case '[':
-				case '?':
-				case '*':
-				case '+':
-				case '|':
-				case '\\':
-					break;
-				default:
-					aem_logf_ctx(AEM_LOG_WARN, "Unnecessary escape: \\%c", atom.c);
-				}
-				op = aem_nfa_append_insn(nfa, aem_nfa_insn_char(atom.c));
-			}
-			break;
-		default:
-			op = aem_nfa_append_insn(nfa, aem_nfa_insn_char(atom.c));
+		struct aem_stringbuf buf = AEM_STRINGBUF_ALLOCA(8);
+		aem_stringbuf_put_rune(&buf, atom.c);
+		struct aem_stringslice bytes = aem_stringslice_new_str(&buf);
+		for (const char *p = bytes.start; p != bytes.end; p++) {
+			size_t op = aem_nfa_append_insn(nfa, aem_nfa_insn_char(*p));
+			re_set_debug(ctx, op, node->text);
 		}
+		aem_stringbuf_dtor(&buf);
+		break;
+	}
+	case RE_NODE_CLASS: {
+		aem_assert(!node->children.n);
+		const struct re_node_class cclass = node->args.cclass;
+		size_t op = aem_nfa_append_insn(nfa, aem_nfa_insn_class(cclass.neg, cclass.frontier, cclass.cclass));
 		re_set_debug(ctx, op, node->text);
 		break;
 	}

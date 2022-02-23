@@ -121,11 +121,13 @@ int main(int argc, char **argv)
 	test_regex_compile(&nfa, "pfx(1|(2))*sf?x", 10, 0);
 	test_regex_compile(&nfa, "\\w\\W(\\L|\\d)+", 11, 0);
 	test_regex_compile(&nfa, ".*\\<word\\>.*(\\<begin|end\\>)", 12, 0);
-	test_regex_compile(&nfa, "bound\\w{6}", 13, 0);
-	test_regex_compile(&nfa, "bound\\w{7,}", 14, 0);
-	test_regex_compile(&nfa, "bound\\w{,8}", 15, 0);
-	test_regex_compile(&nfa, "bound\\w{5,9}", 16, 0);
-	test_regex_compile(&nfa, "bound\\w{,}", 17, 0);
+
+	// Test bounds and classes
+	test_regex_compile(&nfa, "bound[[:alnum:]]{6}", 13, 0);
+	test_regex_compile(&nfa, "bound[[:alpha:]]{7,}", 14, 0);
+	test_regex_compile(&nfa, "bound[[:xdigit:]]{,8}", 15, 0);
+	test_regex_compile(&nfa, "bound[[:lower:]]{5,9}", 16, 0);
+	test_regex_compile(&nfa, "bound[[:digit:]]{,}", 17, 0);
 
 	aem_nfa_optimize(&nfa);
 
@@ -163,6 +165,12 @@ int main(int argc, char **argv)
 	test_nfa_run(&nfa, "word 0end", 12, "");
 	test_nfa_run(&nfa, " word begin", 12, "");
 	test_nfa_run(&nfa, "word 0end ", 12, " ");
+
+	test_nfa_run(&nfa, "bound0Xcvbn", 13, "");
+	test_nfa_run(&nfa, "boundAbcdEfg", 14, "");
+	test_nfa_run(&nfa, "bound012abcde", 15, "");
+	test_nfa_run(&nfa, "boundabcdef", 16, "");
+	test_nfa_run(&nfa, "bound0123456", 17, "");
 
 	// TODO: Unicode tests
 

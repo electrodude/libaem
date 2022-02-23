@@ -262,9 +262,51 @@ static int match_escape(struct re_compile_ctx *ctx, uint32_t *c_p, int *esc_p)
 }
 
 /// RE => AST
+static struct re_node *re_parse_named_class(struct re_compile_ctx *ctx)
+{
+	aem_assert(ctx);
+
+	struct aem_stringslice in = ctx->in;
+
+	if (!aem_stringslice_match(&in, "[:"))
+		return NULL;
+
+	int neg = aem_stringslice_match(&in, "^");
+
+	struct aem_stringslice classname = aem_stringslice_match_alnum(&in);
+	if (!aem_stringslice_ok(classname))
+		return NULL;
+
+	if (!aem_stringslice_match(&in, ":]"))
+		return NULL;
+
+	enum aem_nfa_cclass cclass;
+	for (cclass = 0; cclass < AEM_NFA_CCLASS_MAX; cclass++)
+		if (aem_stringslice_eq(classname, aem_nfa_cclass_name(cclass)))
+			break;
+
+	if (cclass >= AEM_NFA_CCLASS_MAX)
+		return NULL;
+
+	struct re_node *node = re_node_new(RE_NODE_CLASS);
+	if (!node)
+		return NULL;
+
+	node->text = aem_stringslice_new(ctx->in.start, in.start);
+	ctx->in = in;
+	node->args.cclass = (struct re_node_class){.neg = neg, .cclass = cclass};
+
+	return node;
+}
 static struct re_node *re_parse_range(struct re_compile_ctx *ctx)
 {
 	aem_assert(ctx);
+
+	{
+		struct re_node *node = re_parse_named_class(ctx);
+		if (node)
+			return node;
+	}
 
 	struct re_node *node = re_node_new(RE_NODE_RANGE);
 	if (!node)

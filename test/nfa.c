@@ -119,7 +119,7 @@ int main(int argc, char **argv)
 	//test_regex_compile(&nfa, "[^-\\]_a-zA-Z0-9]+!", 9, 0);
 
 	test_regex_compile(&nfa, "pfx(1|(2))*sf?x", 10, 0);
-	test_regex_compile(&nfa, "\\w\\W(\\L|\\d)+", 11, 0);
+	test_regex_compile(&nfa, "\\w\\W([[:^lower:]]|\\d)+", 11, 0);
 	test_regex_compile(&nfa, ".*\\<word\\>.*(\\<begin|end\\>)", 12, 0);
 
 	// Test bounds and classes

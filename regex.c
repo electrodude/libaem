@@ -588,7 +588,7 @@ static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 		case 2: {
 			// Unsubstitued escape
 			int neg = isupper(c) != 0;
-			switch (tolower(c)) {
+			switch (c) {
 			case '<':
 				type = RE_NODE_CLASS;
 				args.cclass = (struct re_node_class){.neg = 0, .frontier = 1, .cclass = AEM_NFA_CCLASS_ALNUM};
@@ -597,44 +597,31 @@ static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 				type = RE_NODE_CLASS;
 				args.cclass = (struct re_node_class){.neg = 1, .frontier = 1, .cclass = AEM_NFA_CCLASS_ALNUM};
 				break;
+			case 'A':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = 0, .frontier = 1, .cclass = AEM_NFA_CCLASS_ANY};
+				break;
+			case 'z':
+				type = RE_NODE_CLASS;
+				args.cclass = (struct re_node_class){.neg = 1, .frontier = 1, .cclass = AEM_NFA_CCLASS_ANY};
+				break;
+
 			case 'w':
+			case 'W':
 				type = RE_NODE_CLASS;
 				args.cclass = (struct re_node_class){.neg = 0, .frontier = 0, .cclass = AEM_NFA_CCLASS_ALNUM};
 				break;
-			case 'a':
-				type = RE_NODE_CLASS;
-				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_ALPHA};
-				break;
-			case 'b':
-				type = RE_NODE_CLASS;
-				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_BLANK};
-				break;
 			case 'd':
+			case 'D':
 				type = RE_NODE_CLASS;
 				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_DIGIT};
 				break;
-			case 'l':
-				type = RE_NODE_CLASS;
-				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_LOWER};
-				break;
-			case 'p':
-				type = RE_NODE_CLASS;
-				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_PUNCT};
-				break;
 			case 's':
+			case 'S':
 				type = RE_NODE_CLASS;
 				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_SPACE};
 				break;
-			// collides with unicode \u in text mode
-			case 'u':
-				type = RE_NODE_CLASS;
-				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_UPPER};
-				break;
-			// collides with hex \x in binary mode
-			case 'x':
-				type = RE_NODE_CLASS;
-				args.cclass = (struct re_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_XDIGIT};
-				break;
+
 			case '(':
 			case ')':
 			case '[':
@@ -644,6 +631,7 @@ static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 			case '|':
 			case '\\':
 				break;
+
 			default:
 				aem_logf_ctx(AEM_LOG_WARN, "Unnecessary escape: \\%c", c);
 			}

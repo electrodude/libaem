@@ -560,7 +560,7 @@ static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 			switch (c) {
 			case '.':
 				type = RE_NODE_CLASS;
-				args.cclass = (struct re_node_class){.neg = 0, .frontier = 0, .cclass = AEM_NFA_CCLASS_LINE};
+				args.cclass = (struct re_node_class){.neg = 0, .frontier = 0, .cclass = (ctx->flags & AEM_REGEX_FLAG_BINARY) ? AEM_NFA_CCLASS_ANY : AEM_NFA_CCLASS_LINE};
 				break;
 			case '^':
 				type = RE_NODE_CLASS;

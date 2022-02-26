@@ -9,8 +9,9 @@
  * d: Generate debug information for regex tracing, disable some optimizations.
  *    Stores pointers into your pattern stringslice in the `struct aem_nfa`!
  * c: Only create captures for pairs of () that would otherwise be unnecessary
- * b: Binary mode: match single bytes, rather than UTF-8 codepoints.  Patterns
- *    must still be valid UTF-8 regardless of the status of this flag.
+ * b: Binary mode: match single bytes, rather than UTF-8 codepoints, and make
+ *    /./ match any character, even newline.  Patterns must still be valid
+ *    UTF-8 regardless of the status of this flag.
  */
 #define AEM_REGEX_FLAGS_DEFINE(FLAG) \
 	/*                  name            ,flag,safe,value*/ \

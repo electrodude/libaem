@@ -16,7 +16,7 @@ static int test_add_regex(struct aem_nfa *nfa, const char *pattern)
 	aem_logf_ctx(AEM_LOG_INFO, "add_regex(\"%s\") expect (%d)", pattern, rc_expect);
 
 	struct aem_stringslice in = aem_stringslice_new_cstr(pattern);
-	int rc = aem_nfa_add_regex(nfa, in, -1, AEM_REGEX_FLAG_DEBUG | AEM_REGEX_FLAG_BINARY);
+	int rc = aem_nfa_add_regex(nfa, in, -1, aem_stringslice_new_cstr("d"));
 
 	if (rc_expect < 0 ? rc != rc_expect : rc < 0) {
 		test_errors++;
@@ -34,7 +34,7 @@ static int test_add_string(struct aem_nfa *nfa, const char *pattern)
 	aem_logf_ctx(AEM_LOG_INFO, "add_string(\"%s\") expect (%d)", pattern, rc_expect);
 
 	struct aem_stringslice in = aem_stringslice_new_cstr(pattern);
-	int rc = aem_nfa_add_string(nfa, in, -1, AEM_REGEX_FLAG_DEBUG);
+	int rc = aem_nfa_add_string(nfa, in, -1, aem_stringslice_new_cstr("d"));
 
 	if (rc_expect < 0 ? rc != rc_expect : rc < 0) {
 		test_errors++;

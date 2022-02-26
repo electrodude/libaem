@@ -181,6 +181,52 @@ static void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 
 
 /// AST construction
+// Flags
+static enum aem_regex_flags re_flags_parse(struct aem_stringslice *in, int sandbox)
+{
+	aem_assert(in);
+	enum aem_regex_flags flags = 0;
+	for (;;) {
+#define X(name, flag, safe, value) \
+		if (aem_stringslice_match(in, flag) && (safe || !sandbox)) { \
+			flags |= name; \
+			continue; \
+		}
+		AEM_REGEX_FLAGS_DEFINE(X)
+#undef X
+		break;
+	}
+	return flags;
+}
+static enum aem_regex_flags re_flags_adj(struct aem_stringslice *in, enum aem_regex_flags flags, int sandbox)
+{
+	aem_assert(in);
+	flags |= re_flags_parse(in, sandbox);
+	if (aem_stringslice_match(in, "-"))
+		flags &= ~re_flags_parse(in, sandbox);
+	return flags;
+}
+static void re_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, int sandbox)
+{
+	aem_assert(out);
+#define X(name, flag, safe, value) \
+	if ((flags & name) && (safe || !sandbox)) \
+		aem_stringbuf_puts(out, flag);
+	AEM_REGEX_FLAGS_DEFINE(X)
+#undef X
+	size_t checkpoint = out->n;
+	aem_stringbuf_puts(out, "-");
+#define X(name, flag, safe, value) \
+	if (!(flags & name) && (safe || !sandbox)) \
+		aem_stringbuf_puts(out, flag);
+	AEM_REGEX_FLAGS_DEFINE(X)
+#undef X
+	// Remove "-" if no negative flags were appended.
+	if (out->n == checkpoint+1)
+		out->n = checkpoint;
+}
+
+
 struct re_compile_ctx {
 	struct aem_stringslice in;
 	struct aem_nfa *nfa;
@@ -452,8 +498,30 @@ static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 		struct re_node *brackets = re_parse_brackets(ctx);
 		return brackets;
 	} else if (aem_stringslice_match(&ctx->in, "(")) {
-		size_t i = ctx->n_captures++; // Count captures in lexical order
+		int do_capture = 1;
+
+		enum aem_regex_flags flags = ctx->flags;
+		if (aem_stringslice_match(&ctx->in, "?")) {
+			ctx->flags = re_flags_adj(&ctx->in, ctx->flags, 1);
+			AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
+				aem_stringbuf_puts(out, "Change flags from ");
+				re_flags_describe(out, flags, 0);
+				aem_stringbuf_puts(out, " to ");
+				re_flags_describe(out, ctx->flags, 0);
+			}
+			if (aem_stringslice_match(&ctx->in, ":")) {
+				do_capture = 0;
+			} else {
+				aem_logf_ctx(AEM_LOG_NYI, "NYI: set flags for current group (?flags)");
+			}
+		}
+
+		size_t i = ctx->n_captures;
+		if (do_capture)
+			ctx->n_captures++; // Count captures in lexical order
+
 		struct re_node *pattern = re_parse_pattern(ctx);
+		ctx->flags = flags; // Restore flags
 		if (!aem_stringslice_match(&ctx->in, ")")) {
 			re_node_free(pattern);
 			ctx->n_captures = i;
@@ -461,6 +529,8 @@ static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 		}
 		out.end = ctx->in.start;
 
+		if (!do_capture)
+			return pattern;
 		if ((ctx->flags & AEM_REGEX_FLAG_EXPLICIT_CAPTURES) && pattern->type == RE_NODE_ALTERNATION)
 			return pattern;
 
@@ -990,7 +1060,7 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 }
 
 
-static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, enum aem_regex_flags flags, int (*compile)(struct re_compile_ctx *ctx))
+static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, struct aem_stringslice flags, int (*compile)(struct re_compile_ctx *ctx))
 {
 	aem_assert(nfa);
 	aem_assert(in);
@@ -1003,7 +1073,14 @@ static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int matc
 	ctx.in = *in;
 	ctx.nfa = nfa;
 	ctx.match = match;
-	ctx.flags = flags;
+	ctx.flags = re_flags_adj(&flags, AEM_REGEX_FLAG_BINARY/*TODO 0*/, 0);
+	if (aem_stringslice_ok(flags)) {
+		AEM_LOG_MULTI(out, AEM_LOG_ERROR) {
+			aem_stringbuf_puts(out, "Garbage after flags: ");
+			aem_string_escape(out, flags);
+		}
+		return -1;
+	}
 
 	size_t n_insns = nfa->n_insns;
 #if AEM_NFA_CAPTURES
@@ -1042,7 +1119,7 @@ static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int matc
 	return rc;
 }
 #define AEM_NFA_ADD_DEFINE(name) \
-int aem_nfa_add_##name(struct aem_nfa *nfa, struct aem_stringslice pat, int match, enum aem_regex_flags flags) \
+int aem_nfa_add_##name(struct aem_nfa *nfa, struct aem_stringslice pat, int match, struct aem_stringslice flags) \
 { \
 	return aem_nfa_add(nfa, &pat, match, flags, aem_##name##_compile); \
 }

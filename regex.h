@@ -4,26 +4,31 @@
 #include <aem/nfa.h>
 
 /// Regex parser
+
+/* Flags:
+ * d: Generate debug information for regex tracing, disable some optimizations.
+ *    Stores pointers into your pattern stringslice in the `struct aem_nfa`!
+ * c: Only create captures for pairs of () that would otherwise be unnecessary
+ * b: Binary mode: match single bytes, rather than UTF-8 codepoints.  Patterns
+ *    must still be valid UTF-8 regardless of the status of this flag.
+ */
+#define AEM_REGEX_FLAGS_DEFINE(FLAG) \
+	/*                  name            ,flag,safe,value*/ \
+	FLAG(AEM_REGEX_FLAG_DEBUG            , "d", 0, 0x01) \
+	FLAG(AEM_REGEX_FLAG_EXPLICIT_CAPTURES, "c", 1, 0x02) \
+	FLAG(AEM_REGEX_FLAG_BINARY           , "b", 1, 0x20)
+
 enum aem_regex_flags {
-	// If enabled, input regex text memory must remain valid as long as NFA still has that debug info.
-	// If disabled, optimizations are enabled that may confuse tracing.
-	AEM_REGEX_FLAG_DEBUG = 0x1,
-	// If true, stop parsing once ctx->final is found
-	//AEM_REGEX_FLAG_PARSE_UNTIL = 0x4,
-
-// Only for aem_nfa_add_regex
-	// If true, only create captures for pairs of () that would otherwise be unnecessary.
-	AEM_REGEX_FLAG_EXPLICIT_CAPTURES = 0x2,
-
-	// Disable UTF-8 conversion.  Would be named AEM_REGEX_FLAG_DISABLE_UTF8 if I weren't so opinionated; avoid unless you actually aren't matching text
-	// Patterns must still be properly escaped UTF-8 patterns even if this flag is set.
-	AEM_REGEX_FLAG_BINARY = 0x4,
+#define X(name, flag, safe, value) \
+	name = value,
+	AEM_REGEX_FLAGS_DEFINE(X)
+#undef X
 };
 
 // If you pass <0 as the match parameter to any of these functions, it will use
 // the lowest number greater than any registered match number.
 // Returns match number on success, or <0 on failure.
-int aem_nfa_add_regex (struct aem_nfa *nfa, struct aem_stringslice re , int match, enum aem_regex_flags flags);
-int aem_nfa_add_string(struct aem_nfa *nfa, struct aem_stringslice str, int match, enum aem_regex_flags flags);
+int aem_nfa_add_regex (struct aem_nfa *nfa, struct aem_stringslice re , int match, struct aem_stringslice flags);
+int aem_nfa_add_string(struct aem_nfa *nfa, struct aem_stringslice str, int match, struct aem_stringslice flags);
 
 #endif /* AEM_REGEX_H */

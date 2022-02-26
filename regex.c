@@ -102,6 +102,7 @@ static void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 	}
 
 	int do_parens = node->children.n > 0;
+	int want_space = 1;
 	switch (node->type) {
 	case RE_NODE_REPEAT:
 		do_parens = 1;
@@ -118,28 +119,17 @@ static void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 		const struct re_node_range range = node->args.range;
 
 		aem_nfa_desc_range(out, range.min, range.max);
-		if (node->children.n)
-			aem_stringbuf_puts(out, " ");
 		break;
 	}
-	case RE_NODE_BRACKETS:
-		aem_stringbuf_putss(out, node->text);
-		if (node->children.n)
-			aem_stringbuf_puts(out, " ");
-		break;
 	case RE_NODE_ATOM:
 		aem_stringbuf_putc(out, '\'');
 		aem_stringbuf_putss(out, node->text);
 		aem_stringbuf_putc(out, '\'');
-		if (node->children.n)
-			aem_stringbuf_puts(out, " ");
 		break;
 	case RE_NODE_CLASS:
 		aem_stringbuf_putc(out, '\'');
 		aem_stringbuf_putss(out, node->text);
 		aem_stringbuf_putc(out, '\'');
-		if (node->children.n)
-			aem_stringbuf_puts(out, " ");
 		break;
 	case RE_NODE_REPEAT: {
 		/*
@@ -156,8 +146,6 @@ static void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 		if (repeat.max != UINT_MAX)
 			aem_stringbuf_printf(out, "%d", repeat.max);
 		aem_stringbuf_puts(out, "}");
-		if (node->children.n)
-			aem_stringbuf_puts(out, " ");
 		break;
 	}
 	case RE_NODE_CAPTURE:
@@ -166,28 +154,25 @@ static void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 		const struct re_node_capture capture = node->args.capture;
 		aem_stringbuf_printf(out, " %d", capture.capture);
 #endif
-		if (node->children.n)
-			aem_stringbuf_puts(out, " ");
 		break;
 	case RE_NODE_BRANCH:
+		want_space = 0;
 		break;
+	case RE_NODE_BRACKETS:
 	case RE_NODE_ALTERNATION:
-		aem_stringbuf_puts(out, "|");
-		if (node->children.n)
-			aem_stringbuf_puts(out, " ");
+		aem_stringbuf_putss(out, node->text);
 		break;
 	default:
 		aem_stringbuf_puts(out, "<invalid>");
-		if (node->children.n)
-			aem_stringbuf_puts(out, " ");
 		break;
 	}
 
 	AEM_STACK_FOREACH(i, &node->children) {
 		struct re_node *child = node->children.s[i];
-		if (i > 0)
+		if (want_space)
 			aem_stringbuf_putc(out, ' ');
 		re_node_sexpr(out, child);
+		want_space = 1;
 	}
 
 	if (do_parens)
@@ -756,17 +741,10 @@ static struct re_node *re_parse_pattern(struct re_compile_ctx *ctx)
 	node->text = out;
 	re_node_push(node, branch);
 
-	if (ctx->flags & AEM_REGEX_FLAG_DEBUG) {
-		// Better debug traces
-		struct re_node *rest = re_parse_pattern(ctx);
+	do {
+		struct re_node *rest = re_parse_branch(ctx);
 		re_node_push(node, rest);
-	} else {
-		// Infinitesimally faster compilation
-		do {
-			struct re_node *rest = re_parse_branch(ctx);
-			re_node_push(node, rest);
-		} while (aem_stringslice_match(&ctx->in, "|"));
-	}
+	} while (aem_stringslice_match(&ctx->in, "|"));
 
 	return node;
 }
@@ -865,10 +843,6 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 		}
 		size_t op = aem_nfa_append_insn(nfa, aem_nfa_insn_range(range.min, range.max));
 		re_set_debug(ctx, op, node->text);
-		break;
-	}
-	case RE_NODE_BRACKETS: {
-		re_node_gen_alternation(ctx, node);
 		break;
 	}
 	case RE_NODE_ATOM: {
@@ -1002,6 +976,7 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 		}
 		break;
 	}
+	case RE_NODE_BRACKETS:
 	case RE_NODE_ALTERNATION: {
 		re_node_gen_alternation(ctx, node);
 		break;

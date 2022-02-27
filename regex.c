@@ -244,10 +244,8 @@ static int match_escape(struct re_compile_ctx *ctx, uint32_t *c_p, int *esc_p)
 
 	int esc = aem_stringslice_match(&ctx->in, "\\");
 	uint32_t c;
-	if (!aem_stringslice_get_rune(&ctx->in, &c)) {
-		ctx->in = orig;
-		return 0;
-	}
+	if (!aem_stringslice_get_rune(&ctx->in, &c))
+		goto fail;
 
 	if (esc) {
 		esc = 1; // Substituted escape
@@ -257,27 +255,38 @@ static int match_escape(struct re_compile_ctx *ctx, uint32_t *c_p, int *esc_p)
 		case 't': c = '\t'  ; break;
 		case 'n': c = '\n'  ; break;
 		case 'r': c = '\r'  ; break;
-		case 'u': {
-			unsigned int out;
-			if (!aem_stringslice_match_uint_base(&ctx->in, 16, &out))
-				return 0;
-			c = out;
-			// Don't use \u in binary mode
-			if ((ctx->flags & AEM_REGEX_FLAG_BINARY) && c >= 0x80) {
-				// TODO: Should probably be an error
-				aem_logf_ctx(AEM_LOG_WARN, "UTF-8 codepoint in binary mode: \\u%x", c);
+		case 'x':
+		case 'u':
+		case 'U': {
+			int len = 0;
+			if (aem_stringslice_match(&ctx->in, "{"))
+				len = -1;
+			else if (c == 'x')
+				len = 2;
+			else if (c == 'u')
+				len = 4;
+			else if (c == 'U')
+				len = 8;
+			else
+				goto fail;
+			unsigned int c = 0;
+			while (len) {
+				int d = aem_stringslice_get(&ctx->in);
+				if ('0' <= d && d <= '9')
+					c = (c << 4) + (d - '0' + 0x0);
+				else if ('A' <= d && d <= 'F')
+					c = (c << 4) + (d - 'A' + 0xA);
+				else if ('a' <= d && d <= 'f')
+					c = (c << 4) + (d - 'a' + 0xA);
+				else if (d < 0)
+					goto fail;
+				else if (d == '}' && len < 0)
+					break;
+				len--;
 			}
 			break;
 		}
-		case 'x': {
-			// Don't use \x outside of binary mode
-			if (!(ctx->flags & AEM_REGEX_FLAG_BINARY))
-				goto unknown_escape;
-			c = aem_stringslice_match_hexbyte(&ctx->in);
-			break;
-		}
 		default:
-		unknown_escape:
 			esc = 2; // Unknown escape
 			break;
 		}
@@ -290,6 +299,10 @@ static int match_escape(struct re_compile_ctx *ctx, uint32_t *c_p, int *esc_p)
 		*c_p = c;
 
 	return 1;
+
+fail:
+	ctx->in = orig;
+	return 0;
 }
 
 /// RE => AST

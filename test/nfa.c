@@ -99,8 +99,8 @@ int main(int argc, char **argv)
 	aem_logf_ctx(AEM_LOG_NOTICE, "construct nfa");
 
 	test_regex_compile(&nfa, "[b\\0a]([a-fP-Z]{6})", 1, 0);
-	test_regex_compile(&nfa, "[^d\\0-ac]([a-fP-Z]{6})", 1, 0);
-	test_regex_compile(&nfa, "[^ba\\ufffff-\\uffffff]((:[a-fP-Z]{3}){2})$", 1, 0);
+	test_regex_compile(&nfa, "[^d\\0-a\\x63]([a-fP-Z]{6})", 1, 0);
+	test_regex_compile(&nfa, "[^ba\\U000fffff-\\U00ffffff]((:[a-fP-Z]{3}){2})$", 1, 0);
 	//test_regex_compile(&nfa, "", 2, 0);
 	test_regex_compile(&nfa, "(chicken soup)", 2, 0);
 	test_regex_compile(&nfa, "asdf", 3, 0);

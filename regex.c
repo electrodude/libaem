@@ -48,9 +48,7 @@ struct re_node {
 			uint8_t frontier : 1;
 		} cclass;
 		struct re_node_capture {
-#if AEM_NFA_CAPTURES
 			size_t capture;
-#endif
 		} capture;
 		struct re_node_repeat {
 			unsigned int min;
@@ -150,10 +148,8 @@ static void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 	}
 	case RE_NODE_CAPTURE:
 		aem_stringbuf_puts(out, "capture");
-#if AEM_NFA_CAPTURES
 		const struct re_node_capture capture = node->args.capture;
 		aem_stringbuf_printf(out, " %d", capture.capture);
-#endif
 		break;
 	case RE_NODE_BRANCH:
 		want_space = 0;
@@ -554,9 +550,7 @@ static struct re_node *re_parse_atom(struct re_compile_ctx *ctx)
 			goto fail;
 		}
 		capture->text = out;
-#if AEM_NFA_CAPTURES
 		capture->args.capture.capture = i;
-#endif
 		re_node_push(capture, pattern);
 		return capture;
 	} else {
@@ -733,13 +727,11 @@ static struct re_node *re_parse_postfix(struct re_compile_ctx *ctx)
 		return atom;
 
 	if ((ctx->flags & AEM_REGEX_FLAG_EXPLICIT_CAPTURES) && atom->type == RE_NODE_CAPTURE) {
-#if AEM_NFA_CAPTURES
 		const struct re_node_capture capture = atom->args.capture;
 		aem_logf_ctx(AEM_LOG_NOTICE, "Deleting capture %zd/%zd", capture.capture, ctx->n_captures);
 		if (capture.capture == ctx->n_captures-1) {
 			ctx->n_captures--;
 		}
-#endif
 		struct re_node *child = aem_stack_pop(&atom->children);
 		aem_assert(!atom->children.n);
 		re_node_free(atom);
@@ -1084,9 +1076,7 @@ static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int matc
 	}
 
 	size_t n_insns = nfa->n_insns;
-#if AEM_NFA_CAPTURES
 	size_t n_captures = nfa->n_captures;
-#endif
 
 	int rc = compile(&ctx);
 
@@ -1101,11 +1091,9 @@ static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int matc
 		return rc;
 	}
 
-#if AEM_NFA_CAPTURES
 	// Make sure every thread allocates as many captures as any thread will ever need.
 	if (ctx.n_captures > ctx.nfa->n_captures)
 		ctx.nfa->n_captures = ctx.n_captures;
-#endif
 
 	// If we get to the end, record a match and save
 	// the complete regex in the MATCH instruction.

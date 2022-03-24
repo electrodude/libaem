@@ -79,9 +79,7 @@ void aem_nfa_dtor(struct aem_nfa *nfa)
 
 	free(nfa->pgm);
 	free(nfa->thr_init);
-#if AEM_NFA_TRACING
 	free(nfa->trace_dbg);
-#endif
 }
 
 // TODO: test
@@ -101,9 +99,7 @@ struct aem_nfa *aem_nfa_dup(struct aem_nfa *dst, const struct aem_nfa *src)
 		dst->pgm[i] = src->pgm[i];
 	}
 
-#if AEM_NFA_CAPTURES
 	dst->n_captures = src->n_captures;
-#endif
 
 	dst->alloc_bitfields = src->alloc_bitfields;
 	aem_assert(!AEM_ARRAY_RESIZE(dst->thr_init, dst->alloc_bitfields));
@@ -111,12 +107,10 @@ struct aem_nfa *aem_nfa_dup(struct aem_nfa *dst, const struct aem_nfa *src)
 		dst->thr_init[i] = src->thr_init[i];
 	}
 
-#if AEM_NFA_TRACING
 	aem_assert(!AEM_ARRAY_RESIZE(dst->trace_dbg, dst->alloc_insns));
 	for (size_t i = 0; i < dst->alloc_insns; i++) {
 		dst->trace_dbg[i] = src->trace_dbg[i];
 	}
-#endif
 
 	return dst;
 }
@@ -131,15 +125,11 @@ size_t aem_nfa_put_insn(struct aem_nfa *nfa, size_t i, aem_nfa_insn insn)
 		size_t alloc_insns = nfa->alloc_insns;
 		int rc = AEM_ARRAY_GROW(nfa->pgm, nfa->n_insns, nfa->alloc_insns);
 		aem_assert(rc >= 0);
-#if AEM_NFA_TRACING
 		if (rc)
 			aem_assert(!AEM_ARRAY_RESIZE(nfa->trace_dbg, nfa->alloc_insns));
-#endif
 		for (size_t i = alloc_insns; i < nfa->alloc_insns; i++) {
 			nfa->pgm[i] = aem_nfa_insn_match(-1);
-#if AEM_NFA_TRACING
 			nfa->trace_dbg[i] = (struct aem_nfa_trace_info){.where = AEM_STRINGSLICE_EMPTY, .match = -1};
-#endif
 		}
 
 		// Resize bitfields
@@ -157,9 +147,7 @@ size_t aem_nfa_put_insn(struct aem_nfa *nfa, size_t i, aem_nfa_insn insn)
 	}
 
 	nfa->pgm[i] = insn;
-#if AEM_NFA_TRACING
 	//nfa->trace_dbg[i] = (struct aem_nfa_trace_info){.where = AEM_STRINGSLICE_EMPTY, .match = -1};
-#endif
 
 	return i;
 }
@@ -169,7 +157,6 @@ size_t aem_nfa_append_insn(struct aem_nfa *nfa, aem_nfa_insn insn)
 
 	return aem_nfa_put_insn(nfa, nfa->n_insns, insn);
 }
-#if AEM_NFA_TRACING
 void aem_nfa_set_dbg(struct aem_nfa *nfa, size_t i, struct aem_stringslice where, int match)
 {
 	aem_assert(nfa);
@@ -181,7 +168,6 @@ void aem_nfa_set_dbg(struct aem_nfa *nfa, size_t i, struct aem_stringslice where
 
 	nfa->trace_dbg[i] = (struct aem_nfa_trace_info){.where = where, .match = match};
 }
-#endif
 
 static aem_nfa_insn aem_nfa_mk_insn(enum aem_nfa_op op, aem_nfa_insn arg)
 {
@@ -223,7 +209,6 @@ aem_nfa_insn aem_nfa_insn_class(unsigned int neg, unsigned int frontier, enum ae
 	return aem_nfa_mk_insn(AEM_NFA_CLASS, (cclass << 2) | (frontier << 1) | neg);
 }
 
-#if AEM_NFA_CAPTURES
 aem_nfa_insn aem_nfa_insn_capture(unsigned int end, size_t n)
 {
 	/*
@@ -238,7 +223,6 @@ aem_nfa_insn aem_nfa_insn_capture(unsigned int end, size_t n)
 	}
 	return aem_nfa_mk_insn(AEM_NFA_CAPTURE, (n << 1) | end);
 }
-#endif
 
 aem_nfa_insn aem_nfa_insn_match(int match)
 {
@@ -418,10 +402,8 @@ void aem_nfa_optimize(struct aem_nfa *nfa)
 
 		aem_logf_ctx(AEM_LOG_DEBUG, "unreachable: %zx %s %zx", pc, aem_nfa_op_name(op), insn);
 		//aem_nfa_put_insn(nfa, pc, (1 << AEM_NFA_OP_LEN) - 1);
-#if AEM_NFA_TRACING
 		struct aem_nfa_trace_info *dbg = &nfa->trace_dbg[pc];
 		aem_nfa_set_dbg(nfa, pc, aem_stringslice_new_cstr("unreachable"), dbg->match);
-#endif
 	}
 #endif
 }
@@ -531,14 +513,12 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 			break;
 		}
 
-#if AEM_NFA_CAPTURES
 		case AEM_NFA_CAPTURE: {
 			int end = insn & 0x1;
 			insn >>= 1;
 			aem_stringbuf_printf(out, "%s %zx ", end ? "end" : "start", insn);
 			break;
 		}
-#endif
 
 		case AEM_NFA_MATCH:
 			aem_stringbuf_printf(out, "%zx", insn);
@@ -557,7 +537,6 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 			break;
 		}
 
-#if AEM_NFA_TRACING
 		// Get tracing information
 		struct aem_nfa_trace_info *dbg = &nfa->trace_dbg[pc];
 
@@ -567,7 +546,6 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 			aem_stringbuf_puts(out, "  ");
 			aem_stringbuf_putss(out, dbg->where);
 		}
-#endif
 
 		aem_stringbuf_puts(out, AEM_SGR("0") "\n");
 	}
@@ -621,6 +599,8 @@ static struct aem_nfa_thread *aem_nfa_thread_init(struct aem_nfa_thread *thr, co
 	for (size_t i = 0; i < run->n_captures; i++) {
 		thr->match.captures[i] = AEM_STRINGSLICE_EMPTY;
 	}
+#else
+	thr->match.captures = NULL;
 #endif
 #if AEM_NFA_TRACING
 	size_t list_32 = (run->n_insns + 31) >> 5;
@@ -629,6 +609,8 @@ static struct aem_nfa_thread *aem_nfa_thread_init(struct aem_nfa_thread *thr, co
 	for (size_t i = 0; i < list_32; i++) {
 		thr->match.visited[i] = 0;
 	}
+#else
+	thr->match.visited = NULL;
 #endif
 	thr->match.match = -1;
 
@@ -794,8 +776,8 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			return -1;
 		}
 
-#if AEM_NFA_CAPTURES
 		case AEM_NFA_CAPTURE: {
+#if AEM_NFA_CAPTURES
 			int end = insn & 0x1;
 			insn >>= 1;
 			if (insn >= run->n_captures) {
@@ -808,9 +790,9 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 				capture->end = run->p_curr;
 			else
 				capture->start = run->p_curr;
+#endif
 			break;
 		}
-#endif
 
 		case AEM_NFA_MATCH:
 			aem_logf_ctx(AEM_LOG_DEBUG3, "match %x", insn);
@@ -877,7 +859,6 @@ dead:
 	return -1;
 }
 
-#if AEM_NFA_TRACING
 void aem_nfa_show_trace(const struct aem_nfa *nfa, const struct aem_nfa_thread *thr)
 {
 	aem_assert(nfa);
@@ -957,7 +938,6 @@ void aem_nfa_show_trace(const struct aem_nfa *nfa, const struct aem_nfa_thread *
 		}
 	}
 }
-#endif
 
 int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct aem_nfa_match *match_p)
 {
@@ -1100,9 +1080,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 			switch (thr->state) {
 			case AEM_NFA_THR_LIVE:
 				//aem_logf_ctx(AEM_LOG_DEBUG3, "=> %zx", thr->pc);
-#if AEM_NFA_TRACING
 				//aem_nfa_show_trace(run.nfa, thr);
-#endif
 #if AEM_NFA_THREAD_STATE
 				aem_nfa_thread_add(&run, 1, thr);
 #else
@@ -1111,9 +1089,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 				break;
 			case AEM_NFA_THR_DEAD:
 				//aem_logf_ctx(AEM_LOG_DEBUG3, "dead");
-#if AEM_NFA_TRACING
 				//aem_nfa_show_trace(run.nfa, thr);
-#endif
 #if AEM_NFA_THREAD_STATE
 				aem_nfa_thread_free(thr);
 #endif
@@ -1132,9 +1108,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 					aem_nfa_thread_free(thr_matched);
 				thr_matched = thr;
 #else
-#if AEM_NFA_TRACING
 				//aem_nfa_show_trace(run.nfa, thr);
-#endif
 #endif
 				break;
 			default:
@@ -1180,9 +1154,7 @@ out:
 				}
 			}
 #endif
-#if AEM_NFA_TRACING
 			aem_nfa_show_trace(run.nfa, thr_matched);
-#endif
 		}
 		aem_nfa_thread_free(thr_matched);
 	}

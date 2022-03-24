@@ -55,7 +55,6 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 	}
 	free(match.captures);
 #endif
-#if AEM_NFA_TRACING
 	if (match.visited) {
 		//aem_nfa_show_trace(&run, thr_matched);
 #if 0
@@ -66,7 +65,6 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 #endif
 	}
 	free(match.visited);
-#endif
 
 	int input_match = aem_stringslice_eq(in, input_remain);
 
@@ -132,11 +130,7 @@ int main(int argc, char **argv)
 	aem_nfa_optimize(&nfa);
 
 	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
-		aem_stringbuf_printf(out, "NFA VM disassembly (%zd insns", nfa.n_insns);
-#if AEM_NFA_CAPTURES
-		aem_stringbuf_printf(out, ", %zd captures", nfa.n_captures);
-#endif
-		aem_stringbuf_puts(out, "):\n");
+		aem_stringbuf_printf(out, "NFA VM disassembly (%zd insns, %zd captures):\n", nfa.n_insns, nfa.n_captures);
 		aem_nfa_disas(out, &nfa, nfa.thr_init);
 	}
 

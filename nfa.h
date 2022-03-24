@@ -59,23 +59,17 @@ enum aem_nfa_thr_state {
 	AEM_NFA_THR_MATCHED,
 };
 
-#if AEM_NFA_TRACING
 struct aem_nfa_trace_info {
 	struct aem_stringslice where;
 	int match;
 };
-#endif
 struct aem_nfa {
 	aem_nfa_insn *pgm;
 	size_t n_insns;
 	size_t alloc_insns;
 
-#if AEM_NFA_CAPTURES
 	size_t n_captures;
-#endif
-#if AEM_NFA_TRACING
 	struct aem_nfa_trace_info *trace_dbg;
-#endif
 
 	aem_nfa_bitfield *thr_init;
 	size_t alloc_bitfields;
@@ -97,17 +91,11 @@ struct aem_nfa *aem_nfa_dup(struct aem_nfa *dst, const struct aem_nfa *src);
 // You probably don't want to call these if you aren't regex.c
 size_t aem_nfa_put_insn(struct aem_nfa *nfa, size_t i, aem_nfa_insn insn);
 size_t aem_nfa_append_insn(struct aem_nfa *nfa, aem_nfa_insn insn);
-#if AEM_NFA_TRACING
 void aem_nfa_set_dbg(struct aem_nfa *nfa, size_t i, struct aem_stringslice dbg, int match);
-#else
-static inline void aem_nfa_set_dbg(struct aem_nfa *nfa, size_t i, struct aem_stringslice dbg, int match) { (void)nfa; (void)i; (void)dbg; }
-#endif
 aem_nfa_insn aem_nfa_insn_range(uint32_t lo, uint32_t hi);
 aem_nfa_insn aem_nfa_insn_char(uint32_t c);
 aem_nfa_insn aem_nfa_insn_class(unsigned int neg, unsigned int frontier, enum aem_nfa_cclass cclass);
-#if AEM_NFA_CAPTURES
 aem_nfa_insn aem_nfa_insn_capture(unsigned int end, size_t n);
-#endif
 aem_nfa_insn aem_nfa_insn_match(int match);
 aem_nfa_insn aem_nfa_insn_jmp(size_t pc);
 aem_nfa_insn aem_nfa_insn_fork(size_t pc);
@@ -122,12 +110,8 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const u
 /// NFA engine
 // Returns -1 if no match, match ID >= 0 if match, or < -1 on error.
 struct aem_nfa_match {
-#if AEM_NFA_CAPTURES
 	struct aem_stringslice *captures;
-#endif
-#if AEM_NFA_TRACING
 	aem_nfa_bitfield *visited;
-#endif
 	int match;
 
 	size_t n_insns;

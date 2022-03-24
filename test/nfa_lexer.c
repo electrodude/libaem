@@ -210,7 +210,7 @@ int main(int argc, char **argv)
 	aem_nfa_optimize(&nfa);
 
 	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
-		aem_stringbuf_puts(out, "NFA VM disassembly:\n");
+		aem_stringbuf_printf(out, "NFA VM disassembly (%zd insns, %zd captures):\n", nfa.n_insns, nfa.n_captures);
 		aem_nfa_disas(out, &nfa, nfa.thr_init);
 	}
 

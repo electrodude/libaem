@@ -9,10 +9,6 @@
 #include <errno.h>
 #endif
 
-// TODO: Remove this once the functions that use it,
-//       which are all deprecated, are removed.
-#include <aem/translate.h>
-
 #define AEM_INTERNAL
 #include "stringbuf.h"
 
@@ -269,102 +265,6 @@ void aem_stringbuf_printf(struct aem_stringbuf *restrict str, const char *restri
 	va_start(argp, fmt);
 	aem_stringbuf_vprintf(str, fmt, argp);
 	va_end(argp);
-}
-
-void aem_stringbuf_putq(struct aem_stringbuf *str, char c)
-{
-	if (!str)
-		return;
-	if (str->bad)
-		return;
-
-	switch (c) {
-#define AEM_STRINGBUF_PUTQ_CASE(find, replace) \
-	case find: aem_stringbuf_puts(str, replace); break;
-		AEM_STRINGBUF_PUTQ_CASE('\n', "\\n")
-		AEM_STRINGBUF_PUTQ_CASE('\r', "\\r")
-		AEM_STRINGBUF_PUTQ_CASE('\t', "\\t")
-		AEM_STRINGBUF_PUTQ_CASE('\0', "\\0")
-		AEM_STRINGBUF_PUTQ_CASE('\"', "\\\"")
-		AEM_STRINGBUF_PUTQ_CASE('\\', "\\\\")
-		AEM_STRINGBUF_PUTQ_CASE(' ' , "\\ ")
-#undef AEM_STRINGBUF_PUTQ_CASE
-		default:
-			if (c >= 32 && c < 127) {
-				aem_stringbuf_putc(str, c);
-			} else {
-				aem_stringbuf_puts(str, "\\x");
-				aem_stringbuf_puthex(str, c);
-			}
-			break;
-	}
-}
-
-void aem_stringbuf_putss_quote(struct aem_stringbuf *restrict str, struct aem_stringslice slice)
-{
-	aem_string_escape(str, slice);
-}
-
-void aem_stringbuf_append_quote(struct aem_stringbuf *str, const struct aem_stringbuf *str2)
-{
-	aem_assert(str);
-	aem_string_escape(str, aem_stringslice_new_str(str2));
-}
-
-int aem_stringbuf_putss_unquote(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice)
-{
-	if (!str)
-		return 1;
-	if (str->bad)
-		return 1;
-
-	if (!slice)
-		return 0;
-
-	while (aem_stringslice_ok(*slice)) {
-		struct aem_stringslice checkpoint = *slice;
-
-		int c = aem_stringslice_getc(slice);
-
-		if (c == '\\') {
-			int c2 = aem_stringslice_getc(slice);
-
-			// if no character after the backslash, just output the backslash
-			if (c2 < 0)
-				c2 = '\\';
-
-			switch (c2) {
-#define AEM_STRINGBUF_APPEND_UNQUOTE_CASE(find, replace) \
-	case find: aem_stringbuf_putc(str, replace); break;
-				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('n' , '\n');
-				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('r' , '\r');
-				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('t' , '\t');
-				AEM_STRINGBUF_APPEND_UNQUOTE_CASE('0' , '\0');
-				case 'x':;
-					int b = aem_stringslice_match_hexbyte(slice);
-					if (b >= 0) { // if valid hex byte, unescape it
-						c2 = b;
-						aem_stringbuf_putc(str, b);
-					} else {
-						// else just put the unescaped 'x' without the backslash
-						aem_stringbuf_putc(str, c2);
-					}
-					break;
-
-				default:
-					aem_stringbuf_putc(str, c2);
-					break;
-#undef AEM_STRINGBUF_APPEND_UNQUOTE_CASE
-			}
-		} else if (c > 32 && c < 127) {
-			aem_stringbuf_putc(str, c);
-		} else {
-			*slice = checkpoint;
-			return 0;
-		}
-	}
-
-	return 0;
 }
 
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c)

@@ -236,69 +236,7 @@ static int match_escape(struct re_compile_ctx *ctx, uint32_t *c_p, int *esc_p)
 {
 	aem_assert(ctx);
 
-	struct aem_stringslice orig = ctx->in;
-
-	int esc = aem_stringslice_match(&ctx->in, "\\");
-	uint32_t c;
-	if (!aem_stringslice_get_rune(&ctx->in, &c))
-		goto fail;
-
-	if (esc) {
-		esc = 1; // Substituted escape
-		switch (c) {
-		case '0': c = '\0'  ; break;
-		case 'e': c = '\x1b'; break;
-		case 't': c = '\t'  ; break;
-		case 'n': c = '\n'  ; break;
-		case 'r': c = '\r'  ; break;
-		case 'x':
-		case 'u':
-		case 'U': {
-			int len = 0;
-			if (aem_stringslice_match(&ctx->in, "{"))
-				len = -1;
-			else if (c == 'x')
-				len = 2;
-			else if (c == 'u')
-				len = 4;
-			else if (c == 'U')
-				len = 8;
-			else
-				goto fail;
-			unsigned int c = 0;
-			while (len) {
-				int d = aem_stringslice_get(&ctx->in);
-				if ('0' <= d && d <= '9')
-					c = (c << 4) + (d - '0' + 0x0);
-				else if ('A' <= d && d <= 'F')
-					c = (c << 4) + (d - 'A' + 0xA);
-				else if ('a' <= d && d <= 'f')
-					c = (c << 4) + (d - 'a' + 0xA);
-				else if (d < 0)
-					goto fail;
-				else if (d == '}' && len < 0)
-					break;
-				len--;
-			}
-			break;
-		}
-		default:
-			esc = 2; // Unknown escape
-			break;
-		}
-	}
-
-	if (esc_p)
-		*esc_p = esc;
-
-	if (c_p)
-		*c_p = c;
-
-	return 1;
-
-fail:
-	ctx->in = orig;
-	return 0;
+	return aem_string_unescape_rune(&ctx->in, c_p, esc_p);
 }
 
 /// RE => AST

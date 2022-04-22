@@ -1,6 +1,37 @@
 #define AEM_INTERNAL
 #include "translate.h"
 
+void aem_string_escape_rune(struct aem_stringbuf *str, uint32_t c)
+{
+	if (!str)
+		return;
+	if (str->bad)
+		return;
+
+	switch (c) {
+#define ESCAPE_CASE(find, replace) \
+	case find: aem_stringbuf_puts(str, replace); break;
+		ESCAPE_CASE('\n', "\\n")
+		ESCAPE_CASE('\r', "\\r")
+		ESCAPE_CASE('\t', "\\t")
+		ESCAPE_CASE('\0', "\\0")
+		ESCAPE_CASE('\"', "\\\"")
+		ESCAPE_CASE('\\', "\\\\")
+		ESCAPE_CASE(' ' , "\\ ")
+#undef ESCAPE_CASE
+		default:
+			if (c >= 32 && c < 127) {
+				aem_stringbuf_putc(str, c);
+			} else if (c < 0x100) {
+				aem_stringbuf_printf(str, "\\x%02x", c);
+			} else if (c < 0x10000) {
+				aem_stringbuf_printf(str, "\\u%04x", c);
+			} else {
+				aem_stringbuf_printf(str, "\\U%08x", c);
+			}
+			break;
+	}
+}
 void aem_string_escape(struct aem_stringbuf *restrict str, struct aem_stringslice slice)
 {
 	aem_assert(str);
@@ -13,9 +44,93 @@ void aem_string_escape(struct aem_stringbuf *restrict str, struct aem_stringslic
 #endif
 
 	while (aem_stringslice_ok(slice)) {
-		int c = aem_stringslice_getc(&slice);
-		aem_stringbuf_putq(str, c);
+		uint32_t c;
+		if (!aem_stringslice_get_rune(&slice, &c)) {
+			// TODO BUG: Don't differentiate between valid and invalid UTF-8?
+			c = aem_stringslice_getc(&slice);
+		}
+		aem_string_escape_rune(str, c);
 	}
+}
+
+int aem_string_unescape_rune(struct aem_stringslice *in, uint32_t *c_p, int *esc_p)
+{
+	aem_assert(in);
+
+	struct aem_stringslice orig = *in;
+
+	int esc = aem_stringslice_match(in, "\\");
+	uint32_t c;
+	if (!aem_stringslice_get_rune(in, &c)) {
+		if (esc) {
+			// Unescaped backslash at end of string
+			// TODO: Or backslash followed by invalid codepoint
+			esc = 0;
+			c = '\\';
+			goto done;
+		}
+		goto fail;
+	}
+
+	if (esc) {
+		esc = 1; // Substituted escape
+		switch (c) {
+		case '0': c = '\0'  ; break;
+		case 'e': c = '\x1b'; break;
+		case 'f': c = '\f'  ; break;
+		case 't': c = '\t'  ; break;
+		case 'n': c = '\n'  ; break;
+		case 'r': c = '\r'  ; break;
+		case 'v': c = '\v'  ; break;
+		case 'x':
+		case 'u':
+		case 'U': {
+			int len = 0;
+			if (aem_stringslice_match(in, "{"))
+				len = -1;
+			else if (c == 'x')
+				len = 2;
+			else if (c == 'u')
+				len = 4;
+			else if (c == 'U')
+				len = 8;
+			else
+				goto fail;
+			c = 0;
+			while (len) {
+				int d = aem_stringslice_get(in);
+				if ('0' <= d && d <= '9')
+					c = (c << 4) + (d - '0' + 0x0);
+				else if ('A' <= d && d <= 'F')
+					c = (c << 4) + (d - 'A' + 0xA);
+				else if ('a' <= d && d <= 'f')
+					c = (c << 4) + (d - 'a' + 0xA);
+				else if (d < 0)
+					goto fail;
+				else if (d == '}' && len < 0)
+					break;
+				len--;
+			}
+			break;
+		}
+		default:
+			esc = 2; // Unrecognized escape
+			break;
+		}
+	}
+
+done:
+	if (esc_p)
+		*esc_p = esc;
+
+	if (c_p)
+		*c_p = c;
+
+	return 1;
+
+fail:
+	*in = orig;
+	return 0;
 }
 
 void aem_string_unescape(struct aem_stringbuf *restrict str, struct aem_stringslice *restrict slice)
@@ -24,45 +139,14 @@ void aem_string_unescape(struct aem_stringbuf *restrict str, struct aem_stringsl
 	aem_assert(slice);
 
 	while (aem_stringslice_ok(*slice)) {
-		struct aem_stringslice checkpoint = *slice;
-
-		int c = aem_stringslice_getc(slice);
-
-		if (c == '\\') {
-			int c2 = aem_stringslice_getc(slice);
-
-			// if no character after the backslash, just output the backslash
-			if (c2 < 0)
-				c2 = '\\';
-
-			switch (c2) {
-#define UNQUOTE_CASE(find, replace) \
-	case find: aem_stringbuf_putc(str, replace); break;
-				UNQUOTE_CASE('n' , '\n');
-				UNQUOTE_CASE('r' , '\r');
-				UNQUOTE_CASE('t' , '\t');
-				UNQUOTE_CASE('0' , '\0');
-				case 'x':;
-					int b = aem_stringslice_match_hexbyte(slice);
-					if (b >= 0) { // if valid hex byte, unescape it
-						c2 = b;
-						aem_stringbuf_putc(str, b);
-					} else {
-						// else just put the unescaped 'x' without the backslash
-						aem_stringbuf_putc(str, c2);
-					}
-					break;
-
-				default:
-					aem_stringbuf_putc(str, c2);
-					break;
-#undef UNQUOTE_CASE
-			}
-		} else if (c > 32 && c < 127) {
-			aem_stringbuf_putc(str, c);
+		uint32_t c;
+		int esc;
+		if (aem_string_unescape_rune(slice, &c, &esc)) {
+			aem_stringbuf_put_rune(str, c);
 		} else {
-			*slice = checkpoint;
-			break;
+			// TODO: Just copy invalid UTF-8 verbatim?
+			int c = aem_stringslice_getc(slice);
+			aem_stringbuf_putc(str, c);
 		}
 	}
 }

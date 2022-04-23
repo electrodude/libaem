@@ -1041,6 +1041,10 @@ static int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int matc
 	if (ctx.nfa->n_matches < match + 1)
 		ctx.nfa->n_matches = match + 1;
 
+	// Mark entry point as such.
+	nfa->thr_init[n_insns >> 5] |= (1 << (n_insns & 0x1f));
+	//TODO: bitfield_set(nfa->thr_init, n_insns);
+
 	*in = ctx.in;
 
 	return rc;
@@ -1086,10 +1090,6 @@ static int aem_regex_compile(struct re_compile_ctx *ctx)
 		return 1;
 	}
 
-	// Mark entry point as such.
-	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
-	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
-
 	return 0;
 }
 AEM_NFA_ADD_DEFINE(regex)
@@ -1112,10 +1112,6 @@ static int aem_string_compile(struct re_compile_ctx *ctx)
 	}
 
 	aem_assert(!aem_stringslice_ok(ctx->in));
-
-	// Mark entry point as such.
-	ctx->nfa->thr_init[entry >> 5] |= (1 << (entry & 0x1f));
-	//TODO: bitfield_set(ctx->nfa->thr_init, entry);
 
 	return 0;
 }

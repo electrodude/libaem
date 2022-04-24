@@ -8,6 +8,8 @@ AEM's personal C library
 * `aem_stringslice`: string slice/iterator/parser helper
 * `aem_stack`: dynamically resizeable vector of `void *`
 
+- `aem_nfa`: NFA-based regular expression engine and lexer
+
 * `aem_log`: logging facility: shows context, filter by loglevel, redirect output
 
 * `aem_serial`: cross-platform serial port interface (only tested on Unix)

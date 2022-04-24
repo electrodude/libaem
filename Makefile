@@ -1,4 +1,6 @@
-CC=gcc
+-include config.mk
+
+CC?=gcc
 AR=ar rcu
 RANLIB=ranlib
 
@@ -14,8 +16,8 @@ LDFLAGS+=-lasan
 endif
 ifeq (${DEBUG},valgrind)
 CFLAGS+=-DVALGRIND
-TEST_PROG_PFX=valgrind -q
-#TEST_PROG_PFX=valgrind -q --leak-check=full --show-leak-kinds=all
+#TEST_PROG_PFX=valgrind -q --
+TEST_PROG_PFX=valgrind -q --leak-check=full --show-leak-kinds=all --
 endif
 ifeq (${DEBUG},gdb)
 TEST_PROG_PFX=gdb
@@ -35,9 +37,9 @@ CFLAGS+=-I./test/
 
 # Anything that isn't Windows is Unix
 ifeq (,$(findstring Windows,${OS}))
-        HOST_SYS:=$(shell uname -s)
+	HOST_SYS:=$(shell uname -s)
 else
-        HOST_SYS=Windows
+	HOST_SYS=Windows
 endif
 
 SOURCES_LIBAEM=memory.c stringbuf.c stringslice.c utf8.c stack.c translate.c ansi-term.c pathutil.c registry.c regex.c nfa.c nfa-util.c stream.c streams.c pmcrcu.c log.c module.c gc.c
@@ -60,6 +62,7 @@ all: libaem.a
 
 TESTS=test_utf8 \
       test_module \
+      test_nfa \
       test_pathutil \
       test_stringslice \
       test_stringslice_numeric
@@ -69,8 +72,8 @@ TESTS=test_utf8 \
 
 TEST_PROGS=${TESTS} childproc_child
 
-test_childproc:	test/bin/childproc_child
-test_module: 	test/lib/module_empty.so test/lib/module_failreg.so test/lib/module_test.so test/lib/module_test_singleton.so
+test_childproc: test/bin/childproc_child
+test_module: test/lib/module_empty.so test/lib/module_failreg.so test/lib/module_test.so test/lib/module_test_singleton.so
 
 $(shell mkdir -p test/bin test/lib)
 
@@ -79,7 +82,7 @@ test: ${TESTS}
 test/bin/%: test/%.o test/test_common.o libaem.a
 	${CC} $^ ${LDFLAGS} -o $@
 
-test/lib/%.so: test/%.o test/test_common.o libaem.a
+test/lib/%.so: test/%.o test/test_common.o
 	${CC} -shared $^ ${LDFLAGS} -o $@
 
 test_%: test/bin/%

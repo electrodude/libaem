@@ -6,12 +6,21 @@
 #include <aem/regex.h>
 #include <aem/translate.h>
 
-static void test_regex_compile(struct aem_nfa *nfa, const char *pattern, unsigned int match, int rc_expect)
+static void test_regex_compile(struct aem_nfa *nfa, const char *pattern, int match, int rc_expect)
 {
 	aem_logf_ctx(AEM_LOG_INFO, "regex_compile(\"%s\", %d) expect (%d)", pattern, match, rc_expect);
 
 	struct aem_stringslice in = aem_stringslice_new_cstr(pattern);
 	int rc = aem_nfa_add_regex(nfa, in, match, aem_stringslice_new_cstr("d"));
+
+	if (rc_expect >= 0) {
+		if (match >= 0) {
+			rc_expect = match;
+		} else {
+			test_errors++;
+			aem_logf_ctx(AEM_LOG_BUG, "Can't guess rc_expect: rc_expect = %d, match = %d", rc_expect, match);
+		}
+	}
 
 	if (rc != rc_expect) {
 		test_errors++;

@@ -13,18 +13,6 @@
  *    /./ match any character, even newline.  Patterns must still be valid
  *    UTF-8 regardless of the status of this flag.
  */
-#define AEM_REGEX_FLAGS_DEFINE(FLAG) \
-	/*                  name            ,flag,safe,value*/ \
-	FLAG(AEM_REGEX_FLAG_DEBUG            , "d", 0, 0x01) \
-	FLAG(AEM_REGEX_FLAG_EXPLICIT_CAPTURES, "c", 1, 0x02) \
-	FLAG(AEM_REGEX_FLAG_BINARY           , "b", 1, 0x20)
-
-enum aem_regex_flags {
-#define X(name, flag, safe, value) \
-	name = value,
-	AEM_REGEX_FLAGS_DEFINE(X)
-#undef X
-};
 
 // If you pass <0 as the match parameter to any of these functions, it will use
 // the lowest number greater than any registered match number.

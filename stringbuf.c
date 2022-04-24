@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,16 +6,13 @@
 // for vsnprintf
 #include <stdio.h>
 
-#ifdef __unix__
-#include <errno.h>
-#endif
-
 #define AEM_INTERNAL
+#include <aem/log.h>
+#include <aem/memory.h>
+
 #include "stringbuf.h"
 
-#define AEM_STRINGBUF_DEBUG_ALLOC 0
-
-struct aem_stringbuf *aem_stringbuf_new_raw(void)
+struct aem_stringbuf *aem_stringbuf_new(void)
 {
 	struct aem_stringbuf *str = malloc(sizeof(*str));
 
@@ -33,12 +31,9 @@ struct aem_stringbuf *aem_stringbuf_init_prealloc(struct aem_stringbuf *str, siz
 	if (!str)
 		return NULL;
 
-	str->n = 0;
-	str->maxn = maxn;
-	str->s = malloc(str->maxn);
-	str->bad = 0;
-	str->fixed = 0;
-	str->storage = AEM_STRINGBUF_STORAGE_HEAP;
+	*str = AEM_STRINGBUF_EMPTY;
+	if (maxn)
+		aem_stringbuf_reserve_total(str, maxn);
 
 	return str;
 }
@@ -58,9 +53,10 @@ void aem_stringbuf_free(struct aem_stringbuf *str)
 static inline void aem_stringbuf_storage_free(struct aem_stringbuf *str)
 {
 	aem_assert(str);
+	if (!str->s)
+		return;
 	switch (str->storage) {
 		case AEM_STRINGBUF_STORAGE_HEAP:
-			aem_assert(str->s);
 			free(str->s);
 			break;
 
@@ -72,6 +68,8 @@ static inline void aem_stringbuf_storage_free(struct aem_stringbuf *str)
 			aem_logf_ctx(AEM_LOG_BUG, "%p: unknown storage type %d, leaking %p!", str, str->storage, str->s);
 			break;
 	}
+	// TODO BUG: Can bad things happen if this isn't reset?
+	str->storage = AEM_STRINGBUF_STORAGE_HEAP;
 }
 
 void aem_stringbuf_dtor(struct aem_stringbuf *str)
@@ -79,23 +77,22 @@ void aem_stringbuf_dtor(struct aem_stringbuf *str)
 	if (!str)
 		return;
 
-	str->n = 0;
-
-	if (str->s)
-		aem_stringbuf_storage_free(str);
-
-	str->s = NULL;
-	str->maxn = 0;
+	aem_stringbuf_storage_free(str);
+	*str = AEM_STRINGBUF_EMPTY;
 }
 
-char *aem_stringbuf_release(struct aem_stringbuf *str)
+char *aem_stringbuf_release(struct aem_stringbuf *str, size_t *n_p)
 {
-	if (!str)
+	if (!str) {
+		if (n_p)
+			*n_p = 0;
 		return NULL;
+	}
 
-	aem_stringbuf_shrinkwrap(str);
+	char *s = aem_stringbuf_shrinkwrap(str);
 
-	char *s = str->s;
+	if (n_p)
+		*n_p = str->n;
 
 	free(str);
 
@@ -103,7 +100,7 @@ char *aem_stringbuf_release(struct aem_stringbuf *str)
 }
 
 
-void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
+static void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 {
 	aem_assert(str);
 
@@ -121,26 +118,20 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 	size_t maxn_old = str->maxn;
 #endif
 	if (str->storage == AEM_STRINGBUF_STORAGE_HEAP) {
-#if AEM_STRINGBUF_DEBUG_ALLOC
-		aem_logf_ctx(AEM_LOG_DEBUG, "realloc: n %zd, maxn %zd -> %zd", str->n, str->maxn, maxn_new);
-#endif
-		char *s_new = realloc(str->s, maxn_new);
-
-		if (!s_new) {
+		aem_logf_ctx(AEM_LOG_DEBUG3, "realloc: n %zd, maxn %zd -> %zd", str->n, str->maxn, maxn_new);
+		if (AEM_ARRAY_RESIZE(str->s, maxn_new)) {
 			str->bad = 1;
 			return;
 		}
 
-		str->s = s_new;
 		str->maxn = maxn_new;
 	} else {
-#if AEM_STRINGBUF_DEBUG_ALLOC
-		aem_logf_ctx(AEM_LOG_DEBUG, "to heap: n %zd, maxn %zd -> %zd", str->n, str->maxn, maxn_new);
-#endif
+		aem_logf_ctx(AEM_LOG_DEBUG3, "to heap: n %zd, maxn %zd -> %zd", str->n, str->maxn, maxn_new);
 
 		char *s_new = malloc(maxn_new);
 
 		if (!s_new) {
+			aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed: %s", strerror(errno));
 			str->bad = 1;
 			return;
 		}
@@ -161,40 +152,53 @@ void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 #endif
 }
 
-
 char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 {
 	if (!str)
 		return NULL;
 
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p", aem_stringbuf_get(str));
+	aem_logf_ctx(AEM_LOG_DEBUG3, "%p", aem_stringbuf_get(str));
 #endif
 
 	if (!str->fixed && str->storage == AEM_STRINGBUF_STORAGE_HEAP) {
 		size_t maxn_new = str->n + 1;
-		char *s_new = realloc(str->s, maxn_new);
-
-		if (s_new) {
-			str->s = s_new;
+		if (AEM_ARRAY_RESIZE(str->s, maxn_new)) {
+			aem_logf_ctx(AEM_LOG_ERROR, "realloc() failed: %s", strerror(errno));
+		} else {
 			str->maxn = maxn_new;
 		}
+	} else if (str->storage != AEM_STRINGBUF_STORAGE_UNOWNED) {
+		aem_logf_ctx(AEM_LOG_BUG, "TODO: Caller expects heap pointer; copy to heap!");
 	}
 
 	return aem_stringbuf_get(str);
 }
 
-void aem_stringbuf_pop_front(struct aem_stringbuf *str, size_t n)
+int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
 {
 	aem_assert(str);
 
-	if (n >= str->n) {
-		aem_stringbuf_reset(str);
-		return;
-	}
+	return aem_stringbuf_reserve_total(str, str->n + len);
+}
 
-	memmove(str->s, &str->s[n], str->n - n);
-	str->n -= n;
+int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t maxn)
+{
+	aem_assert(str);
+
+	maxn++; // Leave room for null terminator
+	if (str->storage == AEM_STRINGBUF_STORAGE_HEAP) {
+		int rc = AEM_ARRAY_GROW(str->s, maxn, str->maxn);
+		if (rc < 0)
+			str->bad = 1;
+		return rc;
+	} else {
+		if (str->maxn < maxn) {
+			aem_stringbuf_grow(str, maxn*2);
+			return 1;
+		}
+		return 0;
+	}
 }
 
 static const char aem_stringbuf_putint_digits[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -238,7 +242,7 @@ void aem_stringbuf_vprintf(struct aem_stringbuf *restrict str, const char *restr
 	va_end(argp2);
 
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p: %zd out of %zd, %s", str, len, aem_stringbuf_available(str)+1, fmt);
+	aem_logf_ctx(AEM_LOG_DEBUG3, "%p: %zd out of %zd, %s", str, len, aem_stringbuf_available(str)+1, fmt);
 #endif
 
 	if (len > aem_stringbuf_available(str)) {
@@ -283,11 +287,11 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i)
 	if (!str)
 		return -1;
 
-	if (i >= str->n) {
+	if (i >= str->n)
 		return -1;
-	}
+
 #if AEM_STRINGBUF_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "[%zd] = %c", i, str->s[i]);
+	aem_logf_ctx(AEM_LOG_DEBUG3, "[%zd] = %c", i, str->s[i]);
 #endif
 
 	return str->s[i];
@@ -305,6 +309,9 @@ void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char pad, char c)
 		str->n = n_new;
 	}
 
+	if (i >= str->maxn)
+		return;
+
 	str->s[i] = c;
 }
 
@@ -315,6 +322,20 @@ void aem_stringbuf_rtrim(struct aem_stringbuf *str)
 
 	while (str->n && isspace(str->s[str->n-1]))
 		str->n--;
+}
+
+
+void aem_stringbuf_pop_front(struct aem_stringbuf *str, size_t n)
+{
+	aem_assert(str);
+
+	if (n >= str->n) {
+		aem_stringbuf_reset(str);
+		return;
+	}
+
+	memmove(str->s, &str->s[n], str->n - n);
+	str->n -= n;
 }
 
 
@@ -331,7 +352,7 @@ size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp)
 
 	size_t in = fread(aem_stringbuf_end(str), 1, n, fp);
 
-	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd", in, str->n, str->maxn);
+	//aem_logf_ctx(AEM_LOG_DEBUG3, "read %zd: n = %zd, maxn = %zd", in, str->n, str->maxn);
 
 	str->n += in;
 
@@ -350,7 +371,7 @@ int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp)
 	ssize_t in;
 	do {
 		in = aem_stringbuf_file_read(str, 4096, fp);
-	} while (in > 0 || (!feof(fp) && !ferror(fp)));
+	} while (in > 0 || !(feof(fp) || ferror(fp)));
 
 	if (feof(fp)) {
 		return 1;
@@ -385,13 +406,14 @@ int aem_stringbuf_file_write(const struct aem_stringbuf *restrict str, FILE *fp)
 ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 {
 	aem_assert(str);
-	aem_assert(fd >= 0);
+	if (fd < 0)
+		return -1;
 
 	aem_stringbuf_reserve(str, n);
 
 	ssize_t in = read(fd, aem_stringbuf_end(str), n);
 
-	//aem_logf_ctx(AEM_LOG_DEBUG, "read %zd: n = %zd, maxn = %zd", in, str->n, str->maxn);
+	//aem_logf_ctx(AEM_LOG_DEBUG3, "read %zd: n = %zd, maxn = %zd", in, str->n, str->maxn);
 
 	if (in > 0) {
 		str->n += in;
@@ -403,7 +425,8 @@ ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd)
 int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
 {
 	aem_assert(str);
-	aem_assert(fd >= 0);
+	if (fd < 0)
+		return -1;
 
 	ssize_t in;
 	do {
@@ -419,15 +442,5 @@ int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd)
 	aem_stringbuf_shrinkwrap(str);
 
 	return 0;
-}
-
-ssize_t aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd)
-{
-	aem_assert(str);
-	aem_assert(fd >= 0);
-
-	struct aem_stringslice slice = aem_stringslice_new_str(str);
-
-	return aem_stringslice_fd_write(slice, fd);
 }
 #endif

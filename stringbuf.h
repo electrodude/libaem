@@ -25,28 +25,23 @@ enum aem_stringbuf_storage {
 
 struct aem_stringbuf {
 	char *s;          // Pointer to buffer
+	// It's a little late now, but these two should have been named nr and alloc
 	size_t n;         // Current length of string
 	                  //  (not counting null terminator)
 	size_t maxn;      // Allocated length of buffer
 
 	enum aem_stringbuf_storage storage; // Whether we own the storage
-	int bad     : 1;  // Error flag: memory allocation error or .fixed = 1 but size exceeded
-	int fixed   : 1;  // Can't be realloc'ed
-
+	char bad    : 1;  // Error flag: memory allocation error or .fixed = 1 but size exceeded
+	char fixed  : 1;  // Can't be realloc'ed
 };
 
-#ifndef AEM_STRINGBUF_PREALLOC_LEN
-// You may define this with different values in different files.
-#define AEM_STRINGBUF_PREALLOC_LEN 32
-#endif
-
-// You can use this without calling aem_stringbuf_init() on it first because realloc(NULL, size) === malloc(size)
+// Initialize new instances to this value
 #define AEM_STRINGBUF_EMPTY ((struct aem_stringbuf){0})
 
 // Initializes a stringbuf and allocates storage for it on the stack.
 // If the storage on the stack proves to be too small, it is copied into a
 //  malloc()'d buffer and is then treated like any other stringbuf.
-// You must call aem_stringbuf_dtor on this unless you're absolutely sure that it
+// You must call aem_stringbuf_dtor on this unless you're absolutely certain that it
 //  wasn't copied into a malloc()'d buffer.  You can ensure that it won't be
 //  copied into a malloc()'d buffer (instead, characters will just stop getting
 //  added once it's full) if you set .fixed = 1.
@@ -57,32 +52,36 @@ struct aem_stringbuf {
 #define AEM_STRINGBUF_ON_STACK(_name, _len) \
 	struct aem_stringbuf _name = AEM_STRINGBUF_ALLOCA(_len);
 
-// Allocates a new stringbuf and initialize it to all zeros (sufficiently
-//  initialized for immediate use, see AEM_STRINGBUF_EMPTY).
-struct aem_stringbuf *aem_stringbuf_new_raw(void);
+// malloc() and initialize a new aem_stringbuf
+struct aem_stringbuf *aem_stringbuf_new(void);
 
-// Create a new string, given how many bytes to preallocate
+// Initialize a stringbuf, preallocating the given number of bytes
 struct aem_stringbuf *aem_stringbuf_init_prealloc(struct aem_stringbuf *str, size_t maxn);
-#define aem_stringbuf_new_prealloc(maxn) aem_stringbuf_init_prealloc(aem_stringbuf_new_raw(), maxn)
+#define aem_stringbuf_new_prealloc(maxn) aem_stringbuf_init_prealloc(aem_stringbuf_new(), maxn)
 
 // Create a new string
-#define aem_stringbuf_init(str) aem_stringbuf_init_prealloc(str, (AEM_STRINGBUF_PREALLOC_LEN))
-#define aem_stringbuf_new() aem_stringbuf_init(aem_stringbuf_new_raw())
+static inline struct aem_stringbuf *aem_stringbuf_init(struct aem_stringbuf *str)
+{
+	if (!str)
+		return str;
 
-// Really belongs in stringslice.h, but can't because inline and dereferencing pointer to incomplete type.
-static inline struct aem_stringslice aem_stringslice_new_str(const struct aem_stringbuf *orig);
+	*str = AEM_STRINGBUF_EMPTY;
+
+	return str;
+}
 
 // Free a malloc'd stringbuf and its buffer.
 void aem_stringbuf_free(struct aem_stringbuf *str);
 
-// Free a non-malloc'd stringbuf's buffer.
+// Free a stringbuf's buffer and reset it to its initial state.
 void aem_stringbuf_dtor(struct aem_stringbuf *str);
 
-// Free malloc'd stringbuf, returning its internal buffer.
+// Free malloc'd stringbuf, returning its internal buffer and writing the
+// number of elements to n
 // The caller assumes responsibilty for free()ing the returned buffer.
 // Just use aem_stringbuf_get if str is on the stack.  TODO: This doesn't work with AEM_STRINGBUF_ON_STACK.
 // Appends null terminator
-char *aem_stringbuf_release(struct aem_stringbuf *str);
+char *aem_stringbuf_release(struct aem_stringbuf *str, size_t *n_p);
 
 // Get a pointer to the end of a string
 static inline char *aem_stringbuf_end(struct aem_stringbuf *str)
@@ -91,22 +90,16 @@ static inline char *aem_stringbuf_end(struct aem_stringbuf *str)
 	return &str->s[str->n];
 }
 
-// Reset a string to zero length
+// Reset string length to zero
 // This does nothing but str->n = 0; it neither null-terminates it
 // nor shrinks the allocated size of the internal buffer.
 static inline void aem_stringbuf_reset(struct aem_stringbuf *str)
 {
-	aem_assert(str);
+	if (!str)
+		return;
 	str->n = 0;
 	str->bad = 0;
 }
-
-// Ensure that at least len bytes are allocated
-void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new);
-// Ensure that at least len + 1 bytes are available
-static inline int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len);
-// Ensure the total size of the buffer is at least len
-static inline int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t len);
 
 // Return the number of available allocated bytes
 static inline int aem_stringbuf_available(struct aem_stringbuf *str)
@@ -116,14 +109,14 @@ static inline int aem_stringbuf_available(struct aem_stringbuf *str)
 }
 
 // realloc() internal buffer to be as small as possible
-// Appends null terminator
 // Returns pointer to internal buffer
-// The pointer is only valid until the next call to aem_stringbuf_put*.
-// The null terminator is only there until the next time the string is modified
+// Null-terminates the string.
 char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str);
 
-// Removes characters from the beginning of a stringbuf.
-void aem_stringbuf_pop_front(struct aem_stringbuf *str, size_t n);
+// Ensure that at least len + 1 bytes are available
+int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len);
+// Ensure the total size of the buffer is at least len
+int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t len);
 
 // Append a character
 static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c);
@@ -166,6 +159,7 @@ static inline void aem_stringbuf_putss(struct aem_stringbuf *str, struct aem_str
 	aem_stringbuf_putn(str, aem_stringslice_len(slice), slice.start);
 }
 
+// Pad str with character c until it is len bytes long
 void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c);
 
 // Return pointer to internal buffer, after ensuring string is null terminated.
@@ -176,7 +170,7 @@ static inline char *aem_stringbuf_get(struct aem_stringbuf *str)
 		return NULL;
 	if (!str->s)
 		return NULL;
-	if (str->bad)
+	if (str->bad) // ???
 		return NULL;
 
 	str->s[str->n] = 0; // Null-terminate the string
@@ -191,7 +185,11 @@ int aem_stringbuf_index(struct aem_stringbuf *str, size_t i);
 // Increases the size of the stringbuf if necessary.
 void aem_stringbuf_assign(struct aem_stringbuf *str, size_t i, char pad, char c);
 
+// Removes trailing whitespace from end of string
 void aem_stringbuf_rtrim(struct aem_stringbuf *str);
+
+// Removes characters from the beginning of a stringbuf.
+void aem_stringbuf_pop_front(struct aem_stringbuf *str, size_t n);
 
 size_t aem_stringbuf_file_read(struct aem_stringbuf *str, size_t n, FILE *fp);
 int aem_stringbuf_file_read_all(struct aem_stringbuf *str, FILE *fp);
@@ -201,7 +199,7 @@ int aem_stringbuf_file_write(const struct aem_stringbuf *str, FILE *fp);
 #ifdef __unix__
 ssize_t aem_stringbuf_fd_read(struct aem_stringbuf *str, size_t n, int fd);
 int aem_stringbuf_fd_read_all(struct aem_stringbuf *str, int fd);
-ssize_t aem_stringbuf_fd_write(const struct aem_stringbuf *str, int fd);
+#define aem_stringbuf_fd_write(_str, _fd) (aem_stringslice_fd_write(aem_stringslice_new_str(_str), (_fd)))
 #endif
 
 
@@ -213,27 +211,6 @@ static inline struct aem_stringslice aem_stringslice_new_str(const struct aem_st
 {
 	aem_assert(str);
 	return aem_stringslice_new_len(str->s, str->n);
-}
-
-static inline int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len)
-{
-	aem_assert(str);
-
-	// Make room for new stuff and null terminator
-	return aem_stringbuf_reserve_total(str, str->n + len + 1);
-}
-
-static inline int aem_stringbuf_reserve_total(struct aem_stringbuf *str, size_t len)
-{
-	aem_assert(str);
-
-	len++; // Add null terminator
-	if (str->maxn < len) {
-		aem_stringbuf_grow(str, len*2);
-		return 1;
-	}
-
-	return 0;
 }
 
 static inline void aem_stringbuf_putc(struct aem_stringbuf *str, char c)
@@ -262,10 +239,8 @@ static inline void aem_stringbuf_puts(struct aem_stringbuf *restrict str, const 
 		return;
 
 #if 0
-	for (;*s;s++)
-	{
-		aem_stringbuf_putc(str, *s);
-	}
+	while (*s)
+		aem_stringbuf_putc(str, *s++);
 #else
 	aem_stringbuf_putn(str, strlen(s), s);
 #endif
@@ -282,9 +257,8 @@ static inline void aem_stringbuf_puts_limit(struct aem_stringbuf *restrict str, 
 	if (str->bad)
 		return;
 
-	for (; *s && str->n < len; s++) {
-		aem_stringbuf_putc(str, *s);
-	}
+	while (*s && str->n < len)
+		aem_stringbuf_putc(str, *s++);
 }
 
 static inline void aem_stringbuf_putn(struct aem_stringbuf *restrict str, size_t n, const char *restrict s)

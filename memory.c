@@ -9,12 +9,18 @@ int aem_array_realloc_impl(void **arr_p, size_t size, size_t alloc_new)
 {
 	aem_assert(arr_p);
 
-	if (alloc_new) {
+#ifdef AEM_DEBUG
+	// TODO: Add out-of-memory fault injection machinery
+#endif
+
+	if (alloc_new && size) {
 		size_t bytes = alloc_new * size;
+		// Detect integer multiplication overflow.
 		// GCC -O2 and clang -O1 are smart enough to just check the
-		// flags from the multiplication.
-		if (!size || bytes / size != alloc_new)
+		// flags from the multiplication instead of doing all this.
+		if (bytes / size != alloc_new)
 			return -1;
+
 		void *arr_new = realloc(*arr_p, bytes);
 		if (!arr_new)
 			return -1;

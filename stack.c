@@ -5,10 +5,11 @@
 
 #define AEM_INTERNAL
 #include <aem/log.h>
+#include <aem/memory.h>
 
 #include "stack.h"
 
-struct aem_stack *aem_stack_alloc_raw(void)
+struct aem_stack *aem_stack_new(void)
 {
 	struct aem_stack *stk = malloc(sizeof(*stk));
 
@@ -27,9 +28,9 @@ struct aem_stack *aem_stack_init_prealloc(struct aem_stack *stk, size_t maxn)
 	if (!stk)
 		return NULL;
 
-	stk->n = 0;
-	stk->maxn = maxn;
-	stk->s = malloc(stk->maxn * sizeof(void*));
+	*stk = AEM_STACK_EMPTY;
+	if (maxn)
+		aem_stack_reserve_total(stk, maxn);
 
 	return stk;
 }
@@ -49,18 +50,9 @@ void aem_stack_dtor(struct aem_stack *stk)
 	if (!stk)
 		return;
 
-	aem_stack_reset(stk);
-
-	stk->n = stk->maxn = 0;
-
-	if (!stk->s)
-		return;
-
 	free(stk->s);
-
-	stk->s = NULL;
+	*stk = AEM_STACK_EMPTY;
 }
-
 
 void **aem_stack_release(struct aem_stack *stk, size_t *n_p)
 {
@@ -70,27 +62,14 @@ void **aem_stack_release(struct aem_stack *stk, size_t *n_p)
 		return NULL;
 	}
 
-	aem_stack_shrinkwrap(stk);
-
-	void **s = stk->s;
-	free(stk);
+	void **s = aem_stack_shrinkwrap(stk);
 
 	if (n_p)
 		*n_p = stk->n;
 
+	free(stk);
+
 	return s;
-}
-
-
-static inline void aem_stack_grow(struct aem_stack *stk, size_t maxn_new)
-{
-	aem_assert(stk);
-
-#if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "realloc: %zd, %zd -> %zd", stk->n, stk->maxn, maxn_new);
-#endif
-	stk->maxn = maxn_new;
-	stk->s = realloc(stk->s, stk->maxn * sizeof(void*));
 }
 
 void *aem_stack_shrinkwrap(struct aem_stack *stk)
@@ -98,7 +77,12 @@ void *aem_stack_shrinkwrap(struct aem_stack *stk)
 	if (!stk)
 		return NULL;
 
-	aem_stack_grow(stk, stk->n);
+	size_t maxn_new = stk->n;
+	if (AEM_ARRAY_RESIZE(stk->s, maxn_new)) {
+		aem_logf_ctx(AEM_LOG_ERROR, "realloc() failed: %s", strerror(errno));
+	} else {
+		stk->maxn = maxn_new;
+	}
 
 	return stk->s;
 }
@@ -114,12 +98,7 @@ int aem_stack_reserve_total(struct aem_stack *stk, size_t maxn)
 {
 	aem_assert(stk);
 
-	if (stk->maxn < maxn) {
-		aem_stack_grow(stk, maxn*2);
-		return 1;
-	}
-
-	return 0;
+	return AEM_ARRAY_GROW(stk->s, maxn, stk->maxn);
 }
 
 
@@ -128,7 +107,7 @@ void aem_stack_push(struct aem_stack *stk, void *s)
 	aem_assert(stk);
 
 #if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "push %p", s);
+	aem_logf_ctx(AEM_LOG_DEBUG3, "push %p", s);
 #endif
 
 	aem_stack_reserve(stk, 1);
@@ -136,7 +115,7 @@ void aem_stack_push(struct aem_stack *stk, void *s)
 	stk->s[stk->n++] = s;
 }
 
-void aem_stack_pushn(struct aem_stack *restrict stk, size_t n, void **restrict s)
+void aem_stack_pushn(struct aem_stack *restrict stk, size_t n, void *const *restrict s)
 {
 	if (!n)
 		return;
@@ -193,7 +172,7 @@ void *aem_stack_pop(struct aem_stack *stk)
 
 	if (!stk->n) {
 #if AEM_STACK_DEBUG
-		aem_logf_ctx(AEM_LOG_DEBUG, "underflow");
+		aem_logf_ctx(AEM_LOG_DEBUG3, "underflow");
 #endif
 
 		return NULL;
@@ -202,7 +181,7 @@ void *aem_stack_pop(struct aem_stack *stk)
 	void *p = stk->s[--stk->n];
 
 #if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p", p);
+	aem_logf_ctx(AEM_LOG_DEBUG3, "%p", p);
 #endif
 
 	return p;
@@ -215,14 +194,14 @@ void *aem_stack_peek(struct aem_stack *stk)
 
 	if (stk->n <= 0) {
 #if AEM_STACK_DEBUG
-		aem_logf_ctx(AEM_LOG_DEBUG, "underflow");
+		aem_logf_ctx(AEM_LOG_DEBUG3, "underflow");
 #endif
 
 		return NULL;
 	}
 
 #if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "%p", stk->s[stk->n-1]);
+	aem_logf_ctx(AEM_LOG_DEBUG3, "%p", stk->s[stk->n-1]);
 #endif
 
 	return stk->s[stk->n-1];
@@ -237,14 +216,14 @@ void *aem_stack_index_end(struct aem_stack *stk, size_t i)
 
 	if (i >= stk->n) {
 #if AEM_STACK_DEBUG
-		aem_logf_ctx(AEM_LOG_DEBUG, "[-%zd = %zd] underflow", i, i2);
+		aem_logf_ctx(AEM_LOG_DEBUG3, "[-%zd = %zd] underflow", i, i2);
 #endif
 
 		return NULL;
 	}
 
 #if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "[-%zd = %zd]", i, i2, stk->s[i2]);
+	aem_logf_ctx(AEM_LOG_DEBUG3, "[-%zd = %zd]", i, i2, stk->s[i2]);
 #endif
 
 	return stk->s[i2];
@@ -255,12 +234,11 @@ void *aem_stack_index(struct aem_stack *stk, size_t i)
 	if (!stk)
 		return NULL;
 
-	if (i >= stk->n) {
+	if (i >= stk->n)
 		return NULL;
-	}
 
 #if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG, "[%zd] = %p", i, stk->s[i]);
+	aem_logf_ctx(AEM_LOG_DEBUG3, "[%zd] = %p", i, stk->s[i]);
 #endif
 
 	return stk->s[i];
@@ -284,6 +262,7 @@ void aem_stack_assign(struct aem_stack *stk, size_t i, void *s)
 	aem_assert(stk);
 
 	void **p = aem_stack_index_p(stk, i);
+	aem_assert(p);
 
 	*p = s;
 }

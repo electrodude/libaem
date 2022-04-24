@@ -169,7 +169,7 @@ int aem_stringslice_match_long_auto(struct aem_stringslice *slice, long int *out
 // TODO: inconsistency: this function returns -1 on failure and 0 on success,
 // while most other functions in this file that only use their return value to
 // indicate status return 0 on failure and 1 on success.
-aem_deprecated_msg("Use aem_stringslice_match_int_base instead") static inline int aem_stringslice_match_int(struct aem_stringslice *slice, int base, int *out)
+aem_deprecated_msg("use aem_stringslice_match_int_base instead") static inline int aem_stringslice_match_int(struct aem_stringslice *slice, int base, int *out)
 {
 	return !aem_stringslice_match_int_base(slice, base, out);
 }

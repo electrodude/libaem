@@ -407,10 +407,7 @@ void aem_stream_consume_end(struct aem_stream_sink *sink, struct aem_stringslice
 
 		// If the buffer is excessively large, shrink it.
 		if (stream->buf.maxn > stream->buf.n*4 + 4096) {
-			size_t maxn = stream->buf.n*2;
-			if (maxn < 4096)
-				maxn = 4096;
-			aem_stringbuf_grow(&stream->buf, maxn);
+			aem_stringbuf_shrinkwrap(&stream->buf);
 		}
 	}
 

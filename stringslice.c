@@ -33,7 +33,8 @@ int aem_stringslice_file_write(struct aem_stringslice slice, FILE *fp)
 #ifdef __unix__
 ssize_t aem_stringslice_fd_write(struct aem_stringslice slice, int fd)
 {
-	aem_assert(fd >= 0);
+	if (fd < 0)
+		return -1;
 
 	ssize_t total = 0;
 

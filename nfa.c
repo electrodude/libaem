@@ -621,12 +621,7 @@ static void aem_nfa_thread_dtor(struct aem_nfa_thread *thr)
 	if (!thr)
 		return;
 
-#if AEM_NFA_CAPTURES
-	free(thr->match.captures);
-#endif
-#if AEM_NFA_TRACING
-	free(thr->match.visited);
-#endif
+	aem_nfa_match_dtor(&thr->match);
 }
 #if AEM_NFA_THREAD_STATE
 static struct aem_nfa_thread *aem_nfa_thread_new(const struct aem_nfa_run *run, size_t pc)
@@ -937,6 +932,15 @@ void aem_nfa_show_trace(const struct aem_nfa *nfa, const struct aem_nfa_thread *
 			}
 		}
 	}
+}
+
+void aem_nfa_match_dtor(struct aem_nfa_match *match)
+{
+	if (!match)
+		return;
+
+	free(match->captures);
+	free(match->visited);
 }
 
 int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct aem_nfa_match *match_p)

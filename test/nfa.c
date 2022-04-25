@@ -43,7 +43,6 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 
 	struct aem_nfa_match match = {0};
 	int rc = aem_nfa_run(nfa, &in, &match);
-#if AEM_NFA_CAPTURES
 	if (match.captures) {
 		AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
 			aem_stringbuf_puts(out, "Captures:");
@@ -62,8 +61,6 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 			}
 		}
 	}
-	free(match.captures);
-#endif
 	if (match.visited) {
 		//aem_nfa_show_trace(&run, thr_matched);
 #if 0
@@ -73,7 +70,7 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 		}
 #endif
 	}
-	free(match.visited);
+	aem_nfa_match_dtor(&match);
 
 	int input_match = aem_stringslice_eq(in, input_remain);
 

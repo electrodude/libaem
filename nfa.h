@@ -117,6 +117,7 @@ struct aem_nfa_match {
 	size_t n_insns;
 	size_t n_captures;
 };
+void aem_nfa_match_dtor(struct aem_nfa_match *match);
 int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct aem_nfa_match *match_p);
 
 #endif /* AEM_NFA_H */

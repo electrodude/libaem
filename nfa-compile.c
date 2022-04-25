@@ -11,9 +11,9 @@
 #include "nfa-compile.h"
 
 /// Regex parser AST structore
-struct re_node *re_node_new(enum re_node_type type)
+struct aem_nfa_node *aem_nfa_node_new(enum aem_nfa_node_type type)
 {
-	struct re_node *node = malloc(sizeof(*node));
+	struct aem_nfa_node *node = malloc(sizeof(*node));
 	if (!node) {
 		aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed: %s", strerror(errno));
 		return NULL;
@@ -25,26 +25,26 @@ struct re_node *re_node_new(enum re_node_type type)
 
 	return node;
 }
-void re_node_free(struct re_node *node)
+void aem_nfa_node_free(struct aem_nfa_node *node)
 {
 	if (!node)
 		return;
 
 	while (node->children.n) {
-		struct re_node *child = aem_stack_pop(&node->children);
-		re_node_free(child);
+		struct aem_nfa_node *child = aem_stack_pop(&node->children);
+		aem_nfa_node_free(child);
 	}
 	aem_stack_dtor(&node->children);
 
 	free(node);
 }
-void re_node_push(struct re_node *node, struct re_node *child)
+void aem_nfa_node_push(struct aem_nfa_node *node, struct aem_nfa_node *child)
 {
 	aem_assert(node);
 
 	aem_stack_push(&node->children, child);
 }
-void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
+void aem_nfa_node_sexpr(struct aem_stringbuf *out, const struct aem_nfa_node *node)
 {
 	aem_assert(out);
 
@@ -56,7 +56,7 @@ void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 	int do_parens = node->children.n > 0;
 	int want_space = 1;
 	switch (node->type) {
-	case RE_NODE_REPEAT:
+	case AEM_NFA_NODE_REPEAT:
 		do_parens = 1;
 		break;
 	default:
@@ -67,23 +67,23 @@ void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 		aem_stringbuf_printf(out, AEM_SGR("1;96") "(" AEM_SGR("0"));
 
 	switch (node->type) {
-	case RE_NODE_RANGE: {
-		const struct re_node_range range = node->args.range;
+	case AEM_NFA_NODE_RANGE: {
+		const struct aem_nfa_node_range range = node->args.range;
 
 		aem_nfa_desc_range(out, range.min, range.max);
 		break;
 	}
-	case RE_NODE_ATOM:
+	case AEM_NFA_NODE_ATOM:
 		aem_stringbuf_putc(out, '\'');
 		aem_stringbuf_putss(out, node->text);
 		aem_stringbuf_putc(out, '\'');
 		break;
-	case RE_NODE_CLASS:
+	case AEM_NFA_NODE_CLASS:
 		aem_stringbuf_putc(out, '\'');
 		aem_stringbuf_putss(out, node->text);
 		aem_stringbuf_putc(out, '\'');
 		break;
-	case RE_NODE_REPEAT: {
+	case AEM_NFA_NODE_REPEAT: {
 		/*
 		aem_stringbuf_puts(out, "repeat ");
 		aem_stringbuf_putc(out, '\'');
@@ -91,7 +91,7 @@ void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 		aem_stringbuf_puts(out, "\' ");
 		*/
 		aem_stringbuf_puts(out, "{");
-		const struct re_node_repeat repeat = node->args.repeat;
+		const struct aem_nfa_node_repeat repeat = node->args.repeat;
 		if (repeat.min)
 			aem_stringbuf_printf(out, "%d", repeat.min);
 		aem_stringbuf_puts(out, ",");
@@ -100,16 +100,16 @@ void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 		aem_stringbuf_puts(out, "}");
 		break;
 	}
-	case RE_NODE_CAPTURE:
+	case AEM_NFA_NODE_CAPTURE:
 		aem_stringbuf_puts(out, "capture");
-		const struct re_node_capture capture = node->args.capture;
+		const struct aem_nfa_node_capture capture = node->args.capture;
 		aem_stringbuf_printf(out, " %d", capture.capture);
 		break;
-	case RE_NODE_BRANCH:
+	case AEM_NFA_NODE_BRANCH:
 		want_space = 0;
 		break;
-	case RE_NODE_BRACKETS:
-	case RE_NODE_ALTERNATION:
+	case AEM_NFA_NODE_BRACKETS:
+	case AEM_NFA_NODE_ALTERNATION:
 		aem_stringbuf_putss(out, node->text);
 		break;
 	default:
@@ -118,10 +118,10 @@ void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 	}
 
 	AEM_STACK_FOREACH(i, &node->children) {
-		struct re_node *child = node->children.s[i];
+		struct aem_nfa_node *child = node->children.s[i];
 		if (want_space)
 			aem_stringbuf_putc(out, ' ');
-		re_node_sexpr(out, child);
+		aem_nfa_node_sexpr(out, child);
 		want_space = 1;
 	}
 
@@ -132,7 +132,7 @@ void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node)
 
 /// AST construction
 // Flags
-enum aem_regex_flags re_flags_parse(struct aem_stringslice *in, int sandbox)
+enum aem_regex_flags aem_regex_flags_parse(struct aem_stringslice *in, int sandbox)
 {
 	aem_assert(in);
 	enum aem_regex_flags flags = 0;
@@ -148,15 +148,15 @@ enum aem_regex_flags re_flags_parse(struct aem_stringslice *in, int sandbox)
 	}
 	return flags;
 }
-enum aem_regex_flags re_flags_adj(struct aem_stringslice *in, enum aem_regex_flags flags, int sandbox)
+enum aem_regex_flags aem_regex_flags_adj(struct aem_stringslice *in, enum aem_regex_flags flags, int sandbox)
 {
 	aem_assert(in);
-	flags |= re_flags_parse(in, sandbox);
+	flags |= aem_regex_flags_parse(in, sandbox);
 	if (aem_stringslice_match(in, "-"))
-		flags &= ~re_flags_parse(in, sandbox);
+		flags &= ~aem_regex_flags_parse(in, sandbox);
 	return flags;
 }
-void re_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, int sandbox)
+void aem_regex_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, int sandbox)
 {
 	aem_assert(out);
 #define X(name, flag, safe, value) \
@@ -178,7 +178,7 @@ void re_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, in
 
 
 /// AST compilation
-static void re_set_debug(struct re_compile_ctx *ctx, size_t i, struct aem_stringslice dbg)
+static void re_set_debug(struct aem_nfa_compile_ctx *ctx, size_t i, struct aem_stringslice dbg)
 {
 	aem_assert(ctx);
 
@@ -188,8 +188,8 @@ static void re_set_debug(struct re_compile_ctx *ctx, size_t i, struct aem_string
 	aem_nfa_set_dbg(ctx->nfa, i, dbg, ctx->match);
 }
 
-static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node);
-static size_t re_node_gen_alternation(struct re_compile_ctx *ctx, const struct re_node *node)
+static size_t aem_nfa_node_compile(struct aem_nfa_compile_ctx *ctx, struct aem_nfa_node *node);
+static size_t aem_nfa_node_gen_alternation(struct aem_nfa_compile_ctx *ctx, const struct aem_nfa_node *node)
 {
 	aem_assert(ctx);
 	struct aem_nfa *nfa = ctx->nfa;
@@ -214,40 +214,40 @@ static size_t re_node_gen_alternation(struct re_compile_ctx *ctx, const struct r
 	 * alt 2
 	 * end_2: // patch prev jmp
 	 */
-	size_t jmp_prev = RE_PARSE_ERROR;
+	size_t jmp_prev = AEM_NFA_PARSE_ERROR;
 	AEM_STACK_FOREACH(i, &node->children) {
-		struct re_node *child = node->children.s[i];
+		struct aem_nfa_node *child = node->children.s[i];
 		if (!child)
 			continue;
 
 		int not_last = i < node->children.n-1;
 
-		size_t fork = RE_PARSE_ERROR;
+		size_t fork = AEM_NFA_PARSE_ERROR;
 		if (not_last)
 			fork = aem_nfa_append_insn(nfa, aem_nfa_insn_fork(0-0));
 
-		if (re_node_compile(ctx, child) == RE_PARSE_ERROR)
-			return RE_PARSE_ERROR;
+		if (aem_nfa_node_compile(ctx, child) == AEM_NFA_PARSE_ERROR)
+			return AEM_NFA_PARSE_ERROR;
 
-		if (jmp_prev != RE_PARSE_ERROR) {
+		if (jmp_prev != AEM_NFA_PARSE_ERROR) {
 			aem_nfa_put_insn(nfa, jmp_prev, aem_nfa_insn_jmp(nfa->n_insns));
 			re_set_debug(ctx, jmp_prev, node->text);
 		}
 
-		jmp_prev = RE_PARSE_ERROR;
+		jmp_prev = AEM_NFA_PARSE_ERROR;
 		if (not_last)
 			jmp_prev = aem_nfa_append_insn(nfa, aem_nfa_insn_jmp(0-0));
 
-		if (fork != RE_PARSE_ERROR) {
+		if (fork != AEM_NFA_PARSE_ERROR) {
 			aem_nfa_put_insn(nfa, fork, aem_nfa_insn_fork(nfa->n_insns));
 			re_set_debug(ctx, fork, node->text);
 		}
 	}
-	aem_assert(jmp_prev == RE_PARSE_ERROR);
+	aem_assert(jmp_prev == AEM_NFA_PARSE_ERROR);
 
 	return entry;
 }
-static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
+static size_t aem_nfa_node_compile(struct aem_nfa_compile_ctx *ctx, struct aem_nfa_node *node)
 {
 	aem_assert(ctx);
 	struct aem_nfa *nfa = ctx->nfa;
@@ -259,9 +259,9 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 		return entry;
 
 	switch (node->type) {
-	case RE_NODE_RANGE: {
+	case AEM_NFA_NODE_RANGE: {
 		aem_assert(!node->children.n);
-		const struct re_node_range range = node->args.range;
+		const struct aem_nfa_node_range range = node->args.range;
 		if (range.max >= 0x100) {
 			AEM_LOG_MULTI(out, AEM_LOG_BUG) {
 				aem_stringbuf_puts(out, "Invalid byte range: ");
@@ -272,9 +272,9 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 		re_set_debug(ctx, op, node->text);
 		break;
 	}
-	case RE_NODE_ATOM: {
+	case AEM_NFA_NODE_ATOM: {
 		aem_assert(!node->children.n);
-		const struct re_node_atom atom = node->args.atom;
+		const struct aem_nfa_node_atom atom = node->args.atom;
 		struct aem_stringbuf buf = AEM_STRINGBUF_ALLOCA(8);
 		aem_stringbuf_put_rune(&buf, atom.c);
 		struct aem_stringslice bytes = aem_stringslice_new_str(&buf);
@@ -285,22 +285,22 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 		aem_stringbuf_dtor(&buf);
 		break;
 	}
-	case RE_NODE_CLASS: {
+	case AEM_NFA_NODE_CLASS: {
 		aem_assert(!node->children.n);
-		const struct re_node_class cclass = node->args.cclass;
+		const struct aem_nfa_node_class cclass = node->args.cclass;
 		size_t op = aem_nfa_append_insn(nfa, aem_nfa_insn_class(cclass.neg, cclass.frontier, cclass.cclass));
 		re_set_debug(ctx, op, node->text);
 		break;
 	}
-	case RE_NODE_REPEAT: {
+	case AEM_NFA_NODE_REPEAT: {
 		aem_assert(node->children.n == 1);
-		struct re_node *child = node->children.s[0];
+		struct aem_nfa_node *child = node->children.s[0];
 		aem_assert(child);
-		const struct re_node_repeat repeat = node->args.repeat;
+		const struct aem_nfa_node_repeat repeat = node->args.repeat;
 
 		if (repeat.min > repeat.max) {
 			aem_logf_ctx(AEM_LOG_ERROR, "Repetition min %d > max %d!", repeat.min, repeat.max);
-			return RE_PARSE_ERROR;
+			return AEM_NFA_PARSE_ERROR;
 		}
 
 		AEM_LOG_MULTI(out, AEM_LOG_DEBUG2) {
@@ -317,9 +317,9 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 
 		size_t last_rep = entry;
 		for (size_t i = 0; i < repeat.min; i++) {
-			size_t rep = re_node_compile(ctx, child);
-			if (rep == RE_PARSE_ERROR)
-				return RE_PARSE_ERROR;
+			size_t rep = aem_nfa_node_compile(ctx, child);
+			if (rep == AEM_NFA_PARSE_ERROR)
+				return AEM_NFA_PARSE_ERROR;
 			last_rep = rep;
 			if (!i) {
 				size_t len = nfa->n_insns - rep;
@@ -340,7 +340,7 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 
 		if (repeat.reluctant) {
 			aem_logf_ctx(AEM_LOG_NYI, "NYI: reluctant repetition operators");
-			return RE_PARSE_ERROR;
+			return AEM_NFA_PARSE_ERROR;
 		}
 
 		if (!bounds_remain) {
@@ -348,8 +348,8 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 		} else if (bounds_remain < UINT_MAX) {
 			for (size_t i = 0; i < bounds_remain; i++) {
 				size_t fork = aem_nfa_append_insn(nfa, aem_nfa_insn_fork(0-0));
-				if (re_node_compile(ctx, child) == RE_PARSE_ERROR)
-					return RE_PARSE_ERROR;
+				if (aem_nfa_node_compile(ctx, child) == AEM_NFA_PARSE_ERROR)
+					return AEM_NFA_PARSE_ERROR;
 				aem_nfa_put_insn(nfa, fork, aem_nfa_insn_fork(nfa->n_insns));
 				re_set_debug(ctx, fork, node->text);
 			}
@@ -360,11 +360,11 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 			re_set_debug(ctx, fork, node->text);
 		} else if (!repeat.min && bounds_remain == UINT_MAX) {
 			size_t fork = aem_nfa_append_insn(nfa, aem_nfa_insn_fork(0-0));
-			if (re_node_compile(ctx, child) == RE_PARSE_ERROR)
-				return RE_PARSE_ERROR;
+			if (aem_nfa_node_compile(ctx, child) == AEM_NFA_PARSE_ERROR)
+				return AEM_NFA_PARSE_ERROR;
 			if (nfa->n_insns == fork) {
 				aem_logf_ctx(AEM_LOG_ERROR, "Nothing inside {,}!");
-				return RE_PARSE_ERROR;
+				return AEM_NFA_PARSE_ERROR;
 			}
 			size_t jmp = aem_nfa_append_insn(nfa, aem_nfa_insn_jmp(fork));
 			aem_nfa_put_insn(nfa, fork, aem_nfa_insn_fork(nfa->n_insns));
@@ -376,57 +376,57 @@ static size_t re_node_compile(struct re_compile_ctx *ctx, struct re_node *node)
 
 		break;
 	}
-	case RE_NODE_CAPTURE: {
+	case AEM_NFA_NODE_CAPTURE: {
 		aem_assert(node->children.n == 1);
-		struct re_node *child = node->children.s[0];
+		struct aem_nfa_node *child = node->children.s[0];
 		aem_assert(child);
 #if AEM_NFA_CAPTURES
-		const struct re_node_capture capture = node->args.capture;
+		const struct aem_nfa_node_capture capture = node->args.capture;
 		size_t c0 = aem_nfa_append_insn(nfa, aem_nfa_insn_capture(0, capture.capture));
 		re_set_debug(ctx, c0, aem_stringslice_new_len(node->text.start, 1));
 #else
 		aem_logf_ctx_once(AEM_LOG_WARN, "Captures disabled at compile-time!");
 #endif
-		if (re_node_compile(ctx, child) == RE_PARSE_ERROR)
-			return RE_PARSE_ERROR;
+		if (aem_nfa_node_compile(ctx, child) == AEM_NFA_PARSE_ERROR)
+			return AEM_NFA_PARSE_ERROR;
 #if AEM_NFA_CAPTURES
 		size_t c1 = aem_nfa_append_insn(nfa, aem_nfa_insn_capture(1, capture.capture));
 		re_set_debug(ctx, c1, aem_stringslice_new_len(node->text.end-1, 1));
 #endif
 		break;
 	}
-	case RE_NODE_BRANCH: {
+	case AEM_NFA_NODE_BRANCH: {
 		AEM_STACK_FOREACH(i, &node->children) {
-			struct re_node *child = node->children.s[i];
-			if (re_node_compile(ctx, child) == RE_PARSE_ERROR)
-				return RE_PARSE_ERROR;
+			struct aem_nfa_node *child = node->children.s[i];
+			if (aem_nfa_node_compile(ctx, child) == AEM_NFA_PARSE_ERROR)
+				return AEM_NFA_PARSE_ERROR;
 		}
 		break;
 	}
-	case RE_NODE_BRACKETS:
-	case RE_NODE_ALTERNATION: {
-		re_node_gen_alternation(ctx, node);
+	case AEM_NFA_NODE_BRACKETS:
+	case AEM_NFA_NODE_ALTERNATION: {
+		aem_nfa_node_gen_alternation(ctx, node);
 		break;
 	}
 	default:
 		aem_logf_ctx(AEM_LOG_ERROR, "Invalid node->type %#x", node->type);
-		return RE_PARSE_ERROR;
+		return AEM_NFA_PARSE_ERROR;
 	}
 
 	return entry;
 }
 
-int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, struct aem_stringslice flags, struct re_node *(*compile)(struct re_compile_ctx *ctx))
+int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, struct aem_stringslice flags, struct aem_nfa_node *(*compile)(struct aem_nfa_compile_ctx *ctx))
 {
 	aem_assert(nfa);
 	aem_assert(in);
 	aem_assert(compile);
 
-	struct re_compile_ctx ctx = {0};
+	struct aem_nfa_compile_ctx ctx = {0};
 	ctx.in = *in;
 	ctx.nfa = nfa;
 	ctx.match = match >= 0 ? match : nfa->n_matches;
-	ctx.flags = re_flags_adj(&flags, AEM_REGEX_FLAG_BINARY/*TODO: just 0*/, 0);
+	ctx.flags = aem_regex_flags_adj(&flags, AEM_REGEX_FLAG_BINARY/*TODO: just 0*/, 0);
 	if (aem_stringslice_ok(flags)) {
 		AEM_LOG_MULTI(out, AEM_LOG_ERROR) {
 			aem_stringbuf_puts(out, "Garbage after flags: ");
@@ -439,16 +439,16 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 	size_t n_captures = nfa->n_captures;
 
 	// Call callback to convert given pattern to RE tree
-	struct re_node *root = compile(&ctx);
+	struct aem_nfa_node *root = compile(&ctx);
 
 	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
 		aem_stringbuf_puts(out, "Parsed RE: ");
-		re_node_sexpr(out, root);
+		aem_nfa_node_sexpr(out, root);
 	}
 
 	if (!root || ctx.rc < 0) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse pattern! rc = %d", ctx.rc);
-		re_node_free(root);
+		aem_nfa_node_free(root);
 		goto fail;
 	}
 
@@ -457,7 +457,7 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 			aem_stringbuf_puts(out, "Garbage remains after pattern: ");
 			aem_string_escape(out, ctx.in);
 		}
-		re_node_free(root);
+		aem_nfa_node_free(root);
 		goto fail;
 	}
 
@@ -465,10 +465,10 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 	// TODO: Automatically process !AEM_REGEX_FLAG_BINARY
 
 	// Compile AST
-	size_t entry = re_node_compile(&ctx, root);
-	re_node_free(root);
+	size_t entry = aem_nfa_node_compile(&ctx, root);
+	aem_nfa_node_free(root);
 
-	if (entry == RE_PARSE_ERROR) {
+	if (entry == AEM_NFA_PARSE_ERROR) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to compile regex tree!");
 		ctx.rc = -1;
 		goto fail;

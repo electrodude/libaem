@@ -8,42 +8,42 @@
 #include <aem/stringbuf.h>
 
 // Failure, invalid address, no address assigned yet, etc.
-#define RE_PARSE_ERROR ((size_t)-1)
+#define AEM_NFA_PARSE_ERROR ((size_t)-1)
 
 /// Regex parser AST structore
-struct re_node {
-	enum re_node_type {
-		RE_NODE_RANGE,
-		RE_NODE_BRACKETS,
-		RE_NODE_ATOM,
-		RE_NODE_CLASS,
-		RE_NODE_CAPTURE,
-		RE_NODE_REPEAT,
-		RE_NODE_BRANCH,
-		RE_NODE_ALTERNATION,
+struct aem_nfa_node {
+	enum aem_nfa_node_type {
+		AEM_NFA_NODE_RANGE,
+		AEM_NFA_NODE_BRACKETS,
+		AEM_NFA_NODE_ATOM,
+		AEM_NFA_NODE_CLASS,
+		AEM_NFA_NODE_CAPTURE,
+		AEM_NFA_NODE_REPEAT,
+		AEM_NFA_NODE_BRANCH,
+		AEM_NFA_NODE_ALTERNATION,
 	} type;
 	struct aem_stringslice text;
 	struct aem_stack children;
-	union re_node_args {
-		struct re_node_range {
+	union aem_nfa_node_args {
+		struct aem_nfa_node_range {
 			uint32_t min;
 			uint32_t max;
 		} range;
-		struct re_node_brackets {
+		struct aem_nfa_node_brackets {
 		} brackets;
-		struct re_node_atom {
+		struct aem_nfa_node_atom {
 			uint32_t c;
 			int esc;
 		} atom;
-		struct re_node_class {
+		struct aem_nfa_node_class {
 			enum aem_nfa_cclass cclass;
 			uint8_t neg      : 1;
 			uint8_t frontier : 1;
 		} cclass;
-		struct re_node_capture {
+		struct aem_nfa_node_capture {
 			size_t capture;
 		} capture;
-		struct re_node_repeat {
+		struct aem_nfa_node_repeat {
 			unsigned int min;
 			unsigned int max;
 			int reluctant : 1;
@@ -51,12 +51,12 @@ struct re_node {
 	} args;
 };
 
-struct re_node *re_node_new(enum re_node_type type);
-void re_node_free(struct re_node *node);
+struct aem_nfa_node *aem_nfa_node_new(enum aem_nfa_node_type type);
+void aem_nfa_node_free(struct aem_nfa_node *node);
 
 /// AST construction
-void re_node_push(struct re_node *node, struct re_node *child);
-void re_node_sexpr(struct aem_stringbuf *out, const struct re_node *node);
+void aem_nfa_node_push(struct aem_nfa_node *node, struct aem_nfa_node *child);
+void aem_nfa_node_sexpr(struct aem_stringbuf *out, const struct aem_nfa_node *node);
 
 // Flags
 #define AEM_REGEX_FLAGS_DEFINE(FLAG) \
@@ -72,13 +72,13 @@ enum aem_regex_flags {
 #undef X
 };
 
-enum aem_regex_flags re_flags_parse(struct aem_stringslice *in, int sandbox);
-enum aem_regex_flags re_flags_adj(struct aem_stringslice *in, enum aem_regex_flags flags, int sandbox);
-void re_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, int sandbox);
+enum aem_regex_flags aem_regex_flags_parse(struct aem_stringslice *in, int sandbox);
+enum aem_regex_flags aem_regex_flags_adj(struct aem_stringslice *in, enum aem_regex_flags flags, int sandbox);
+void aem_regex_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, int sandbox);
 
 
 /// AST compilation
-struct re_compile_ctx {
+struct aem_nfa_compile_ctx {
 	struct aem_stringslice in;
 	struct aem_nfa *nfa;
 	unsigned int n_captures;
@@ -92,7 +92,7 @@ struct re_compile_ctx {
 	//void *arg;
 };
 
-int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, struct aem_stringslice flags, struct re_node *(*compile)(struct re_compile_ctx *ctx));
+int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, struct aem_stringslice flags, struct aem_nfa_node *(*compile)(struct aem_nfa_compile_ctx *ctx));
 
 #define AEM_NFA_ADD_DEFINE(name) \
 int aem_nfa_add_##name(struct aem_nfa *nfa, struct aem_stringslice pat, int match, struct aem_stringslice flags) \

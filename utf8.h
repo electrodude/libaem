@@ -1,6 +1,8 @@
 #ifndef AEM_UTF8_H
 #define AEM_UTF8_H
 
+#include <stdint.h>
+
 #define AEM_UTF8_INFO_LEN 6
 extern const struct aem_utf8_info {
 	uint32_t max;

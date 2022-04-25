@@ -1,5 +1,3 @@
-#include <stdint.h>
-
 #define AEM_DEBUG_UTF8 0
 
 #define AEM_INTERNAL

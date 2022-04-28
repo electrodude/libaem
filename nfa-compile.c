@@ -108,7 +108,6 @@ void aem_nfa_node_sexpr(struct aem_stringbuf *out, const struct aem_nfa_node *no
 	case AEM_NFA_NODE_BRANCH:
 		want_space = 0;
 		break;
-	case AEM_NFA_NODE_BRACKETS:
 	case AEM_NFA_NODE_ALTERNATION:
 		aem_stringbuf_putss(out, node->text);
 		break;
@@ -403,7 +402,6 @@ static size_t aem_nfa_node_compile(struct aem_nfa_compile_ctx *ctx, struct aem_n
 		}
 		break;
 	}
-	case AEM_NFA_NODE_BRACKETS:
 	case AEM_NFA_NODE_ALTERNATION: {
 		aem_nfa_node_gen_alternation(ctx, node);
 		break;

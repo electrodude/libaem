@@ -14,7 +14,6 @@
 struct aem_nfa_node {
 	enum aem_nfa_node_type {
 		AEM_NFA_NODE_RANGE,
-		AEM_NFA_NODE_BRACKETS,
 		AEM_NFA_NODE_ATOM,
 		AEM_NFA_NODE_CLASS,
 		AEM_NFA_NODE_CAPTURE,
@@ -29,11 +28,8 @@ struct aem_nfa_node {
 			uint32_t min;
 			uint32_t max;
 		} range;
-		struct aem_nfa_node_brackets {
-		} brackets;
 		struct aem_nfa_node_atom {
 			uint32_t c;
-			int esc;
 		} atom;
 		struct aem_nfa_node_class {
 			enum aem_nfa_cclass cclass;

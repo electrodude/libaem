@@ -124,7 +124,7 @@ static struct aem_nfa_node *re_parse_brackets(struct aem_nfa_compile_ctx *ctx)
 	if (!aem_stringslice_match(&ctx->in, "["))
 		goto fail_nofree;
 
-	struct aem_nfa_node *node = aem_nfa_node_new(AEM_NFA_NODE_BRACKETS);
+	struct aem_nfa_node *node = aem_nfa_node_new(AEM_NFA_NODE_ALTERNATION);
 	if (!node)
 		goto fail_nofree;
 	node->text = orig;
@@ -280,7 +280,7 @@ static struct aem_nfa_node *re_parse_atom(struct aem_nfa_compile_ctx *ctx)
 			goto fail;
 
 		enum aem_nfa_node_type type = AEM_NFA_NODE_ATOM;
-		union aem_nfa_node_args args = {.atom = {.c = c, .esc = esc}};
+		union aem_nfa_node_args args = {.atom = {.c = c}};
 
 		switch (esc) {
 		case 0: // Unescaped
@@ -569,7 +569,6 @@ static struct aem_nfa_node *aem_string_compile(struct aem_nfa_compile_ctx *ctx)
 
 		node->text = atom;
 		node->args.atom.c = c;
-		node->args.atom.esc = 0;
 		aem_nfa_node_push(root, node);
 	}
 

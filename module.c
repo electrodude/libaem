@@ -87,7 +87,7 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 		return -1;
 	}
 	mod->handle = handle;
-	mod->def = dlsym(mod->handle, "aem_module_def");
+	mod->def = aem_module_get_sym(mod, "aem_module_def");
 
 	// Fill in default name
 	if (mod->def && mod->def->name) {
@@ -183,6 +183,14 @@ int aem_module_unload(struct aem_module *mod)
 	mod->handle = NULL;
 
 	return 0;
+}
+
+void *aem_module_get_sym(struct aem_module *mod, const char *symbol)
+{
+	if (!mod->handle)
+		return NULL;
+
+	return dlsym(mod->handle, symbol);
 }
 
 void aem_module_identify(struct aem_stringbuf *out, struct aem_module *mod)

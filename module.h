@@ -70,6 +70,7 @@ int aem_module_unload_check(struct aem_module *mod);
 // before unloading it via this function.
 int aem_module_unload(struct aem_module *mod);
 
+void *aem_module_get_sym(struct aem_module *mod, const char *symbol);
 void aem_module_identify(struct aem_stringbuf *out, struct aem_module *mod);
 
 #endif /* AEM_MODULE_H */

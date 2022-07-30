@@ -25,7 +25,19 @@ struct module *module_load(struct aem_stringslice name, struct aem_stringslice a
 
 	aem_stringbuf_putss(&mod->mod.name, name);
 
-	int rc = aem_module_load(&mod->mod, args);
+	int rc = aem_module_resolve_path(mod);
+	if (rc)
+		goto fail;
+
+	rc = aem_module_open(&mod->mod);
+	if (rc)
+		goto fail;
+
+	rc = aem_module_register(&mod->mod, args);
+	if (rc)
+		goto fail;
+
+fail:
 	if (rc_p)
 		*rc_p = rc;
 

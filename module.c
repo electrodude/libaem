@@ -8,6 +8,7 @@
 
 int aem_module_disable_dereg(struct aem_module *mod)
 {
+	(void)mod;
 	return 0;
 }
 
@@ -40,6 +41,7 @@ void aem_module_dtor(struct aem_module *mod)
 {
 	aem_assert(mod);
 
+	// TODO: And if this returns <0?
 	aem_module_unload(mod);
 
 	aem_stringbuf_dtor(&mod->name);
@@ -64,28 +66,22 @@ int aem_module_resolve_path(struct aem_module *mod)
 
 	return 0;
 }
-int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
+int aem_module_open(struct aem_module *mod)
 {
 	aem_assert(mod);
 
-	int rc = 0;
-
-	// If path is empty, resolve it now
 	if (!mod->path.n) {
-		if ((rc = aem_module_resolve_path(mod))) {
-			// Clear path in case the caller decides to try again
-			aem_stringbuf_reset(&mod->path);
-			return rc;
-		}
+		aem_logf_ctx(AEM_LOG_BUG, "Module path not set!  Set mod->path yourself, or set mod->name and then call aem_module_resolve_path ");
+		return -1;
 	}
 
 	// Load module
 	void *handle = dlopen(aem_stringbuf_get(&mod->path), RTLD_NOW | RTLD_GLOBAL);
-
 	if (!handle) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to load module \"%s\": %s", aem_stringbuf_get(&mod->path), dlerror());
 		return -1;
 	}
+
 	mod->handle = handle;
 	mod->def = aem_module_get_sym(mod, "aem_module_def");
 
@@ -118,12 +114,26 @@ int aem_module_load(struct aem_module *mod, struct aem_stringslice args)
 		}
 	}
 
+	mod->state = AEM_MODULE_LOADED;
+
+	return 0;
+}
+
+int aem_module_register(struct aem_module *mod, struct aem_stringslice args)
+{
+	aem_assert(mod);
+	const struct aem_module_def *def = mod->def;
+	aem_assert(def);
+
+	aem_assert(mod->state == AEM_MODULE_LOADED);
+
 	// Register module
 	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
 		aem_stringbuf_puts(out, "Registering module ");
 		aem_module_identify(out, mod);
 	}
 
+	int rc = 0;
 	if (def->reg && (rc = def->reg(mod, args))) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Error %d while registering module \"%s\"", rc, aem_stringbuf_get(&mod->name));
 		return rc;
@@ -166,7 +176,7 @@ int aem_module_unload(struct aem_module *mod)
 			def->dereg(mod);
 			aem_logf_ctx(AEM_LOG_DEBUG, "Deregistered module \"%s\"", aem_stringbuf_get(&mod->name));
 		} else {
-			aem_logf_ctx(AEM_LOG_DEBUG, "Module \"%s\" didn't need to deregister anything.", aem_stringbuf_get(&mod->name));
+			aem_logf_ctx(AEM_LOG_DEBUG2, "Module \"%s\" didn't need to deregister anything.", aem_stringbuf_get(&mod->name));
 		}
 		mod->state = AEM_MODULE_UNREGISTERED;
 	}

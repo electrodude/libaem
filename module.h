@@ -7,8 +7,10 @@
 
 struct aem_module;
 struct aem_module_def {
+	// TODO: Generic key-value store
 	const char *name;
 	const char *version;
+	const char *deps;
 
 	// Called after module is loaded
 	int (*reg)(struct aem_module *mod, struct aem_stringslice args);
@@ -35,6 +37,7 @@ int aem_module_disable_dereg(struct aem_module *mod);
 
 enum aem_module_state {
 	AEM_MODULE_UNREGISTERED,
+	AEM_MODULE_LOADED,
 	AEM_MODULE_REGISTERED,
 };
 struct aem_module {
@@ -59,10 +62,15 @@ void aem_module_init(struct aem_module *mod);
 void aem_module_dtor(struct aem_module *mod);
 
 int aem_module_resolve_path(struct aem_module *mod);
-// Load a module.  Call after calling aem_module_init and setting either the
-// name or path fields.  Returns non-zero on error, in which case you must
-// destroy the module yourself via aem_module_unload or aem_module_dtor.
-int aem_module_load(struct aem_module *mod, struct aem_stringslice args);
+// Open a module.  Call after calling aem_module_init and either setting the
+// name field and calling aem_module_resolve_path, or setting the path field
+// yourself.  Returns non-zero on error, in which case you must destroy the
+// module yourself via aem_module_unload or aem_module_dtor.
+int aem_module_open(struct aem_module *mod);
+// Tell a module to register itself.  Call after successfully calling
+// aem_module_open.  Returns non-zero on error, in which case you must destroy
+// the module yourself via aem_module_unload or aem_module_dtor.
+int aem_module_register(struct aem_module *mod, struct aem_stringslice args);
 // Returns 1 if a module can be unloaded, else 0
 int aem_module_unload_check(struct aem_module *mod);
 // Unload a module, even if only partially loaded.  Idempotent.

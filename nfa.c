@@ -7,7 +7,6 @@
 #include <aem/log.h>
 #include <aem/memory.h>
 #include <aem/nfa-util.h>
-// for AEM_NFA_THREAD_STATE
 #include <aem/stack.h>
 #include <aem/stringbuf.h>
 // for AEM_NFA_CAPTURES
@@ -556,17 +555,14 @@ void aem_nfa_disas(struct aem_stringbuf *out, const struct aem_nfa *nfa, const a
 
 // Shared state of one call to aem_nfa_run
 struct aem_nfa_run {
-#if AEM_NFA_THREAD_STATE
 	struct aem_stack curr;
 	struct aem_stack next;
-#endif
 	struct aem_stringslice in_curr;
 	struct aem_stringslice longest_match;
 	const char *p_curr;
 	const struct aem_nfa *nfa;
-	aem_nfa_bitfield *map_curr; // Needs to be run on this character
+	aem_nfa_bitfield *map_curr; // Needs to be run on this character, or already was
 	aem_nfa_bitfield *map_next; // Needs to be run on next character
-	aem_nfa_bitfield *map_done; // Was already run on this character
 
 	// We store copies of these here in case another OS thread expands the
 	// NFA program while we're running.  But this isn't sufficient - what
@@ -623,7 +619,6 @@ static void aem_nfa_thread_dtor(struct aem_nfa_thread *thr)
 
 	aem_nfa_match_dtor(&thr->match);
 }
-#if AEM_NFA_THREAD_STATE
 static struct aem_nfa_thread *aem_nfa_thread_new(const struct aem_nfa_run *run, size_t pc)
 {
 	struct aem_nfa_thread *thr = malloc(sizeof(*thr));
@@ -643,51 +638,31 @@ static void aem_nfa_thread_free(struct aem_nfa_thread *thr)
 
 	free(thr);
 }
-#endif
 
-#if AEM_NFA_THREAD_STATE
 static void aem_nfa_thread_add(struct aem_nfa_run *run, int next, struct aem_nfa_thread *thr)
-#else
-static void aem_nfa_thread_add(struct aem_nfa_run *run, int next, size_t pc)
-#endif
 {
 	aem_assert(run);
-#if AEM_NFA_THREAD_STATE
 	aem_assert(thr);
 
 	size_t pc = thr->pc;
-#endif
 
 	aem_assert(pc < run->n_insns);
 
 	aem_nfa_bitfield *map = next ? run->map_next : run->map_curr;
-
-#if AEM_NFA_THREAD_STATE
 	struct aem_stack *stk = next ? &run->next : &run->curr;
-#endif
 
 	// If some other thread already got to this PC first, drop this one in favor of the first.
-	if (bitfield_test(map, pc) || (!next && bitfield_test(run->map_done, pc))) {
+	if (bitfield_test(map, pc)) {
 		//aem_logf_ctx(AEM_LOG_DEBUG3, "dup thread @ %zx", pc);
-#if AEM_NFA_THREAD_STATE
 		aem_nfa_thread_free(thr);
-#endif
 		return;
 	}
 
 	// Set bitmap
 	bitfield_set(map, pc);
 
-#if AEM_NFA_THREAD_STATE
 	// Add thread to queue
 	aem_stack_push(stk, thr);
-#endif
-}
-static int aem_nfa_thread_check(const struct aem_nfa_run *run, size_t pc)
-{
-	aem_assert(run);
-	aem_assert(pc < run->n_insns);
-	return bitfield_test(run->map_done, pc);
 }
 
 static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *thr, int c)
@@ -697,27 +672,24 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 	const struct aem_nfa *nfa = run->nfa;
 	aem_assert(nfa);
 
-#if AEM_NFA_THREAD_STATE
 #if AEM_NFA_TRACING
 	size_t list_32 = (run->n_insns + 31) >> 5;
-#endif
 #endif
 
 	aem_assert(thr->state == AEM_NFA_THR_LIVE);
 
-	// FIXME: Don't get stuck in an infinite loop on shenanigans like /()+/
-	// Ignore new threads on instructions that were already active this character.
 	while (thr->state == AEM_NFA_THR_LIVE) {
 		if (thr->pc >= run->n_insns) {
 			aem_logf_ctx(AEM_LOG_BUG, "Invalid pc: %zx/%zx", thr->pc, run->n_insns);
 			return -2;
 		}
-		if (aem_nfa_thread_check(run, thr->pc)) {
+		// Ignore new threads on instructions that were already active this character.
+		if (bitfield_test(run->map_curr, thr->pc)) {
 			// Thread is a duplicate; remove
 			thr->state = AEM_NFA_THR_DEAD;
 			return -1;
 		}
-		bitfield_set(run->map_done, thr->pc);
+		bitfield_set(run->map_curr, thr->pc);
 
 #if AEM_NFA_TRACING
 		size_t pc_curr = thr->pc;
@@ -795,6 +767,7 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			thr->state = AEM_NFA_THR_MATCHED;
 			thr->match.match = insn;
 			// Do NOT mark this instruction as visited.
+			aem_assert((int)insn >= 0);
 			return insn;
 
 		case AEM_NFA_JMP: {
@@ -815,7 +788,6 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 				aem_logf_ctx(AEM_LOG_BUG, "Invalid pc: %zx/%zx", pc_next, run->n_insns);
 				return -2;
 			}
-#if AEM_NFA_THREAD_STATE
 			struct aem_nfa_thread *child = aem_nfa_thread_new(run, pc_next);
 			aem_assert(child);
 #if AEM_NFA_CAPTURES
@@ -830,9 +802,6 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			bitfield_set(child->match.visited, pc_curr);
 #endif
 			aem_nfa_thread_add(run, 0, child);
-#else
-			aem_nfa_thread_add(run, 0, pc_next);
-#endif
 			break;
 		}
 
@@ -953,8 +922,6 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 	aem_assert(nfa);
 	aem_assert(in);
 
-	int rc = -1;
-
 	// TODO: If nfa->n_insns and nfa->n_captures are read atomically (or perhaps just in the right order), no locking should be required between aem_nfa_run and extending the nfa.
 	struct aem_nfa_run run = {0};
 	run.in_curr = *in;
@@ -964,23 +931,19 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 #if AEM_NFA_CAPTURES
 	run.n_captures = nfa->n_captures;
 #endif
-#if AEM_NFA_THREAD_STATE
 	aem_stack_init(&run.curr);
 	aem_stack_init(&run.next);
 	struct aem_nfa_thread *thr_matched = NULL;
-#endif
 	run.c_prev = -1;
 
 	// Initialize thread list: curr and next
 	size_t list_32 = (run.n_insns + 31) >> 5;
 	run.map_curr = alloca(list_32 * sizeof(*run.map_curr));
 	run.map_next = alloca(list_32 * sizeof(*run.map_next));
-	run.map_done = alloca(list_32 * sizeof(*run.map_next));
 	//aem_logf_ctx(AEM_LOG_DEBUG3, "%zd %zd", run.n_insns, list_32);
 	for (size_t i = 0; i < list_32; i++) {
 		run.map_curr[i] = 0;
 		run.map_next[i] = 0;
-		run.map_done[i] = 0;
 	}
 
 	for (size_t pc = 0; pc < run.n_insns; pc++) {
@@ -989,25 +952,16 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 
 		aem_logf_ctx(AEM_LOG_DEBUG3, "init thread @ %zx", pc);
 
-#if AEM_NFA_THREAD_STATE
 		struct aem_nfa_thread *thr = aem_nfa_thread_new(&run, pc);
 		aem_assert(thr);
 		aem_nfa_thread_add(&run, 1, thr);
-#else
-		aem_nfa_thread_add(&run, 1, pc);
-#endif
 	}
-#if AEM_NFA_THREAD_STATE
 	aem_logf_ctx(AEM_LOG_DEBUG3, "%zd init threads", run.next.n);
-#endif
 
-#if !(AEM_NFA_THREAD_STATE)
-	struct aem_nfa_thread thr_singleton;
-	aem_nfa_thread_init(&thr_singleton, &run, 0);
-#endif
+	int rc = -1;
 
 	for (;;) {
-		// Move next => curr, clear next and done, break if no live threads
+		// Move next => curr, clear next, break if no live threads
 		aem_nfa_bitfield *map_tmp = run.map_curr;
 		run.map_curr = run.map_next;
 		run.map_next = map_tmp;
@@ -1015,28 +969,21 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 		for (size_t i = 0; i < list_32; i++) {
 			run.map_next[i] = 0;
 			live |= run.map_curr[i];
-			run.map_done[i] = 0;
 		}
 
-#if AEM_NFA_THREAD_STATE
 		{
 			struct aem_stack stk_tmp = run.curr;
 			run.curr = run.next;
 			run.next = stk_tmp;
 			aem_stack_reset(&run.next);
 		}
-#endif
 
 		if (!live) {
-#if AEM_NFA_THREAD_STATE
 			aem_assert(!run.curr.n);
-#endif
 			break;
 		}
 
-#if AEM_NFA_THREAD_STATE
 		aem_assert(run.curr.n);
-#endif
 
 		run.p_curr = run.in_curr.start;
 		int c = aem_stringslice_getc(&run.in_curr);
@@ -1047,40 +994,21 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 		}
 
 		// For each thread
-#if AEM_NFA_THREAD_STATE
 		//aem_logf_ctx(AEM_LOG_DEBUG3, "%zd live threads", run.curr.n);
 		AEM_STACK_FOREACH(i, &run.curr) {
-#if 0 == 1
-		}
-#endif
 			struct aem_nfa_thread *thr = run.curr.s[i];
 			aem_assert(thr);
 			run.curr.s[i] = NULL;
 
-			size_t pc = thr->pc;
+			//aem_logf_ctx(AEM_LOG_DEBUG3, "thread %zd/%zd @ %zx", i, run.curr.n, thr->pc);
 
-			aem_logf_ctx(AEM_LOG_DEBUG3, "thread %zd/%zd @ %zx", i, run.curr.n, pc);
-#else
-		again:
-		for (size_t i = 0; i < run.n_insns; i++) {
-			size_t pc = i;
-
-			aem_logf_ctx(AEM_LOG_DEBUG3, "thr @ %zx", pc);
-
-			// Just reuse the same thread object
-			struct aem_nfa_thread *thr = &thr_singleton;
-			thr->pc = pc;
-			thr->state = AEM_NFA_THR_LIVE;
-#endif
-
-			bitfield_clear(run.map_curr, pc);
+			// Stop blocking this instruction, since we've gotten
+			// to the queued thread that's been sitting on it.
+			bitfield_clear(run.map_curr, thr->pc);
 
 			int rc2 = aem_nfa_thread_step(&run, thr, c);
 
-			if (rc2 >= 0) {
-				// Match
-				rc = rc2;
-			} else if (rc2 == -2) {
+			if (rc2 <= -2) {
 				// Fatal error
 				rc = rc2;
 				goto out;
@@ -1088,51 +1016,41 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 
 			switch (thr->state) {
 			case AEM_NFA_THR_LIVE:
+				aem_assert(rc2 < 0);
 				//aem_logf_ctx(AEM_LOG_DEBUG3, "=> %zx", thr->pc);
 				//aem_nfa_show_trace(run.nfa, thr);
-#if AEM_NFA_THREAD_STATE
 				aem_nfa_thread_add(&run, 1, thr);
-#else
-				aem_nfa_thread_add(&run, 1, thr->pc);
-#endif
 				break;
 			case AEM_NFA_THR_DEAD:
+				aem_assert(rc2 < 0);
 				//aem_logf_ctx(AEM_LOG_DEBUG3, "dead");
 				//aem_nfa_show_trace(run.nfa, thr);
-#if AEM_NFA_THREAD_STATE
 				aem_nfa_thread_free(thr);
-#endif
 				break;
+
 			case AEM_NFA_THR_MATCHED:
-				//aem_logf_ctx(AEM_LOG_DEBUG3, "matched");
+				aem_assert(rc2 >= 0);
+				rc = rc2;
 				run.longest_match.end = run.p_curr;
 				/*
 				AEM_LOG_MULTI(out, AEM_LOG_DEBUG3) {
-					aem_stringbuf_puts(out, "Longest match: ");
+					aem_stringbuf_puts(out, "match: ");
 					aem_string_escape(out, run.longest_match);
 				}
 				*/
-#if AEM_NFA_THREAD_STATE
+				// Replace previous candidate
 				if (thr_matched)
 					aem_nfa_thread_free(thr_matched);
 				thr_matched = thr;
-#else
-				//aem_nfa_show_trace(run.nfa, thr);
-#endif
 				break;
+
 			default:
 				aem_logf_ctx(AEM_LOG_BUG, "Invalid thread state: 0x%x", thr->state);
-				break;
+				rc = -2;
+				goto out;
 			}
 		}
-#if !(AEM_NFA_THREAD_STATE)
-		int curr_live = 0;
-		for (size_t i = 0; i < list_32; i++) {
-			curr_live |= run.map_curr[i];
-		}
-		if (curr_live)
-			goto again;
-#endif
+
 		// Halt on EOF
 		if (c < 0)
 			break;
@@ -1146,7 +1064,6 @@ out:
 		*match_p = (struct aem_nfa_match){ .match = rc };
 	}
 
-#if AEM_NFA_THREAD_STATE
 	if (thr_matched) {
 		if (match_p) {
 			// Extract info
@@ -1167,14 +1084,9 @@ out:
 		}
 		aem_nfa_thread_free(thr_matched);
 	}
-#endif
-
-#if !(AEM_NFA_THREAD_STATE)
-	aem_nfa_thread_dtor(&thr_singleton);
-#endif
+	aem_assert((thr_matched != NULL) == (rc >= 0));
 
 	in->start = run.longest_match.end;
-#if AEM_NFA_THREAD_STATE
 	// In case any stubborn threads insist on matching EOFs instead of
 	// dying, clean them up here.  This should never happen.
 	while (run.curr.n) {
@@ -1187,6 +1099,5 @@ out:
 	}
 	aem_stack_dtor(&run.curr);
 	aem_stack_dtor(&run.next);
-#endif
 	return rc;
 }

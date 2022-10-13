@@ -11,9 +11,6 @@
 #define AEM_NFA_CAPTURES 1
 #define AEM_NFA_TRACING 1
 
-// Required for captures or tracing to do anything meaningful.
-#define AEM_NFA_THREAD_STATE 1
-
 
 /// NFA definition
 #define AEM_NFA_OP_DEFINE(def) \

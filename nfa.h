@@ -50,12 +50,6 @@ typedef uint32_t aem_nfa_insn;
 
 typedef uint32_t aem_nfa_bitfield;
 
-enum aem_nfa_thr_state {
-	AEM_NFA_THR_LIVE,
-	AEM_NFA_THR_DEAD,
-	AEM_NFA_THR_MATCHED,
-};
-
 struct aem_nfa_trace_info {
 	struct aem_stringslice where;
 	int match;

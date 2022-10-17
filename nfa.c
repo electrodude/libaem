@@ -665,7 +665,7 @@ static void aem_nfa_thread_add(struct aem_nfa_run *run, int next, struct aem_nfa
 	aem_stack_push(stk, thr);
 }
 
-static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *thr, int c)
+static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *thr, int c)
 {
 	aem_assert(run);
 	aem_assert(thr);
@@ -686,8 +686,7 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 		// Ignore new threads on instructions that were already active this character.
 		if (bitfield_test(run->map_curr, thr->pc)) {
 			// Thread is a duplicate; remove
-			thr->state = AEM_NFA_THR_DEAD;
-			return -1;
+			goto dead;
 		}
 		bitfield_set(run->map_curr, thr->pc);
 
@@ -716,7 +715,7 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 #if AEM_NFA_TRACING
 			bitfield_set(thr->match.visited, pc_curr);
 #endif
-			return -1;
+			goto pass;
 		}
 		case AEM_NFA_CLASS: {
 			int neg = insn & 0x1;
@@ -740,7 +739,7 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			if (frontier)
 				break;
 
-			return -1;
+			goto pass;
 		}
 
 		case AEM_NFA_CAPTURE: {
@@ -768,7 +767,7 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 			thr->match.match = insn;
 			// Do NOT mark this instruction as visited.
 			aem_assert((int)insn >= 0);
-			return insn;
+			goto match;
 
 		case AEM_NFA_JMP: {
 			size_t pc_next = insn;
@@ -818,9 +817,62 @@ static int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *t
 
 	aem_assert(!"Can't get here!");
 
-dead:
-	thr->state = AEM_NFA_THR_DEAD;
+pass:
+	aem_assert(thr->state == AEM_NFA_THR_LIVE);
+	aem_nfa_thread_add(run, 1, thr);
 	return -1;
+
+dead:
+	aem_assert(thr->state == AEM_NFA_THR_LIVE);
+	thr->state = AEM_NFA_THR_DEAD;
+	aem_nfa_thread_free(thr);
+	return -1;
+
+match:
+	aem_assert(thr->state == AEM_NFA_THR_MATCHED);
+	run->longest_match.end = run->p_curr;
+
+	aem_assert(thr->match.match >= 0);
+	return thr->match.match;
+}
+static int aem_nfa_step(struct aem_nfa_run *run, struct aem_nfa_thread **thr_matched_p, int c)
+{
+	aem_assert(run);
+	aem_assert(thr_matched_p);
+
+	int rc = -1;
+
+	// For each thread
+	//aem_logf_ctx(AEM_LOG_DEBUG3, "%zd live threads", run->curr.n);
+	AEM_STACK_FOREACH(i, &run->curr) {
+		struct aem_nfa_thread *thr = run->curr.s[i];
+		aem_assert(thr);
+		run->curr.s[i] = NULL;
+
+		//aem_logf_ctx(AEM_LOG_DEBUG3, "thread %zd/%zd @ %zx", i, run->curr.n, thr->pc);
+
+		// Stop blocking this instruction, since we've gotten
+		// to the queued thread that's been sitting on it.
+		bitfield_clear(run->map_curr, thr->pc);
+
+		int rc2 = aem_nfa_thread_step(run, thr, c);
+
+		// Fatal error
+		if (rc2 <= -2)
+			return rc2;
+
+		if (rc2 >= 0) {
+			if (*thr_matched_p)
+				aem_nfa_thread_free(*thr_matched_p);
+
+			// Replace previous candidate
+			rc = rc2;
+			*thr_matched_p = thr;
+			aem_assert(rc == (*thr_matched_p)->match.match);
+		}
+	}
+
+	return rc;
 }
 
 void aem_nfa_show_trace(const struct aem_nfa *nfa, const struct aem_nfa_thread *thr)
@@ -992,63 +1044,14 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 			aem_stringbuf_puts(out, "char ");
 			aem_nfa_desc_char(out, c);
 		}
-
-		// For each thread
-		//aem_logf_ctx(AEM_LOG_DEBUG3, "%zd live threads", run.curr.n);
-		AEM_STACK_FOREACH(i, &run.curr) {
-			struct aem_nfa_thread *thr = run.curr.s[i];
-			aem_assert(thr);
-			run.curr.s[i] = NULL;
-
-			//aem_logf_ctx(AEM_LOG_DEBUG3, "thread %zd/%zd @ %zx", i, run.curr.n, thr->pc);
-
-			// Stop blocking this instruction, since we've gotten
-			// to the queued thread that's been sitting on it.
-			bitfield_clear(run.map_curr, thr->pc);
-
-			int rc2 = aem_nfa_thread_step(&run, thr, c);
-
-			if (rc2 <= -2) {
-				// Fatal error
-				rc = rc2;
-				goto out;
-			}
-
-			switch (thr->state) {
-			case AEM_NFA_THR_LIVE:
-				aem_assert(rc2 < 0);
-				//aem_logf_ctx(AEM_LOG_DEBUG3, "=> %zx", thr->pc);
-				//aem_nfa_show_trace(run.nfa, thr);
-				aem_nfa_thread_add(&run, 1, thr);
-				break;
-			case AEM_NFA_THR_DEAD:
-				aem_assert(rc2 < 0);
-				//aem_logf_ctx(AEM_LOG_DEBUG3, "dead");
-				//aem_nfa_show_trace(run.nfa, thr);
-				aem_nfa_thread_free(thr);
-				break;
-
-			case AEM_NFA_THR_MATCHED:
-				aem_assert(rc2 >= 0);
-				rc = rc2;
-				run.longest_match.end = run.p_curr;
-				/*
-				AEM_LOG_MULTI(out, AEM_LOG_DEBUG3) {
-					aem_stringbuf_puts(out, "match: ");
-					aem_string_escape(out, run.longest_match);
-				}
-				*/
-				// Replace previous candidate
-				if (thr_matched)
-					aem_nfa_thread_free(thr_matched);
-				thr_matched = thr;
-				break;
-
-			default:
-				aem_logf_ctx(AEM_LOG_BUG, "Invalid thread state: 0x%x", thr->state);
-				rc = -2;
-				goto out;
-			}
+		int rc2 = aem_nfa_step(&run, &thr_matched, c);
+		if (rc2 <= -2) {
+			rc = rc2;
+			goto out;
+		} else if (rc2 >= 0) {
+			aem_assert(thr_matched);
+			rc = rc2;
+			aem_assert(thr_matched->match.match == rc);
 		}
 
 		// Halt on EOF

@@ -756,13 +756,15 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 			break;
 		}
 
-		case AEM_NFA_MATCH:
+		case AEM_NFA_MATCH: {
 			aem_logf_ctx(AEM_LOG_DEBUG3, "match %x", insn);
-			// Return argument of latest match
-			thr->match.match = insn;
 			// Do NOT mark this instruction as visited.
-			aem_assert((int)insn >= 0);
-			goto match;
+
+			run->longest_match.end = run->in_curr.start;
+
+			// Return argument of latest match
+			return thr->match.match = insn;
+		}
 
 		case AEM_NFA_JMP: {
 			size_t pc_next = insn;
@@ -810,20 +812,17 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 	}
 
 	aem_assert(!"Can't get here!");
+	return -2;
+
 
 pass:
 	aem_nfa_thread_add(run, 1, thr);
 	return -1;
 
+
 dead:
 	aem_nfa_thread_free(thr);
 	return -1;
-
-match:
-	run->longest_match.end = run->p_curr;
-
-	aem_assert(thr->match.match >= 0);
-	return thr->match.match;
 }
 static int aem_nfa_step(struct aem_nfa_run *run, struct aem_nfa_thread **thr_matched_p, int c)
 {

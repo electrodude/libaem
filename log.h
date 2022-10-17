@@ -10,12 +10,14 @@
 // You must set a logfile (i.e. call aem_log_fset, aem_log_fopen, or aem_log_stderr) before calling any logging functions.
 
 enum aem_log_level {
+	AEM_LOG_INVALID = -1,
 	AEM_LOG_FATAL,    // Fatal error: program execution must cease as a result.
 	AEM_LOG_SECURITY, // Security error: Occurrence of security error
 	AEM_LOG_BUG,      // Non-fatal bug: Occurrence of something which should never happen, but program execution may continue.
 	AEM_LOG_NYI,      // Use of unimplemented feature
 	AEM_LOG_ERROR,    // Non-fatal error
 	AEM_LOG_WARN,     // Warning: Probable misconfiguration, past or future errors likely, performance is bad, etc.
+	AEM_LOG_GOOD,     // Success/Good: Test passed, initialization completed, etc.
 	AEM_LOG_NOTICE,   // Noteworthy event
 	AEM_LOG_INFO,     // Misc. information
 	AEM_LOG_DEBUG,    // Debug info: Useless or trivial during normal execution
@@ -28,7 +30,7 @@ struct aem_log_module {
 };
 
 
-/// Log file
+/// Log to FILE
 
 extern int aem_log_color;
 
@@ -57,6 +59,7 @@ extern struct aem_log_module aem_log_module_default_internal;
 const char *aem_log_level_color(enum aem_log_level loglevel);
 const char *aem_log_level_describe(enum aem_log_level loglevel);
 char aem_log_level_letter(enum aem_log_level loglevel);
+enum aem_log_level aem_log_level_parse_letter(char c);
 
 struct aem_stringslice;
 enum aem_log_level aem_log_level_parse(struct aem_stringslice word);
@@ -86,24 +89,33 @@ int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level logleve
 
 /// Assertions
 #ifndef aem_assert
+#ifndef AEM_SKIP_ASSERTS
 #define aem_assert(condition) do { \
 	if (!(condition)) { \
 		aem_logf_ctx(AEM_LOG_BUG, "Assertion failed: %s", #condition); \
 		aem_abort(); \
 	} \
 } while (0)
+#else
+#define aem_assert(condition) do { (void)(condition); } while (0)
 #endif
+#endif /* aem_assert */
 
 #ifndef aem_assert_msg
+#ifndef AEM_SKIP_ASSERTS
 #define aem_assert_msg(condition, msg) do { \
 	if (!(condition)) { \
 		aem_logf_ctx(AEM_LOG_BUG, "Assertion failed: %s: %s", #condition, msg); \
 		aem_abort(); \
 	} \
 } while (0)
+#else
+#define aem_assert_msg(condition, msg) do { (void)(condition); (void)(msg); } while (0)
 #endif
+#endif /* aem_assert_msg */
 
 #ifndef aem_assert_eq
+#ifndef AEM_SKIP_ASSERTS
 #define aem_assert_eq(a, b) ({ \
 	__typeof__(a) _a = (a); \
 	__typeof__(b) _b = (b); \
@@ -113,6 +125,10 @@ int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level logleve
 	} \
 	_a; \
 })
+#else
+#define aem_assert_eq(a, b) ({ (void)(b); (a); })
+#endif
+#endif /* aem_assert_eq */
 #endif
 
 #endif /* AEM_LOG_H */

@@ -38,7 +38,7 @@ void test_init(int argc, char **argv)
 
 int show_test_results_impl(const char *file, int line, const char *func)
 {
-	int loglevel = test_errors ? AEM_LOG_ERROR : AEM_LOG_NOTICE;
+	int loglevel = test_errors ? AEM_LOG_ERROR : AEM_LOG_GOOD;
 
 	struct aem_stringbuf *str = aem_log_header_mod_impl(&aem_log_buf, aem_log_module_current, loglevel, file, line, func);
 	if (!str)

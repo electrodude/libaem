@@ -9,9 +9,9 @@
 
 #include "log.h"
 
+/// Log to FILE
 
-// log file
-
+// This is dumb - stderr/fd 2 already exists for this purpose
 static FILE *aem_log_fp = NULL;
 static int aem_log_autoclose_curr = 0;
 int aem_log_color = 0;
@@ -66,7 +66,7 @@ FILE *aem_log_fget(void)
 }
 
 
-// log level
+/// log level
 
 struct aem_log_module aem_log_module_default = {.loglevel = AEM_LOG_NOTICE};
 struct aem_log_module aem_log_module_default_internal = {.loglevel = AEM_LOG_NOTICE};
@@ -74,19 +74,20 @@ struct aem_log_module aem_log_module_default_internal = {.loglevel = AEM_LOG_NOT
 const char *aem_log_level_color(enum aem_log_level loglevel)
 {
 	switch (loglevel) {
-		case AEM_LOG_FATAL   : return AEM_SGR("101;5"   );
-		case AEM_LOG_SECURITY: return AEM_SGR("101;30;5");
+		case AEM_LOG_FATAL   : return AEM_SGR("101"     );
+		case AEM_LOG_SECURITY: return AEM_SGR("101;30"  );
 		case AEM_LOG_BUG     : return AEM_SGR("103;30"  );
 		case AEM_LOG_NYI     : return AEM_SGR("101;30"  );
 		case AEM_LOG_ERROR   : return AEM_SGR("31;1"    );
 		case AEM_LOG_WARN    : return AEM_SGR("33;1"    );
+		case AEM_LOG_GOOD    : return AEM_SGR("92;1"    );
 		case AEM_LOG_NOTICE  : return AEM_SGR("94;1"    );
 		case AEM_LOG_INFO    : return AEM_SGR("0"       );
 		case AEM_LOG_DEBUG   : return AEM_SGR("37;2"    );
 		case AEM_LOG_DEBUG2  : return AEM_SGR("90"      );
 		case AEM_LOG_DEBUG3  : return AEM_SGR("90;2"    );
+		default              : return AEM_SGR("101;30"  );
 	}
-	return AEM_SGR("101;30");
 }
 
 const char *aem_log_level_describe(enum aem_log_level loglevel)
@@ -103,8 +104,8 @@ const char *aem_log_level_describe(enum aem_log_level loglevel)
 		case AEM_LOG_DEBUG   : return "debug";
 		case AEM_LOG_DEBUG2  : return "debug2";
 		case AEM_LOG_DEBUG3  : return "debug3";
+		default              : return "(unknown)";
 	}
-	return "(unknown)";
 }
 char aem_log_level_letter(enum aem_log_level loglevel)
 {
@@ -115,15 +116,34 @@ char aem_log_level_letter(enum aem_log_level loglevel)
 		case AEM_LOG_NYI     : return 'U';
 		case AEM_LOG_ERROR   : return 'E';
 		case AEM_LOG_WARN    : return 'W';
+		case AEM_LOG_GOOD    : return 'g';
 		case AEM_LOG_NOTICE  : return 'n';
 		case AEM_LOG_INFO    : return 'i';
 		case AEM_LOG_DEBUG   : return 'd';
 		case AEM_LOG_DEBUG2  : return '2';
 		case AEM_LOG_DEBUG3  : return '3';
+		default              : return '?';
 	}
-	return '?';
 }
 
+enum aem_log_level aem_log_level_parse_letter(char c)
+{
+	switch (tolower(c)) {
+		case 'f': return AEM_LOG_FATAL   ;
+		case 'S': return AEM_LOG_SECURITY;
+		case 'b': return AEM_LOG_BUG     ;
+		case 'u': return AEM_LOG_NYI     ;
+		case 'e': return AEM_LOG_ERROR   ;
+		case 'w': return AEM_LOG_WARN    ;
+		case 'g': return AEM_LOG_GOOD    ;
+		case 'n': return AEM_LOG_NOTICE  ;
+		case 'i': return AEM_LOG_INFO    ;
+		case 'd': return AEM_LOG_DEBUG   ;
+		case '2': return AEM_LOG_DEBUG2  ; // These two have no
+		case '3': return AEM_LOG_DEBUG3  ; // valid long forms
+	}
+	return AEM_LOG_INVALID;
+}
 enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 {
 	// Empty string -> debug
@@ -132,23 +152,11 @@ enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 
 	int c = aem_stringslice_get(&word);
 
-	enum aem_log_level level;
+	enum aem_log_level level = 0 <= c && c < 256 ? aem_log_level_parse_letter(c) : AEM_LOG_INVALID;
 
-	switch (0 <= c && c < 256 ? tolower(c) : -1) {
-		case 'f': level = AEM_LOG_FATAL   ; break;
-		case 's': level = AEM_LOG_SECURITY; break;
-		case 'b': level = AEM_LOG_BUG     ; break;
-		case 'u': level = AEM_LOG_NYI     ; break;
-		case 'e': level = AEM_LOG_ERROR   ; break;
-		case 'w': level = AEM_LOG_WARN    ; break;
-		case 'n': level = AEM_LOG_NOTICE  ; break;
-		case 'i': level = AEM_LOG_INFO    ; break;
-		case 'd': level = AEM_LOG_DEBUG   ; break;
-		case '2': level = AEM_LOG_DEBUG2  ; break; // These two have no
-		case '3': level = AEM_LOG_DEBUG3  ; break; // valid long forms
-		default :
-			aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse log level; default to debug");
-			return AEM_LOG_DEBUG;
+	if (level == AEM_LOG_INVALID) {
+		aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse log level; default to debug");
+		level = AEM_LOG_DEBUG;
 	}
 
 	// If only one letter was given, return now
@@ -194,6 +202,7 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 		return NULL;
 
 	aem_stringbuf_reset(str);
+
 	if (aem_log_color)
 		aem_stringbuf_puts(str, aem_log_level_color(loglevel));
 	aem_stringbuf_putc(str, aem_log_level_letter(loglevel));
@@ -203,7 +212,7 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 	//aem_stringbuf_putc(str, aem_log_level_describe(loglevel));
 	aem_stringbuf_putc(str, ':');
 	if (aem_log_color)
-		aem_stringbuf_puts(str, "\x1b[0m"); // Reset text style
+		aem_stringbuf_puts(str, AEM_SGR("0")); // Reset text style
 	aem_stringbuf_putc(str, ' ');
 
 	return str;

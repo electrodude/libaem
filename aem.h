@@ -21,10 +21,17 @@
 #endif
 #endif
 
-#else /* !AEM_DEBUG */
+#else /* !defined(AEM_DEBUG) */
 
 #ifndef aem_abort
+#if !defined(AEM_RECKLESS)
 #define aem_abort() abort()
+#elif defined(__GNUC__)
+#define aem_abort() __builtin_unreachable()
+#else
+// You're crazy!
+#define aem_abort() do {} while (0)
+#endif
 #endif
 
 #ifndef aem_break

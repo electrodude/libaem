@@ -38,6 +38,14 @@
 #define aem_break() aem_abort()
 #endif
 
+#ifndef aem_unreachable
+#ifdef _WIN32
+#define __builtin_unreachable() __assume(0)
+#else
+#define aem_unreachable() __builtin_unreachable()
+#endif
+#endif
+
 #endif /* AEM_DEBUG */
 
 #ifdef __GNUC__

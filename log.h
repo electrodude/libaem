@@ -129,6 +129,11 @@ int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level logleve
 #define aem_assert_eq(a, b) ({ (void)(b); (a); })
 #endif
 #endif /* aem_assert_eq */
+
+#ifdef AEM_DEBUG
+#ifndef aem_unreachable
+#define aem_unreachable() do { aem_logf_ctx(AEM_LOG_BUG, "Can't get here!"); aem_abort(); } while (0)
+#endif
 #endif
 
 #endif /* AEM_LOG_H */

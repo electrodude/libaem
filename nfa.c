@@ -578,7 +578,6 @@ struct aem_nfa_run {
 
 struct aem_nfa_thread {
 	size_t pc;
-	enum aem_nfa_thr_state state;
 	struct aem_nfa_match match;
 };
 static struct aem_nfa_thread *aem_nfa_thread_init(struct aem_nfa_thread *thr, const struct aem_nfa_run *run, size_t pc)
@@ -587,7 +586,6 @@ static struct aem_nfa_thread *aem_nfa_thread_init(struct aem_nfa_thread *thr, co
 	aem_assert(run);
 
 	thr->pc = pc;
-	thr->state = AEM_NFA_THR_LIVE;
 #if AEM_NFA_CAPTURES
 	thr->match.captures = malloc(run->n_captures * sizeof(*thr->match.captures));
 	aem_assert(thr->match.captures);
@@ -676,9 +674,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 	size_t list_32 = (run->n_insns + 31) >> 5;
 #endif
 
-	aem_assert(thr->state == AEM_NFA_THR_LIVE);
-
-	while (thr->state == AEM_NFA_THR_LIVE) {
+	for (;;) {
 		if (thr->pc >= run->n_insns) {
 			aem_logf_ctx(AEM_LOG_BUG, "Invalid pc: %zx/%zx", thr->pc, run->n_insns);
 			return -2;
@@ -763,7 +759,6 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 		case AEM_NFA_MATCH:
 			aem_logf_ctx(AEM_LOG_DEBUG3, "match %x", insn);
 			// Return argument of latest match
-			thr->state = AEM_NFA_THR_MATCHED;
 			thr->match.match = insn;
 			// Do NOT mark this instruction as visited.
 			aem_assert((int)insn >= 0);
@@ -812,24 +807,19 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 #if AEM_NFA_TRACING
 		bitfield_set(thr->match.visited, pc_curr);
 #endif
-		aem_assert(thr->state == AEM_NFA_THR_LIVE);
 	}
 
 	aem_assert(!"Can't get here!");
 
 pass:
-	aem_assert(thr->state == AEM_NFA_THR_LIVE);
 	aem_nfa_thread_add(run, 1, thr);
 	return -1;
 
 dead:
-	aem_assert(thr->state == AEM_NFA_THR_LIVE);
-	thr->state = AEM_NFA_THR_DEAD;
 	aem_nfa_thread_free(thr);
 	return -1;
 
 match:
-	aem_assert(thr->state == AEM_NFA_THR_MATCHED);
 	run->longest_match.end = run->p_curr;
 
 	aem_assert(thr->match.match >= 0);
@@ -880,13 +870,7 @@ void aem_nfa_show_trace(const struct aem_nfa *nfa, const struct aem_nfa_thread *
 	aem_assert(nfa);
 	aem_assert(thr);
 	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
-		const char *state_s = "?";
-		switch (thr->state) {
-		case AEM_NFA_THR_LIVE   : state_s = "live"   ; break;
-		case AEM_NFA_THR_DEAD   : state_s = "dead"   ; break;
-		case AEM_NFA_THR_MATCHED: state_s = "matched"; break;
-		}
-		aem_stringbuf_printf(out, "Match trace for %s thread:\n", state_s);
+		aem_stringbuf_puts(out, "Thread match trace:\n");
 
 		// Debug information for pc-1, the MATCH instruction, should
 		// contain the complete regex.

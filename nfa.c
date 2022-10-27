@@ -811,8 +811,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 #endif
 	}
 
-	aem_assert(!"Can't get here!");
-	return -2;
+	aem_unreachable();
 
 
 pass:

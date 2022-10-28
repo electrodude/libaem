@@ -379,19 +379,17 @@ static size_t aem_nfa_node_compile(struct aem_nfa_compile_ctx *ctx, struct aem_n
 		aem_assert(node->children.n == 1);
 		struct aem_nfa_node *child = node->children.s[0];
 		aem_assert(child);
-#if AEM_NFA_CAPTURES
+
 		const struct aem_nfa_node_capture capture = node->args.capture;
 		size_t c0 = aem_nfa_append_insn(nfa, aem_nfa_insn_capture(0, capture.capture));
 		re_set_debug(ctx, c0, aem_stringslice_new_len(node->text.start, 1));
-#else
-		aem_logf_ctx_once(AEM_LOG_WARN, "Captures disabled at compile-time!");
-#endif
+
 		if (aem_nfa_node_compile(ctx, child) == AEM_NFA_PARSE_ERROR)
 			return AEM_NFA_PARSE_ERROR;
-#if AEM_NFA_CAPTURES
+
 		size_t c1 = aem_nfa_append_insn(nfa, aem_nfa_insn_capture(1, capture.capture));
 		re_set_debug(ctx, c1, aem_stringslice_new_len(node->text.end-1, 1));
-#endif
+
 		break;
 	}
 	case AEM_NFA_NODE_BRANCH: {

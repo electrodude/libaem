@@ -9,7 +9,6 @@
 #include <aem/nfa-util.h>
 #include <aem/stack.h>
 #include <aem/stringbuf.h>
-// for AEM_NFA_CAPTURES
 #include <aem/translate.h>
 
 #include "nfa.h"
@@ -572,6 +571,8 @@ struct aem_nfa_run {
 	size_t n_insns;
 	size_t n_captures;
 
+	int trace;
+
 	int c;
 	int c_prev;
 };
@@ -586,26 +587,26 @@ static struct aem_nfa_thread *aem_nfa_thread_init(struct aem_nfa_thread *thr, co
 	aem_assert(run);
 
 	thr->pc = pc;
-#if AEM_NFA_CAPTURES
-	thr->match.captures = malloc(run->n_captures * sizeof(*thr->match.captures));
-	aem_assert(thr->match.captures);
-	// Clear all captures
-	for (size_t i = 0; i < run->n_captures; i++) {
-		thr->match.captures[i] = AEM_STRINGSLICE_EMPTY;
+	if (run->n_captures) {
+		thr->match.captures = malloc(run->n_captures * sizeof(*thr->match.captures));
+		aem_assert(thr->match.captures);
+		// Clear all captures
+		for (size_t i = 0; i < run->n_captures; i++) {
+			thr->match.captures[i] = AEM_STRINGSLICE_EMPTY;
+		}
+	} else {
+		thr->match.captures = NULL;
 	}
-#else
-	thr->match.captures = NULL;
-#endif
-#if AEM_NFA_TRACING
-	size_t list_32 = (run->n_insns + 31) >> 5;
-	thr->match.visited = malloc(list_32 * sizeof(*thr->match.visited));
-	aem_assert(thr->match.visited);
-	for (size_t i = 0; i < list_32; i++) {
-		thr->match.visited[i] = 0;
+	if (run->trace) {
+		size_t list_32 = (run->n_insns + 31) >> 5;
+		thr->match.visited = malloc(list_32 * sizeof(*thr->match.visited));
+		aem_assert(thr->match.visited);
+		for (size_t i = 0; i < list_32; i++) {
+			thr->match.visited[i] = 0;
+		}
+	} else {
+		thr->match.visited = NULL;
 	}
-#else
-	thr->match.visited = NULL;
-#endif
 	thr->match.match = -1;
 
 	return thr;
@@ -670,9 +671,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 	const struct aem_nfa *nfa = run->nfa;
 	aem_assert(nfa);
 
-#if AEM_NFA_TRACING
 	size_t list_32 = (run->n_insns + 31) >> 5;
-#endif
 
 	for (;;) {
 		if (thr->pc >= run->n_insns) {
@@ -686,9 +685,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 		}
 		bitfield_set(run->map_curr, thr->pc);
 
-#if AEM_NFA_TRACING
 		size_t pc_curr = thr->pc;
-#endif
 		aem_nfa_insn insn = nfa->pgm[thr->pc++];
 		enum aem_nfa_op op = insn & ((1 << AEM_NFA_OP_LEN) - 1);
 		insn >>= AEM_NFA_OP_LEN;
@@ -708,9 +705,10 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 
 			if (!(lo <= c && c <= hi))
 				goto dead;
-#if AEM_NFA_TRACING
-			bitfield_set(thr->match.visited, pc_curr);
-#endif
+
+			if (thr->match.visited)
+				bitfield_set(thr->match.visited, pc_curr);
+
 			goto pass;
 		}
 		case AEM_NFA_CLASS: {
@@ -727,9 +725,9 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 			if (!match)
 				goto dead;
 
-#if AEM_NFA_TRACING
-			bitfield_set(thr->match.visited, pc_curr);
-#endif
+
+			if (thr->match.visited)
+				bitfield_set(thr->match.visited, pc_curr);
 
 			// Frontiers don't consume anything
 			if (frontier)
@@ -739,20 +737,21 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 		}
 
 		case AEM_NFA_CAPTURE: {
-#if AEM_NFA_CAPTURES
-			int end = insn & 0x1;
-			insn >>= 1;
-			if (insn >= run->n_captures) {
-				aem_logf_ctx(AEM_LOG_BUG, "Invalid capture: %zx/%zx", insn, run->n_captures);
-				return -2;
+			if (thr->match.captures) {
+				int end = insn & 0x1;
+				insn >>= 1;
+				if (insn >= run->n_captures) {
+					aem_logf_ctx(AEM_LOG_BUG, "Invalid capture: %zx/%zx", insn, run->n_captures);
+					return -2;
+				}
+				aem_logf_ctx(AEM_LOG_DEBUG3, "capture %s %zx", end ? "end" : "start", insn);
+				struct aem_stringslice *capture = &thr->match.captures[insn];
+				if (end)
+					capture->end = run->in_curr.start;
+				else
+					capture->start = run->in_curr.start;
 			}
-			aem_logf_ctx(AEM_LOG_DEBUG3, "capture %s %zx", end ? "end" : "start", insn);
-			struct aem_stringslice *capture = &thr->match.captures[insn];
-			if (end)
-				capture->end = run->p_curr;
-			else
-				capture->start = run->p_curr;
-#endif
+
 			break;
 		}
 
@@ -786,17 +785,17 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 			}
 			struct aem_nfa_thread *child = aem_nfa_thread_new(run, pc_next);
 			aem_assert(child);
-#if AEM_NFA_CAPTURES
-			for (size_t i = 0; i < run->n_captures; i++) {
-				child->match.captures[i] = thr->match.captures[i];
+			if (thr->match.captures) {
+				for (size_t i = 0; i < run->n_captures; i++) {
+					child->match.captures[i] = thr->match.captures[i];
+				}
 			}
-#endif
-#if AEM_NFA_TRACING
-			for (size_t i = 0; i < list_32; i++) {
-				child->match.visited[i] = thr->match.visited[i];
+			if (thr->match.visited) {
+				for (size_t i = 0; i < list_32; i++) {
+					child->match.visited[i] = thr->match.visited[i];
+				}
+				bitfield_set(child->match.visited, pc_curr); // ???
 			}
-			bitfield_set(child->match.visited, pc_curr);
-#endif
 			aem_nfa_thread_add(run, 0, child);
 			break;
 		}
@@ -806,9 +805,8 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 			return -2;
 		}
 
-#if AEM_NFA_TRACING
-		bitfield_set(thr->match.visited, pc_curr);
-#endif
+		if (thr->match.visited)
+			bitfield_set(thr->match.visited, pc_curr);
 	}
 
 	aem_unreachable();
@@ -867,6 +865,10 @@ void aem_nfa_show_trace(const struct aem_nfa *nfa, const struct aem_nfa_thread *
 {
 	aem_assert(nfa);
 	aem_assert(thr);
+
+	if (!thr->match.visited)
+		return;
+
 	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
 		aem_stringbuf_puts(out, "Thread match trace:\n");
 
@@ -962,9 +964,8 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 	run.longest_match = aem_stringslice_new_len(run.in_curr.start, 0);
 	run.nfa = nfa;
 	run.n_insns = nfa->n_insns;
-#if AEM_NFA_CAPTURES
 	run.n_captures = nfa->n_captures;
-#endif
+	run.trace = 1; // TODO: make configurable
 	aem_stack_init(&run.curr);
 	aem_stack_init(&run.next);
 	struct aem_nfa_thread *thr_matched = NULL;
@@ -1055,16 +1056,16 @@ out:
 			*match_p = thr_matched->match;
 			thr_matched->match = (struct aem_nfa_match){0};
 		} else {
-#if AEM_NFA_CAPTURES
-			AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
-				aem_stringbuf_puts(out, "Captures:");
-				for (size_t i = 0; i < run.n_captures; i++) {
-					aem_stringbuf_printf(out, " %zd: \"", i);
-					aem_string_escape(out, thr_matched->match.captures[i]);
-					aem_stringbuf_puts(out, "\"");
+			if (thr_matched->match.captures) {
+				AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
+					aem_stringbuf_puts(out, "Captures:");
+					for (size_t i = 0; i < run.n_captures; i++) {
+						aem_stringbuf_printf(out, " %zd: \"", i);
+						aem_string_escape(out, thr_matched->match.captures[i]);
+						aem_stringbuf_puts(out, "\"");
+					}
 				}
 			}
-#endif
 			aem_nfa_show_trace(run.nfa, thr_matched);
 		}
 		aem_nfa_thread_free(thr_matched);

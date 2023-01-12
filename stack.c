@@ -135,9 +135,8 @@ void aem_stack_pushv(struct aem_stack *stk, size_t n, ...)
 
 	aem_stack_reserve(stk, n);
 
-	for (size_t i = 0; i < n; i++) {
+	for (size_t i = 0; i < n; i++)
 		aem_stack_push(stk, va_arg(ap, void*));
-	}
 
 	va_end(ap);
 }
@@ -169,9 +168,7 @@ void *aem_stack_pop(struct aem_stack *stk)
 	if (!stk->n)
 		return NULL;
 
-	void *p = stk->s[--stk->n];
-
-	return p;
+	return stk->s[--stk->n];
 }
 
 void *aem_stack_peek(struct aem_stack *stk)
@@ -179,10 +176,10 @@ void *aem_stack_peek(struct aem_stack *stk)
 	if (!stk)
 		return NULL;
 
-	if (stk->n <= 0)
+	if (!stk->n)
 		return NULL;
 
-	return stk->s[stk->n-1];
+	return aem_stack_index(stk, stk->n-1);
 }
 
 void *aem_stack_index_end(struct aem_stack *stk, size_t i)
@@ -190,12 +187,7 @@ void *aem_stack_index_end(struct aem_stack *stk, size_t i)
 	if (!stk)
 		return NULL;
 
-	size_t i2 = stk->n - 1 - i;
-
-	if (i >= stk->n)
-		return NULL;
-
-	return stk->s[i2];
+	return aem_stack_index(stk, stk->n - 1 - i);
 }
 
 void *aem_stack_index(struct aem_stack *stk, size_t i)
@@ -215,9 +207,8 @@ void **aem_stack_index_p(struct aem_stack *stk, size_t i)
 
 	//aem_stack_reserve_total(stk, i+1)
 	// Push NULLs until i is a valid index.
-	while (i >= stk->n) {
+	while (i >= stk->n)
 		aem_stack_push(stk, NULL);
-	}
 
 	return &stk->s[i];
 }
@@ -293,5 +284,5 @@ void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const 
 {
 	aem_assert(stk);
 
-	qsort(stk->s, stk->n, sizeof(stk->s[0]), compar);
+	qsort(stk->s, stk->n, sizeof(*stk->s), compar);
 }

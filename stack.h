@@ -26,15 +26,7 @@ struct aem_stack *aem_stack_init_prealloc(struct aem_stack *stk, size_t maxn);
 #define aem_stack_new_prealloc(maxn) aem_stack_init_prealloc(aem_stack_new(), maxn)
 
 // Create a new stack.
-static inline struct aem_stack *aem_stack_init(struct aem_stack *stk)
-{
-	if (!stk)
-		return stk;
-
-	*stk = AEM_STACK_EMPTY;
-
-	return stk;
-}
+static inline struct aem_stack *aem_stack_init(struct aem_stack *stk);
 
 // Free a malloc'd stack and its buffer.
 void aem_stack_free(struct aem_stack *stk);
@@ -53,20 +45,10 @@ void **aem_stack_release(struct aem_stack *stk, size_t *n_p);
 static inline void aem_stack_trunc(struct aem_stack *stk, size_t n);
 
 // Reset stack size to 0
-static inline void aem_stack_reset(struct aem_stack *stk)
-{
-	if (!stk)
-		return;
-
-	stk->n = 0;
-}
+static inline void aem_stack_reset(struct aem_stack *stk);
 
 // Return the number of available allocated elements
-static inline int aem_stack_available(struct aem_stack *stk)
-{
-	aem_assert(stk);
-	return stk->maxn - stk->n;
-}
+static inline int aem_stack_available(const struct aem_stack *stk);
 
 // realloc() internal buffer to be as small as possible
 // Returns pointer to internal buffer
@@ -106,7 +88,7 @@ void *aem_stack_peek(struct aem_stack *stk);
 void *aem_stack_index_end(struct aem_stack *stk, size_t i);
 
 // Return the i-th element from the bottom of the stack, or NULL if out of range.
-void *aem_stack_index(struct aem_stack *stk, size_t i);
+static inline void *aem_stack_index(struct aem_stack *stk, size_t i);
 
 // Return a pointer to the i-th element from the bottom of the stack.
 // If the specified index is invalid, push NULL until it is.
@@ -138,6 +120,16 @@ void aem_stack_qsort(struct aem_stack *stk, int (*compar)(const void *p1, const 
 
 
 /// Implementations of inline functions
+static inline struct aem_stack *aem_stack_init(struct aem_stack *stk)
+{
+	if (!stk)
+		return stk;
+
+	*stk = AEM_STACK_EMPTY;
+
+	return stk;
+}
+
 static inline void aem_stack_append(struct aem_stack *stk, const struct aem_stack *stk2)
 {
 	aem_assert(stk2);
@@ -154,6 +146,31 @@ static inline void aem_stack_trunc(struct aem_stack *stk, size_t n)
 		return;
 
 	stk->n = n;
+}
+
+static inline void aem_stack_reset(struct aem_stack *stk)
+{
+	if (!stk)
+		return;
+
+	stk->n = 0;
+}
+
+static inline int aem_stack_available(const struct aem_stack *stk)
+{
+	aem_assert(stk);
+	return stk->maxn - stk->n;
+}
+
+static inline void *aem_stack_index(struct aem_stack *stk, size_t i)
+{
+	if (!stk)
+		return NULL;
+
+	if (i >= stk->n)
+		return NULL;
+
+	return stk->s[i];
 }
 
 #endif /* AEM_STACK_H */

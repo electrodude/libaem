@@ -190,17 +190,6 @@ void *aem_stack_index_end(struct aem_stack *stk, size_t i)
 	return aem_stack_index(stk, stk->n - 1 - i);
 }
 
-void *aem_stack_index(struct aem_stack *stk, size_t i)
-{
-	if (!stk)
-		return NULL;
-
-	if (i >= stk->n)
-		return NULL;
-
-	return stk->s[i];
-}
-
 void **aem_stack_index_p(struct aem_stack *stk, size_t i)
 {
 	aem_assert(stk);

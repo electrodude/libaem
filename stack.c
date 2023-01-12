@@ -106,10 +106,6 @@ void aem_stack_push(struct aem_stack *stk, void *s)
 {
 	aem_assert(stk);
 
-#if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG3, "push %p", s);
-#endif
-
 	aem_stack_reserve(stk, 1);
 
 	stk->s[stk->n++] = s;
@@ -170,19 +166,10 @@ void *aem_stack_pop(struct aem_stack *stk)
 	if (!stk)
 		return NULL;
 
-	if (!stk->n) {
-#if AEM_STACK_DEBUG
-		aem_logf_ctx(AEM_LOG_DEBUG3, "underflow");
-#endif
-
+	if (!stk->n)
 		return NULL;
-	}
 
 	void *p = stk->s[--stk->n];
-
-#if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG3, "%p", p);
-#endif
 
 	return p;
 }
@@ -192,17 +179,8 @@ void *aem_stack_peek(struct aem_stack *stk)
 	if (!stk)
 		return NULL;
 
-	if (stk->n <= 0) {
-#if AEM_STACK_DEBUG
-		aem_logf_ctx(AEM_LOG_DEBUG3, "underflow");
-#endif
-
+	if (stk->n <= 0)
 		return NULL;
-	}
-
-#if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG3, "%p", stk->s[stk->n-1]);
-#endif
 
 	return stk->s[stk->n-1];
 }
@@ -214,17 +192,8 @@ void *aem_stack_index_end(struct aem_stack *stk, size_t i)
 
 	size_t i2 = stk->n - 1 - i;
 
-	if (i >= stk->n) {
-#if AEM_STACK_DEBUG
-		aem_logf_ctx(AEM_LOG_DEBUG3, "[-%zd = %zd] underflow", i, i2);
-#endif
-
+	if (i >= stk->n)
 		return NULL;
-	}
-
-#if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG3, "[-%zd = %zd]", i, i2, stk->s[i2]);
-#endif
 
 	return stk->s[i2];
 }
@@ -236,10 +205,6 @@ void *aem_stack_index(struct aem_stack *stk, size_t i)
 
 	if (i >= stk->n)
 		return NULL;
-
-#if AEM_STACK_DEBUG
-	aem_logf_ctx(AEM_LOG_DEBUG3, "[%zd] = %p", i, stk->s[i]);
-#endif
 
 	return stk->s[i];
 }

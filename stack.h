@@ -89,6 +89,7 @@ void *aem_stack_index_end(struct aem_stack *stk, size_t i);
 
 // Return the i-th element from the bottom of the stack, or NULL if out of range.
 static inline void *aem_stack_index(struct aem_stack *stk, size_t i);
+static inline const void *aem_stack_index_const(const struct aem_stack *stk, size_t i);
 
 // Return a pointer to the i-th element from the bottom of the stack.
 // If the specified index is invalid, push NULL until it is.
@@ -163,6 +164,16 @@ static inline int aem_stack_available(const struct aem_stack *stk)
 }
 
 static inline void *aem_stack_index(struct aem_stack *stk, size_t i)
+{
+	if (!stk)
+		return NULL;
+
+	if (i >= stk->n)
+		return NULL;
+
+	return stk->s[i];
+}
+static inline const void *aem_stack_index_const(const struct aem_stack *stk, size_t i)
 {
 	if (!stk)
 		return NULL;

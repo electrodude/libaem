@@ -111,7 +111,7 @@ static inline int aem_stringbuf_available(struct aem_stringbuf *str)
 // realloc() internal buffer to be as small as possible
 // Returns pointer to internal buffer
 // Null-terminates the string.
-char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str);
+const char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str);
 
 // Ensure that at least len + 1 bytes are available
 int aem_stringbuf_reserve(struct aem_stringbuf *str, size_t len);
@@ -164,7 +164,7 @@ void aem_stringbuf_pad(struct aem_stringbuf *str, size_t len, char c);
 
 // Return pointer to internal buffer, after ensuring string is null terminated.
 // The pointer is only valid until the next call to aem_stringbuf_reserve or aem_stringbuf_shrinkwrap.
-static inline char *aem_stringbuf_get(struct aem_stringbuf *str)
+static inline const char *aem_stringbuf_get(const struct aem_stringbuf *str)
 {
 	if (!str)
 		return NULL;

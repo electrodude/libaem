@@ -89,7 +89,8 @@ char *aem_stringbuf_release(struct aem_stringbuf *str, size_t *n_p)
 		return NULL;
 	}
 
-	char *s = aem_stringbuf_shrinkwrap(str);
+	aem_stringbuf_shrinkwrap(str);
+	char *s = str->s;
 
 	if (n_p)
 		*n_p = str->n;
@@ -152,7 +153,7 @@ static void aem_stringbuf_grow(struct aem_stringbuf *str, size_t maxn_new)
 #endif
 }
 
-char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
+const char *aem_stringbuf_shrinkwrap(struct aem_stringbuf *str)
 {
 	if (!str)
 		return NULL;

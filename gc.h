@@ -72,8 +72,10 @@ void aem_gc_run(struct aem_gc_context *ctx);
 void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 #define AEM_GC_MARK_OBJ(_obj) do { \
 	__typeof__(_obj) _obj_ = (_obj); \
-	if (_obj_) \
-		aem_gc_mark(&_obj_->gc, ctx); \
+	if (_obj_) { \
+		const struct aem_gc_object *_gc = &_obj_->gc; \
+		aem_gc_mark((struct aem_gc_object *)_gc, ctx); \
+	} \
 } while (0)
 
 #define AEM_GC_FREE_DECL(_tp, _obj) void _tp##_gc_free(struct aem_gc_object *obj, struct aem_gc_context *ctx)

@@ -3,6 +3,8 @@
 #define AEM_INTERNAL
 #include <aem/log.h>
 #include <aem/linked_list.h>
+#include <aem/stringbuf.h>
+#include <aem/translate.h>
 
 #include "gc.h"
 
@@ -155,4 +157,61 @@ void aem_gc_unref(struct aem_gc_object *obj)
 	aem_assert(obj);
 	aem_assert(obj->refs);
 	obj->refs--;
+}
+
+
+/// Graphviz Output
+void gc_dump_objects_gv(struct aem_gc_context *ctx, struct aem_stringbuf *out)
+{
+	aem_assert(ctx);
+	aem_assert(out);
+
+	AEM_LL_FOR_ALL(obj, &ctx->objects, ctx_next) {
+		// Ignore objects not visited in last GC cycle
+		if (!aem_iter_gen_hit(&obj->iter, &ctx->objects.iter))
+			continue;
+		aem_stringbuf_printf(out, "\t%d [", obj->iter.id);
+#if 0
+		if (obj->refs) {
+			// Color ref'd objects
+			aem_stringbuf_printf(out, "color=blue, ");
+		}
+#endif
+		if (obj->vtbl) {
+			if (obj->vtbl->describe_gv) {
+				obj->vtbl->describe_gv(obj, out);
+			} else {
+				aem_stringbuf_puts(out, "label=\"");
+				struct aem_stringslice name = aem_stringslice_new_cstr(obj->vtbl->name);
+				aem_string_escape(out, name);
+				aem_stringbuf_puts(out, "\"");
+				aem_stringbuf_puts(out, "];\n");
+			}
+		} else {
+			aem_stringbuf_puts(out, "label=\"UNKNOWN\"");
+			aem_stringbuf_puts(out, "];\n");
+		}
+	}
+}
+
+void gc_write_objects_gv(struct aem_gc_context *ctx, const char *path)
+{
+	aem_assert(ctx);
+
+	struct aem_stringbuf out = AEM_STRINGBUF_EMPTY;
+	aem_stringbuf_puts(&out, "digraph gc {\n");
+	aem_stringbuf_puts(&out, "\tconcentrate=true;\n");
+	aem_stringbuf_puts(&out, "\tnewrank=true;\n");
+	aem_stringbuf_puts(&out, "\tsplines=true;\n");
+
+	gc_dump_objects_gv(ctx, &out);
+	aem_stringbuf_puts(&out, "}\n");
+
+	FILE *fp = fopen(path, "w");
+	if (fp) {
+		aem_stringbuf_file_write(&out, fp);
+		fclose(fp);
+	}
+
+	aem_stringbuf_dtor(&out);
 }

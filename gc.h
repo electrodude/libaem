@@ -10,12 +10,14 @@
 struct aem_gc_object;
 struct aem_gc_context;
 
+struct aem_stringbuf;
 struct aem_gc_vtbl {
 	const char *name;
 
 	void (*free)(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 	void (*dtor)(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 	void (*mark)(struct aem_gc_object *obj, struct aem_gc_context *ctx);
+	void (*describe_gv)(const struct aem_gc_object *obj, struct aem_stringbuf *out);
 };
 
 void aem_gc_free_default(struct aem_gc_object *obj, struct aem_gc_context *ctx);
@@ -86,17 +88,25 @@ void aem_gc_mark(struct aem_gc_object *obj, struct aem_gc_context *ctx);
 
 #define AEM_GC_VTBL_DECL(_tp) struct aem_gc_vtbl _tp##_vtbl
 
-#define AEM_GC_VTBL_INST(_tp)     \
+#define AEM_GC_VTBL_INST(_tp) \
 AEM_GC_VTBL_DECL(_tp) = { \
-	.name = #_tp,             \
-	.free = _tp##_gc_free,       \
-	.dtor = _tp##_gc_dtor,       \
-	.mark = _tp##_gc_mark,       \
+	.name = #_tp,              \
+	.free = _tp##_gc_free,     \
+	.dtor = _tp##_gc_dtor,     \
+	.mark = _tp##_gc_mark,     \
+	.describe_gv = _tp##_describe_gv, \
 };
 
 
 void aem_gc_ref(struct aem_gc_object *obj);
 void aem_gc_unref(struct aem_gc_object *obj);
+
+/// Graphviz Output
+// Objects created in the context after the last call of aem_gc_run will not
+// appear in this report; call aem_gc_run immediately before calling this to
+// ensure all objects are described.
+void gc_dump_objects_gv(struct aem_gc_context *ctx, struct aem_stringbuf *out);
+void gc_write_objects_gv(struct aem_gc_context *ctx, const char *path);
 
 
 #endif /* AEM_GC_H */

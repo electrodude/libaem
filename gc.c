@@ -56,13 +56,20 @@ void aem_gc_dtor(struct aem_gc_context *ctx)
 {
 	aem_assert(ctx);
 
-	AEM_LL_WHILE_FIRST(root, &ctx->roots, root_next)
+	if (!AEM_LL_EMPTY(&ctx->roots, root_next)) {
+		aem_logf_ctx(AEM_LOG_WARN, "Some GC roots still remain - abandoning them!");
+	}
+
+	// TODO: We should do this after aem_gc_run - otherwise, objects
+	// pointed to by roots will be free, resulting in dangling pointers.
+	AEM_LL_WHILE_FIRST(root, &ctx->roots, root_next) {
 		aem_gc_root_deregister(ctx, root);
+	}
 
 	aem_gc_run(ctx);
 
 	if (!AEM_LL_EMPTY(&ctx->objects, ctx_next)) {
-		aem_logf_ctx(AEM_LOG_BUG, "Not all objects collected, leaking");
+		aem_logf_ctx(AEM_LOG_BUG, "Not all objects collected - leaking them!");
 	}
 }
 

@@ -115,7 +115,6 @@ struct aem_nfa *aem_nfa_dup(struct aem_nfa *dst, const struct aem_nfa *src)
 	return dst;
 }
 
-#define AEM_NFA_OP_LEN 3
 size_t aem_nfa_put_insn(struct aem_nfa *nfa, size_t i, aem_nfa_insn insn)
 {
 	aem_assert(nfa);
@@ -169,9 +168,10 @@ void aem_nfa_set_dbg(struct aem_nfa *nfa, size_t i, struct aem_stringslice where
 	nfa->trace_dbg[i] = (struct aem_nfa_trace_info){.where = where, .match = match};
 }
 
+#define AEM_NFA_OP_LEN 3
+AEM_STATIC_ASSERT(AEM_NFA_OP_MAX <= (1 << AEM_NFA_OP_LEN), "AEM_NFA_OP_LEN not big enough!");
 static aem_nfa_insn aem_nfa_mk_insn(enum aem_nfa_op op, aem_nfa_insn arg)
 {
-	AEM_STATIC_ASSERT(AEM_NFA_OP_MAX <= (1 << AEM_NFA_OP_LEN));
 	if (op >> AEM_NFA_OP_LEN) {
 		aem_logf_ctx(AEM_LOG_BUG, "Invalid op: %x", op);
 	}

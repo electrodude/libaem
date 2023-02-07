@@ -51,14 +51,15 @@
 #ifdef __GNUC__
 #define aem_deprecated __attribute__((deprecated))
 #define aem_deprecated_msg(msg) __attribute__((deprecated(msg)))
+#define AEM_STATIC_ASSERT(cond, msg) _Static_assert(cond, msg)
 #else
 #define aem_deprecated
 #define aem_deprecated_msg(msg)
+#define AEM_STATIC_ASSERT(cond, msg) ((void)sizeof(struct{int:-!(cond);}))
 #endif
 
 #define AEM_STRINGIFY(s) #s
 #define AEM_STRINGIFY2(s) AEM_STRINGIFY(s)
-#define AEM_STATIC_ASSERT(cond) ((void)sizeof(struct{int:-!(cond);}))
 
 #ifdef _WIN32
 #define __thread __declspec(thread)

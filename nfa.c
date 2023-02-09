@@ -939,8 +939,13 @@ void aem_nfa_match_dtor(struct aem_nfa_match *match)
 	if (!match)
 		return;
 
-	free(match->captures);
-	free(match->visited);
+	if (match->captures)
+		free(match->captures);
+	if (match->visited)
+		free(match->visited);
+
+	match->captures = NULL;
+	match->visited = NULL;
 }
 
 int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct aem_nfa_match *match_p)

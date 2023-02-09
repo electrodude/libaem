@@ -150,9 +150,7 @@ enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 	if (!aem_stringslice_ok(word))
 		return AEM_LOG_DEBUG;
 
-	int c = aem_stringslice_get(&word);
-
-	enum aem_log_level level = 0 <= c && c < 256 ? aem_log_level_parse_letter(c) : AEM_LOG_INVALID;
+	enum aem_log_level level = aem_stringslice_ok(word) ? aem_log_level_parse_letter(*word.start) : AEM_LOG_INVALID;
 
 	if (level == AEM_LOG_INVALID) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse log level; default to debug");
@@ -166,7 +164,7 @@ enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 	const char *expect = aem_log_level_describe(level);
 
 	// Complain if the rest of the word isn't correct
-	if (!aem_stringslice_eq_case(word, expect+1))
+	if (!aem_stringslice_eq_case(word, expect))
 		aem_logf_ctx(AEM_LOG_WARN, "Misspelled log level; assuming you meant \"%s\"", expect);
 
 	return level;

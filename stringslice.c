@@ -343,8 +343,7 @@ int aem_stringslice_match_ulong_base(struct aem_stringslice *slice, int base, un
 	unsigned long int n = 0;
 
 	int any_digits = 0;
-	while (aem_stringslice_ok(curr)) {
-		int c = aem_stringslice_get(&curr);
+	for (int c; (c = aem_stringslice_getc(&curr)) >= 0; ) {
 		// TODO: + and / for Base64; but Base64 order is [A-Za-z0-9+/].
 		int digit = char2digit(c, 0, 10, 10);
 		if (digit < 0 || digit >= base) // Invalid digit; end of number

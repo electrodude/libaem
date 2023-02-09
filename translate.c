@@ -98,17 +98,17 @@ int aem_string_unescape_rune(struct aem_stringslice *in, uint32_t *c_p, int *esc
 				goto fail;
 			c = 0;
 			while (len) {
-				int d = aem_stringslice_get(in);
+				int d = aem_stringslice_getc(in);
 				if ('0' <= d && d <= '9')
 					c = (c << 4) + (d - '0' + 0x0);
 				else if ('A' <= d && d <= 'F')
 					c = (c << 4) + (d - 'A' + 0xA);
 				else if ('a' <= d && d <= 'f')
 					c = (c << 4) + (d - 'a' + 0xA);
-				else if (d < 0)
-					goto fail;
 				else if (d == '}' && len < 0)
 					break;
+				else
+					goto fail;
 				len--;
 			}
 			break;
@@ -175,11 +175,11 @@ void aem_string_urldecode(struct aem_stringbuf *restrict out, struct aem_strings
 
 	while (aem_stringslice_ok(*in)) {
 		struct aem_stringslice checkpoint = *in;
-		int c = aem_stringslice_get(in);
-
-		if (c < 0) {
+		int c = aem_stringslice_getc(in);
+		if (c < 0)
 			break;
-		} if (c == '%') {
+
+		if (c == '%') {
 			int c2 = aem_stringslice_match_hexbyte(in);
 			if (c2 < 0) {
 				*in = checkpoint;

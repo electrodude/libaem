@@ -61,7 +61,11 @@ int main(int argc, char **argv)
 	for (size_t i = start; i < end; i++) {
 		aem_logf_ctx(AEM_LOG_DEBUG2, "%zd remain", aem_stringslice_len(p));
 
-		uint32_t c = aem_stringslice_get(&p);
+		uint32_t c;
+		if (!aem_stringslice_get_rune(&p, &c)) {
+			aem_logf_ctx(AEM_LOG_BUG, "%zd: invalid UTF-8", i);
+			return 1;
+		}
 
 		uint32_t expect = hash(i);
 

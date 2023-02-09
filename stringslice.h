@@ -83,9 +83,9 @@ static inline struct aem_stringslice aem_stringslice_match_rune(struct aem_strin
 	return out;
 }
 // Get a UTF-8 rune.
-// Returns -1 on both 0xFFFFFFFF and error; you must manually check whether
-// slice->start moved to find out which.  Should probably be deprecated in the
-// future because of this.
+// Deprecated because it returns -1 on both 0xFFFFFFFF and error; you must
+// manually check whether slice->start moved to find out which.
+aem_deprecated_msg("use aem_stringslice_get_rune instead")
 int aem_stringslice_get(struct aem_stringslice *slice);
 
 // Get raw data

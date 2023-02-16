@@ -2,7 +2,7 @@
 
 #undef aem_log_module_current
 #define aem_log_module_current (&module_test_log_module)
-struct aem_log_module module_test_log_module = {.loglevel = AEM_LOG_NOTICE};
+struct aem_log_module module_test_log_module = {.name = "test:mod", .loglevel = AEM_LOG_NOTICE};
 
 static int module_test_register(struct aem_module *mod, struct aem_stringslice args)
 {

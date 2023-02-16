@@ -69,8 +69,8 @@ FILE *aem_log_fget(void)
 
 /// log level
 
-struct aem_log_module aem_log_module_default = {.loglevel = AEM_LOG_NOTICE};
-struct aem_log_module aem_log_module_default_internal = {.loglevel = AEM_LOG_NOTICE};
+struct aem_log_module aem_log_module_default = {.name = "default", .loglevel = AEM_LOG_NOTICE};
+struct aem_log_module aem_log_module_default_internal = {.name = "aem", .loglevel = AEM_LOG_NOTICE};
 
 const char *aem_log_level_color(enum aem_log_level loglevel)
 {
@@ -199,6 +199,10 @@ void aem_log_level_parse_set(const char *p)
 
 __thread struct aem_stringbuf aem_log_buf = {0};
 
+int aem_log_module = 1;
+
+unsigned int mod_name_width_max = 1;
+
 struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func)
 {
 	aem_assert(mod);
@@ -211,6 +215,21 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 		aem_stringbuf_puts(str, aem_log_level_color(loglevel));
 	aem_stringbuf_putc(str, aem_log_level_letter(loglevel));
 	aem_stringbuf_putc(str, ' ');
+
+	if (aem_log_module) {
+		aem_stringbuf_puts(str, "[");
+		size_t name_start = str->n;
+		if (mod->name)
+			aem_stringbuf_puts(str, mod->name);
+
+		// Pad to longest ever seen
+		// TODO: Precompute mod_name_width_max from a log_module registry?
+		if (str->n - name_start > mod_name_width_max)
+			mod_name_width_max = str->n - name_start;
+		aem_ansi_pad(str, name_start, mod_name_width_max);
+		aem_stringbuf_puts(str, "] ");
+	}
+
 	aem_stringbuf_printf(str, "%s:%d(%s)", file, line, func);
 	//aem_stringbuf_puts(str, ": ");
 	//aem_stringbuf_putc(str, aem_log_level_describe(loglevel));

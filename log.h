@@ -27,6 +27,7 @@ enum aem_log_level {
 
 struct aem_log_module {
 	enum aem_log_level loglevel;
+	const char *name;
 };
 
 

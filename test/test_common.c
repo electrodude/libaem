@@ -4,7 +4,7 @@
 
 #include "test_common.h"
 
-struct aem_log_module test_log_module = {.loglevel = AEM_LOG_NOTICE};
+struct aem_log_module test_log_module = {.name = "test", .loglevel = AEM_LOG_NOTICE};
 
 int test_errors = 0;
 

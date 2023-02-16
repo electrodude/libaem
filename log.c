@@ -6,6 +6,7 @@
 #define AEM_INTERNAL
 #include <aem/ansi-term.h>
 #include <aem/stringbuf.h>
+#include <aem/translate.h>
 
 #include "log.h"
 
@@ -164,8 +165,13 @@ enum aem_log_level aem_log_level_parse(struct aem_stringslice word)
 	const char *expect = aem_log_level_describe(level);
 
 	// Complain if the rest of the word isn't correct
-	if (!aem_stringslice_eq_case(word, expect))
-		aem_logf_ctx(AEM_LOG_WARN, "Misspelled log level; assuming you meant \"%s\"", expect);
+	if (!aem_stringslice_eq_case(word, expect)) {
+		AEM_LOG_MULTI(out, AEM_LOG_WARN) {
+			aem_stringbuf_puts(out, "Misspelled log level \"");
+			aem_string_escape(out, word);
+			aem_stringbuf_printf(out, "\"; assuming you meant \"%s\"", expect);
+		}
+	}
 
 	return level;
 }

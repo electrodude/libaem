@@ -14,9 +14,8 @@ static void test_sandbox_path(const char *base, const char *path, const char *ex
 	int rc = aem_sandbox_path(&buf, aem_stringslice_new_cstr(base), aem_stringslice_new_cstr(path), ext);
 	int match = aem_stringslice_eq(aem_stringslice_new_str(&buf), result);
 
-	if (rc != rc_expect || !match) {
-		test_errors++;
-		aem_logf_ctx(AEM_LOG_BUG, "sandbox_path(\"%s\", \"%s\", \"%s\") returned (%d, \"%s\"), expected (%d, \"%s\")!", base, path, ext, rc, aem_stringbuf_get(&buf), rc_expect, result);
+	TEST_EXPECT(out, rc == rc_expect && match) {
+		aem_stringbuf_printf(out, "sandbox_path(\"%s\", \"%s\", \"%s\") returned (%d, \"%s\"), expected (%d, \"%s\")!", base, path, ext, rc, aem_stringbuf_get(&buf), rc_expect, result);
 	}
 }
 
@@ -43,13 +42,10 @@ static void test_dirname(const char *path, const char *result)
 	struct aem_stringslice dir = aem_dirname(aem_stringslice_new_cstr(path));
 	int match = aem_stringslice_eq(dir, result);
 
-	if (!match) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_printf(out, "dirname(\"%s\") returned (\"", path);
-			aem_stringbuf_putss(out, dir);
-			aem_stringbuf_printf(out, "\"), expected (\"%s\")!", result);
-		}
+	TEST_EXPECT(out, match) {
+		aem_stringbuf_printf(out, "dirname(\"%s\") returned (\"", path);
+		aem_stringbuf_putss(out, dir);
+		aem_stringbuf_printf(out, "\"), expected (\"%s\")!", result);
 	}
 }
 

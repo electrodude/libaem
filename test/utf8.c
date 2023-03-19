@@ -33,9 +33,8 @@ int main(int argc, char **argv)
 		uint32_t c = hash(i);
 		aem_logf_ctx(AEM_LOG_DEBUG2, "%zd: put %08x", i, c);
 		size_t n = str.n;
-		if (aem_stringbuf_put_rune(&str, c)) {
-			aem_logf_ctx(AEM_LOG_BUG, "aem_stringbuf_put_rune: couldn't put %u", c);
-			return 1;
+		TEST_EXPECT(out, !aem_stringbuf_put_rune(&str, c)) {
+			aem_stringbuf_printf(out, "aem_stringbuf_put_rune: couldn't put %u", c);
 		}
 		struct aem_stringslice rune1 = {.start = &str .s[n ], .end = &str .s[str .n]};
 		AEM_LOG_MULTI(out, AEM_LOG_DEBUG2) {
@@ -62,16 +61,14 @@ int main(int argc, char **argv)
 		aem_logf_ctx(AEM_LOG_DEBUG2, "%zd remain", aem_stringslice_len(p));
 
 		uint32_t c;
-		if (!aem_stringslice_get_rune(&p, &c)) {
-			aem_logf_ctx(AEM_LOG_BUG, "%zd: invalid UTF-8", i);
-			return 1;
+		TEST_EXPECT(out, aem_stringslice_get_rune(&p, &c)) {
+			aem_stringbuf_printf(out, "%zd: invalid UTF-8", i);
 		}
 
 		uint32_t expect = hash(i);
 
-		if (c != expect) {
-			aem_logf_ctx(AEM_LOG_BUG, "%zd: got 0x%x, expect 0x%x", i, c, expect);
-			return 1;
+		TEST_EXPECT(out, c == expect) {
+			aem_stringbuf_printf(out, "%zd: got 0x%x, expect 0x%x", i, c, expect);
 		}
 	}
 

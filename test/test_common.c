@@ -6,7 +6,8 @@
 
 struct aem_log_module test_log_module = {.name = "test", .loglevel = AEM_LOG_NOTICE};
 
-int test_errors = 0;
+int tests_count = 0;
+int tests_failed = 0;
 
 int ss_eq(struct aem_stringslice s1, struct aem_stringslice s2)
 {
@@ -38,19 +39,19 @@ void test_init(int argc, char **argv)
 
 int show_test_results_impl(const char *file, int line, const char *func)
 {
-	int loglevel = test_errors ? AEM_LOG_ERROR : AEM_LOG_GOOD;
+	int loglevel = tests_failed ? AEM_LOG_ERROR : AEM_LOG_GOOD;
 
 	AEM_LOG_MULTI_BUF_MOD_IMPL(str, &aem_log_buf, aem_log_module_current, loglevel, file, line, func) {
-		if (!test_errors)
-			aem_stringbuf_puts(str, "All tests passed");
+		if (!tests_failed)
+			aem_stringbuf_printf(str, "All %zd test%s passed", tests_count, tests_count != 1 ? "s" : "");
 		else
-			aem_stringbuf_printf(str, "%zd test%s failed!", test_errors, test_errors != 1 ? "s" : "");
+			aem_stringbuf_printf(str, "%zd/%zd test%s failed!", tests_failed, tests_count, tests_count != 1 ? "s" : "");
 	}
 
 	// Make valgrind happy
 	aem_stringbuf_dtor(&aem_log_buf);
 
-	return test_errors > 0;
+	return tests_failed;
 }
 
 

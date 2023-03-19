@@ -27,17 +27,14 @@ static void test_stringslice_match_long_base(struct aem_stringslice slice, int b
 	long int out = NO_OUTPUTl;
 	int result = aem_stringslice_match_long_base(&slice_ret, base, &out);
 
-	if (result != result_expect || !ss_eq(slice_ret, slice_expect) || out != out_expect) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_puts(out, "stringslice_match_long_base(");
-			debug_slice(out, slice);
-			aem_stringbuf_printf(out, ", %d) returned (", base);
-			debug_slice(out, slice_ret);
-			aem_stringbuf_printf(out, ", %d, %ld), expected (", result, out);
-			debug_slice(out, slice_expect);
-			aem_stringbuf_printf(out, ", %d, %ld)", result_expect, out_expect);
-		}
+	TEST_EXPECT(out, result == result_expect && ss_eq(slice_ret, slice_expect) && out == out_expect) {
+		aem_stringbuf_puts(out, "stringslice_match_long_base(");
+		debug_slice(out, slice);
+		aem_stringbuf_printf(out, ", %d) returned (", base);
+		debug_slice(out, slice_ret);
+		aem_stringbuf_printf(out, ", %d, %ld), expected (", result, out);
+		debug_slice(out, slice_expect);
+		aem_stringbuf_printf(out, ", %d, %ld)", result_expect, out_expect);
 	}
 }
 static void test_stringslice_match_uint_base(struct aem_stringslice slice, int base, struct aem_stringslice slice_expect, int result_expect, unsigned int out_expect)
@@ -63,17 +60,14 @@ static void test_stringslice_match_uint_base(struct aem_stringslice slice, int b
 	unsigned int out = NO_OUTPUT;
 	int result = aem_stringslice_match_uint_base(&slice_ret, base, &out);
 
-	if (result != result_expect || !ss_eq(slice_ret, slice_expect) || out != out_expect) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_puts(out, "stringslice_match_uint_base(");
-			debug_slice(out, slice);
-			aem_stringbuf_printf(out, ", %d) returned (", base);
-			debug_slice(out, slice_ret);
-			aem_stringbuf_printf(out, ", %d, %d), expected (", result, out);
-			debug_slice(out, slice_expect);
-			aem_stringbuf_printf(out, ", %d, %d)", result_expect, out_expect);
-		}
+	TEST_EXPECT(out, result == result_expect && ss_eq(slice_ret, slice_expect) && out == out_expect) {
+		aem_stringbuf_puts(out, "stringslice_match_uint_base(");
+		debug_slice(out, slice);
+		aem_stringbuf_printf(out, ", %d) returned (", base);
+		debug_slice(out, slice_ret);
+		aem_stringbuf_printf(out, ", %d, %d), expected (", result, out);
+		debug_slice(out, slice_expect);
+		aem_stringbuf_printf(out, ", %d, %d)", result_expect, out_expect);
 	}
 }
 
@@ -97,17 +91,14 @@ static void test_stringslice_match_long_auto(struct aem_stringslice slice, struc
 	long int out = NO_OUTPUTl;
 	int result = aem_stringslice_match_long_auto(&slice_ret, &out);
 
-	if (result != result_expect || !ss_eq(slice_ret, slice_expect) || out != out_expect) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_puts(out, "stringslice_match_long_auto(");
-			debug_slice(out, slice);
-			aem_stringbuf_printf(out, ") returned (");
-			debug_slice(out, slice_ret);
-			aem_stringbuf_printf(out, ", %d, %ld), expected (", result, out);
-			debug_slice(out, slice_expect);
-			aem_stringbuf_printf(out, ", %d, %ld)", result_expect, out_expect);
-		}
+	TEST_EXPECT(out, result == result_expect && ss_eq(slice_ret, slice_expect) && out == out_expect) {
+		aem_stringbuf_puts(out, "stringslice_match_long_auto(");
+		debug_slice(out, slice);
+		aem_stringbuf_printf(out, ") returned (");
+		debug_slice(out, slice_ret);
+		aem_stringbuf_printf(out, ", %d, %ld), expected (", result, out);
+		debug_slice(out, slice_expect);
+		aem_stringbuf_printf(out, ", %d, %ld)", result_expect, out_expect);
 	}
 }
 

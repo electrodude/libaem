@@ -18,11 +18,8 @@ static int test_add_regex(struct aem_nfa *nfa, const char *pattern)
 	struct aem_stringslice in = aem_stringslice_new_cstr(pattern);
 	int rc = aem_nfa_add_regex(nfa, in, -1, aem_stringslice_new_cstr("d"));
 
-	if (rc_expect < 0 ? rc != rc_expect : rc < 0) {
-		test_errors++;
-		aem_logf_ctx(AEM_LOG_BUG, "add_regex(\"%s\") returned (%d), expected (%d)!", pattern, rc, rc_expect);
-		aem_assert(0);
-		return -1;
+	TEST_EXPECT(out, rc_expect < 0 ? rc == rc_expect : rc >= 0) {
+		aem_stringbuf_printf(out, "add_regex(\"%s\") returned (%d), expected (%d)!", pattern, rc, rc_expect);
 	}
 
 	return rc;
@@ -36,11 +33,8 @@ static int test_add_string(struct aem_nfa *nfa, const char *pattern)
 	struct aem_stringslice in = aem_stringslice_new_cstr(pattern);
 	int rc = aem_nfa_add_string(nfa, in, -1, aem_stringslice_new_cstr("d"));
 
-	if (rc_expect < 0 ? rc != rc_expect : rc < 0) {
-		test_errors++;
-		aem_logf_ctx(AEM_LOG_BUG, "add_string(\"%s\") returned (%d), expected (%d)!", pattern, rc, rc_expect);
-		aem_assert(0);
-		return -1;
+	TEST_EXPECT(out, rc_expect < 0 ? rc == rc_expect : rc >= 0) {
+		aem_stringbuf_printf(out, "add_string(\"%s\") returned (%d), expected (%d)!", pattern, rc, rc_expect);
 	}
 
 	return rc;
@@ -90,19 +84,16 @@ static void test_nfa_lex(struct aem_nfa *nfa, struct aem_stringslice input, stru
 
 	int input_match = !aem_stringslice_cmp(input_ret, input_remain);
 
-	if (rc == -2 || !input_match) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_puts(out, "repeated nfa_run(\"");
-			//aem_string_escape(out, input);
-			aem_stringbuf_puts(out, "...");
-			aem_stringbuf_printf(out, "\") returned (%d, \"", rc);
-			aem_string_escape(out, input_ret);
-			// TODO: 0 if we expected a token, -1 if we got all we were hoping for
-			aem_stringbuf_printf(out, "\"), expected (%d, \"", -1);
-			aem_string_escape(out, input_remain);
-			aem_stringbuf_puts(out, "\")!");
-		}
+	TEST_EXPECT(out, rc != -2 && input_match) {
+		aem_stringbuf_puts(out, "repeated nfa_run(\"");
+		//aem_string_escape(out, input);
+		aem_stringbuf_puts(out, "...");
+		aem_stringbuf_printf(out, "\") returned (%d, \"", rc);
+		aem_string_escape(out, input_ret);
+		// TODO: 0 if we expected a token, -1 if we got all we were hoping for
+		aem_stringbuf_printf(out, "\"), expected (%d, \"", -1);
+		aem_string_escape(out, input_remain);
+		aem_stringbuf_puts(out, "\")!");
 	}
 }
 

@@ -7,17 +7,14 @@ static void test_stringslice_match(struct aem_stringslice slice, const char *s, 
 	struct aem_stringslice slice_ret = slice;
 	int result = aem_stringslice_match(&slice_ret, s);
 
-	if (result != result_expect || !ss_eq(slice_ret, slice_expect)) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_puts(out, "stringslice_match(");
-			debug_slice(out, slice);
-			aem_stringbuf_printf(out, ", \"%s\") returned (%d, ", s, result);
-			debug_slice(out, slice_ret);
-			aem_stringbuf_printf(out, "), expected (%d, ", result_expect);
-			debug_slice(out, slice_expect);
-			aem_stringbuf_puts(out, ")");
-		}
+	TEST_EXPECT(out, result == result_expect && ss_eq(slice_ret, slice_expect)) {
+		aem_stringbuf_puts(out, "stringslice_match(");
+		debug_slice(out, slice);
+		aem_stringbuf_printf(out, ", \"%s\") returned (%d, ", s, result);
+		debug_slice(out, slice_ret);
+		aem_stringbuf_printf(out, "), expected (%d, ", result_expect);
+		debug_slice(out, slice_expect);
+		aem_stringbuf_puts(out, ")");
 	}
 }
 
@@ -26,17 +23,14 @@ static void test_stringslice_match_end(struct aem_stringslice slice, const char 
 	struct aem_stringslice slice_ret = slice;
 	int result = aem_stringslice_match_end(&slice_ret, s);
 
-	if (result != result_expect || !ss_eq(slice_ret, slice_expect)) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_puts(out, "stringslice_match_end(");
-			debug_slice(out, slice);
-			aem_stringbuf_printf(out, ", \"%s\") returned (%d, ", s, result);
-			debug_slice(out, slice_ret);
-			aem_stringbuf_printf(out, "), expected (%d, ", result_expect);
-			debug_slice(out, slice_expect);
-			aem_stringbuf_puts(out, ")");
-		}
+	TEST_EXPECT(out, result == result_expect && ss_eq(slice_ret, slice_expect)) {
+		aem_stringbuf_puts(out, "stringslice_match_end(");
+		debug_slice(out, slice);
+		aem_stringbuf_printf(out, ", \"%s\") returned (%d, ", s, result);
+		debug_slice(out, slice_ret);
+		aem_stringbuf_printf(out, "), expected (%d, ", result_expect);
+		debug_slice(out, slice_expect);
+		aem_stringbuf_puts(out, ")");
 	}
 }
 static void test_stringslice_match_line_multi(struct aem_stringslice slice, int state, int finish, struct aem_stringslice result_expect, struct aem_stringslice slice_expect)
@@ -95,23 +89,20 @@ static void test_stringslice_match_line_multi(struct aem_stringslice slice, int 
 	int state_ret = state;
 	struct aem_stringslice result = aem_stringslice_match_line_multi(&slice_ret, &state_ret, finish);
 
-	if (!ss_eq(result, result_expect) || !ss_eq(slice_ret, slice_expect) || state_ret != state_expect || slice.end != slice_ret.end) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_puts(out, "stringslice_match_line_multi(");
-			debug_slice(out, slice);
-			aem_stringbuf_printf(out, ", %d, %d) returned (", state, finish);
-			debug_slice(out, result);
-			aem_stringbuf_puts(out, ", ");
-			debug_slice(out, slice_ret);
-			aem_stringbuf_printf(out, ", %d), expected (", state_ret);
-			debug_slice(out, result_expect);
-			aem_stringbuf_puts(out, ", ");
-			debug_slice(out, slice_expect);
-			aem_stringbuf_printf(out, ", %d)", state_expect);
-			if (slice.end != slice_ret.end)
-				aem_stringbuf_puts(out, " (input slice end moved)");
-		}
+	TEST_EXPECT(out, ss_eq(result, result_expect) && ss_eq(slice_ret, slice_expect) && state_ret == state_expect && slice.end == slice_ret.end) {
+		aem_stringbuf_puts(out, "stringslice_match_line_multi(");
+		debug_slice(out, slice);
+		aem_stringbuf_printf(out, ", %d, %d) returned (", state, finish);
+		debug_slice(out, result);
+		aem_stringbuf_puts(out, ", ");
+		debug_slice(out, slice_ret);
+		aem_stringbuf_printf(out, ", %d), expected (", state_ret);
+		debug_slice(out, result_expect);
+		aem_stringbuf_puts(out, ", ");
+		debug_slice(out, slice_expect);
+		aem_stringbuf_printf(out, ", %d)", state_expect);
+		if (slice.end != slice_ret.end)
+			aem_stringbuf_puts(out, " (input slice end moved)");
 	}
 }
 

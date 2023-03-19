@@ -163,9 +163,8 @@ static void test_module_load(const char *name, const char *args, int rc_expect, 
 	if (mod_p)
 		*mod_p = mod;
 
-	if (rc != rc_expect) {
-		test_errors++;
-		aem_logf_ctx(AEM_LOG_BUG, "module_load(\"%s\", \"%s\") returned (%d), expected (%d)!", name, args, rc, rc_expect);
+	TEST_EXPECT(out, rc == rc_expect) {
+		aem_stringbuf_printf(out, "module_load(\"%s\", \"%s\") returned (%d), expected (%d)!", name, args, rc, rc_expect);
 	}
 }
 
@@ -181,15 +180,12 @@ static void test_modules_load(const char *spec, const char *remain, int rc_expec
 	struct aem_stringslice spec_ret = spec_ss;
 	int rc = modules_load(&spec_ret);
 
-	if (rc != rc_expect) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_puts(out, "modules_load(");
-			debug_slice(out, spec_ss);
-			aem_stringbuf_printf(out, ") returned (%d, ", rc);
-			debug_slice(out, spec_ret);
-			aem_stringbuf_printf(out, "), expected (%d, \"%s\")", rc_expect, remain);
-		}
+	TEST_EXPECT(out, rc == rc_expect) {
+		aem_stringbuf_puts(out, "modules_load(");
+		debug_slice(out, spec_ss);
+		aem_stringbuf_printf(out, ") returned (%d, ", rc);
+		debug_slice(out, spec_ret);
+		aem_stringbuf_printf(out, "), expected (%d, \"%s\")", rc_expect, remain);
 	}
 }
 
@@ -201,9 +197,8 @@ static void test_module_unload(const char *name, int rc_expect)
 	struct module *mod = module_lookup(name_ss);
 	int rc = module_unload(mod);
 
-	if (rc != rc_expect) {
-		test_errors++;
-		aem_logf_ctx(AEM_LOG_BUG, "module_unload(\"%s\") returned (%d), expected (%d)!", name, rc, rc_expect);
+	TEST_EXPECT(out, rc == rc_expect) {
+		aem_stringbuf_printf(out, "module_unload(\"%s\") returned (%d), expected (%d)!", name, rc, rc_expect);
 	}
 }
 

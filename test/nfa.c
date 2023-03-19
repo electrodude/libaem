@@ -17,14 +17,12 @@ static void test_regex_compile(struct aem_nfa *nfa, const char *pattern, int mat
 		if (match >= 0) {
 			rc_expect = match;
 		} else {
-			test_errors++;
 			aem_logf_ctx(AEM_LOG_BUG, "Can't guess rc_expect: rc_expect = %d, match = %d", rc_expect, match);
 		}
 	}
 
-	if (rc != rc_expect) {
-		test_errors++;
-		aem_logf_ctx(AEM_LOG_BUG, "regex_compile(\"%s\", %d) returned (%d), expected (%d)!", pattern, match, rc, rc_expect);
+	TEST_EXPECT(out, rc == rc_expect) {
+		aem_stringbuf_printf(out, "regex_compile(\"%s\", %d) returned (%d), expected (%d)!", pattern, match, rc, rc_expect);
 	}
 }
 
@@ -74,17 +72,14 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 
 	int input_match = aem_stringslice_eq(in, input_remain);
 
-	if (rc != rc_expect || !input_match) {
-		test_errors++;
-		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
-			aem_stringbuf_puts(out, "nfa_run(\"");
-			aem_string_escape(out, aem_stringslice_new_cstr(input));
-			aem_stringbuf_printf(out, "\") returned (%d, \"", rc);
-			aem_string_escape(out, in);
-			aem_stringbuf_printf(out, "\"), expected (%d, \"", rc_expect);
-			aem_string_escape(out, aem_stringslice_new_cstr(input_remain));
-			aem_stringbuf_puts(out, "\")!");
-		}
+	TEST_EXPECT(out, rc == rc_expect && input_match) {
+		aem_stringbuf_puts(out, "nfa_run(\"");
+		aem_string_escape(out, aem_stringslice_new_cstr(input));
+		aem_stringbuf_printf(out, "\") returned (%d, \"", rc);
+		aem_string_escape(out, in);
+		aem_stringbuf_printf(out, "\"), expected (%d, \"", rc_expect);
+		aem_string_escape(out, aem_stringslice_new_cstr(input_remain));
+		aem_stringbuf_puts(out, "\")!");
 	}
 }
 

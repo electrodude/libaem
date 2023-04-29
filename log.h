@@ -25,15 +25,29 @@ enum aem_log_level {
 	AEM_LOG_DEBUG3,   // Very fine debug info: Probably drowns out all normal messages during normal execution
 };
 
+struct aem_log_dest;
 struct aem_log_module {
 	enum aem_log_level loglevel;
 	const char *name;
+	struct aem_log_dest *dst;
 };
 
 
-/// Log to FILE
-
 extern int aem_log_color;
+
+/// Log destinations
+
+struct aem_stringslice;
+struct aem_log_dest {
+	void (*log)(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg);
+};
+
+// Log to FILE
+void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg);
+struct aem_log_dest_fp {
+	struct aem_log_dest dst;
+	FILE *fp;
+};
 
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new);
 FILE *aem_log_fopen(const char *path_new);
@@ -62,7 +76,6 @@ const char *aem_log_level_describe(enum aem_log_level loglevel);
 char aem_log_level_letter(enum aem_log_level loglevel);
 enum aem_log_level aem_log_level_parse_letter(char c);
 
-struct aem_stringslice;
 enum aem_log_level aem_log_level_parse(struct aem_stringslice word);
 void aem_log_level_parse_set(const char *p);
 
@@ -76,14 +89,12 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 #define aem_log_header_mod(str, module, loglevel) aem_log_header_mod_impl((str), (module), (loglevel), __FILE__, __LINE__, __func__)
 #define aem_log_header(str, loglevel) aem_log_header_mod((str), (aem_log_module_current), (loglevel))
 
-void aem_log_multi_impl(struct aem_stringbuf *str);
+void aem_log_multi_impl(struct aem_log_module *mod, struct aem_stringbuf *str);
 #define AEM_LOG_MULTI_BUF_MOD_IMPL(str, buf, module, loglevel, file, line, func) \
 	for (struct aem_stringbuf *str = aem_log_header_mod_impl((buf), (module), (loglevel), (file), (line), (func)); \
-	     str; aem_log_multi(str), str = NULL)
+	     str; aem_log_multi_impl((aem_log_module_current), str), str = NULL)
 #define AEM_LOG_MULTI_BUF(str, buf, loglevel) AEM_LOG_MULTI_BUF_MOD_IMPL(str, buf, (aem_log_module_current), loglevel, __FILE__, __LINE__, __func__)
 #define AEM_LOG_MULTI(str, loglevel) AEM_LOG_MULTI_BUF(str, &aem_log_buf, loglevel)
-
-int aem_log_str(struct aem_stringbuf *str);
 
 int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...);
 #define aem_logmf_ctx(module, loglevel, fmt, ...) aem_logmf_ctx_impl((module), (loglevel), __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)

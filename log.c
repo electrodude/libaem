@@ -5,22 +5,35 @@
 
 #define AEM_INTERNAL
 #include <aem/ansi-term.h>
+#include <aem/memory.h>
 #include <aem/stringbuf.h>
 #include <aem/translate.h>
 
 #include "log.h"
 
-/// Log to FILE
-
-// This is dumb - stderr/fd 2 already exists for this purpose
-static FILE *aem_log_fp = NULL;
 static int aem_log_autoclose_curr = 0;
 int aem_log_color = 0;
 
+/// Log destinations
+
+// Log to FILE
+void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg)
+{
+	aem_assert(dst);
+	aem_assert(mod);
+	struct aem_log_dest_fp *dst_fp = aem_container_of(dst, struct aem_log_dest_fp, dst);
+
+	aem_stringslice_file_write(msg, dst_fp->fp);
+}
+struct aem_log_dest_fp aem_log_fp = {
+	.dst = {.log = aem_log_dest_fp_log},
+	.fp = NULL,
+};
+
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 {
-	FILE *fp_old = aem_log_fp;
-	aem_log_fp = fp_new;
+	FILE *fp_old = aem_log_fp.fp;
+	aem_log_fp.fp = fp_new;
 
 	if (aem_log_autoclose_curr && fp_old) {
 		fclose(fp_old);
@@ -29,9 +42,9 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 
 	aem_log_autoclose_curr = autoclose_new;
 
-	setvbuf(aem_log_fp, NULL, _IOLBF, 0);
+	setvbuf(aem_log_fp.fp, NULL, _IOLBF, 0);
 
-	int fd = fileno(aem_log_fp);
+	int fd = fileno(aem_log_fp.fp);
 	if (fd >= 0 && isatty(fd)) {
 		aem_log_color = 1;
 	} else {
@@ -63,7 +76,7 @@ FILE *aem_log_fopen(const char *path_new)
 
 FILE *aem_log_fget(void)
 {
-	return aem_log_fp;
+	return aem_log_fp.fp;
 }
 
 
@@ -241,6 +254,18 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 	return str;
 }
 
+static void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str)
+{
+	if (!str)
+		return;
+	aem_assert(mod);
+	struct aem_log_dest *dst = mod->dst;
+	if (!dst)
+		dst = &aem_log_fp.dst;
+	aem_assert(dst->log);
+	dst->log(dst, mod, aem_stringslice_new_str(str));
+}
+
 int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...)
 {
 	aem_assert(fmt);
@@ -269,7 +294,7 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 
 	// TODO: If message exceeds line width, wrap and insert continuation headers.
 
-	int rc = aem_log_str(str);
+	aem_log_submit(mod, str);
 
 	// Warn if format string ends with newline
 	if (fmt[0] && fmt[strlen(fmt)-1] == '\n')
@@ -280,19 +305,14 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 		aem_break();
 #endif
 
-	return rc;
+	return 0;
 }
 
-void aem_log_multi_impl(struct aem_stringbuf *str)
+void aem_log_multi_impl(struct aem_log_module *mod, struct aem_stringbuf *str)
 {
 	aem_assert(str);
 	aem_stringbuf_putc(str, '\n');
 	if (!aem_log_color)
 		aem_ansi_strip_inplace(str);
-	aem_log_str(str);
-}
-
-int aem_log_str(struct aem_stringbuf *str)
-{
-	return aem_stringslice_file_write(aem_stringslice_new_str(str), aem_log_fp);
+	aem_log_submit(mod, str);
 }

@@ -51,6 +51,7 @@ void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, s
 struct aem_log_dest_fp {
 	struct aem_log_dest dst;
 	FILE *fp;
+	int autoclose;
 };
 
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new);

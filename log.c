@@ -11,7 +11,6 @@
 
 #include "log.h"
 
-static int aem_log_autoclose_curr = 0;
 int aem_log_color = 0;
 
 /// Log destinations
@@ -46,12 +45,12 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 	FILE *fp_old = aem_log_fp.fp;
 	aem_log_fp.fp = fp_new;
 
-	if (aem_log_autoclose_curr && fp_old) {
+	if (aem_log_fp.autoclose && fp_old) {
 		fclose(fp_old);
 		fp_old = NULL;
 	}
 
-	aem_log_autoclose_curr = autoclose_new;
+	aem_log_fp.autoclose = autoclose_new;
 
 	setvbuf(aem_log_fp.fp, NULL, _IOLBF, 0);
 

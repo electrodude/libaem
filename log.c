@@ -27,7 +27,7 @@ struct aem_log_dest aem_log_dest_null = {
 };
 
 // Log to FILE
-void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg)
+static void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg)
 {
 	aem_assert(dst);
 	aem_assert(mod);
@@ -35,26 +35,23 @@ void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, s
 
 	aem_stringslice_file_write(msg, dst_fp->fp);
 }
-struct aem_log_dest_fp aem_log_fp = {
-	.dst = {.log = aem_log_dest_fp_log},
-	.fp = NULL,
-};
-
-FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
+FILE *aem_log_dest_fset(struct aem_log_dest_fp *dst, FILE *fp_new, int autoclose_new)
 {
-	FILE *fp_old = aem_log_fp.fp;
-	aem_log_fp.fp = fp_new;
+	aem_assert(dst);
+	FILE *fp_old = dst->fp;
+	dst->dst.log = aem_log_dest_fp_log;
+	dst->fp = fp_new;
 
-	if (aem_log_fp.autoclose && fp_old) {
+	if (dst->autoclose && fp_old) {
 		fclose(fp_old);
 		fp_old = NULL;
 	}
 
-	aem_log_fp.autoclose = autoclose_new;
+	dst->autoclose = autoclose_new;
 
-	setvbuf(aem_log_fp.fp, NULL, _IOLBF, 0);
+	setvbuf(dst->fp, NULL, _IOLBF, 0);
 
-	int fd = fileno(aem_log_fp.fp);
+	int fd = fileno(dst->fp);
 	if (fd >= 0 && isatty(fd)) {
 		aem_log_color = 1;
 	} else {
@@ -65,28 +62,40 @@ FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 
 	return fp_old;
 }
-
-FILE *aem_log_fopen(const char *path_new)
+FILE *aem_log_dest_fopen(struct aem_log_dest_fp *dst, const char *path_new)
 {
 	if (!path_new)
 		return NULL;
 	FILE *fp_new = fopen(path_new, "a");
 	if (!fp_new) {
+		errno = ENOENT; // TODO: find better way to signal this error
 		return NULL;
 	}
 
-	FILE *fp_old = aem_log_fset(fp_new, 1);
+	FILE *fp_old = aem_log_dest_fset(dst, fp_new, 1);
 
-	if (!fp_old) {
+	if (!fp_old)
 		errno = 0; // TODO: find better way to signal success but no old logfile
-	}
 
 	return fp_old;
 }
 
+// Default log destination
+struct aem_log_dest_fp aem_log_default = {
+	.dst = {.log = aem_log_dest_fp_log},
+	.fp = NULL,
+};
+FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
+{
+	return aem_log_dest_fset(&aem_log_default, fp_new, autoclose_new);
+}
+FILE *aem_log_fopen(const char *path_new)
+{
+	return aem_log_dest_fopen(&aem_log_default, path_new);
+}
 FILE *aem_log_fget(void)
 {
-	return aem_log_fp.fp;
+	return aem_log_default.fp;
 }
 
 
@@ -271,7 +280,7 @@ static void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str
 	aem_assert(mod);
 	struct aem_log_dest *dst = mod->dst;
 	if (!dst)
-		dst = &aem_log_fp.dst;
+		dst = &aem_log_default.dst;
 	aem_assert(dst->log);
 	dst->log(dst, mod, aem_stringslice_new_str(str));
 }

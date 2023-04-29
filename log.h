@@ -47,13 +47,15 @@ struct aem_log_dest {
 extern struct aem_log_dest aem_log_dest_null;
 
 // Log to FILE
-void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg);
 struct aem_log_dest_fp {
 	struct aem_log_dest dst;
 	FILE *fp;
 	int autoclose;
 };
+FILE *aem_log_dest_fset(struct aem_log_dest_fp *dst, FILE *fp_new, int autoclose_new);
+FILE *aem_log_dest_fopen(struct aem_log_dest_fp *dst, const char *path_new);
 
+// Default log destination
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new);
 FILE *aem_log_fopen(const char *path_new);
 FILE *aem_log_fget(void);

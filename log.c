@@ -11,8 +11,6 @@
 
 #include "log.h"
 
-int aem_log_color = 0;
-
 /// Log destinations
 
 // Null destination: goes nowhere
@@ -53,12 +51,12 @@ FILE *aem_log_dest_fset(struct aem_log_dest_fp *dst, FILE *fp_new, int autoclose
 
 	int fd = fileno(dst->fp);
 	if (fd >= 0 && isatty(fd)) {
-		aem_log_color = 1;
+		dst->dst.flags |= AEM_LOG_FLAG_COLOR;
 	} else {
-		aem_log_color = 0;
+		dst->dst.flags &= ~AEM_LOG_FLAG_COLOR;
 	}
 
-	aem_logf_ctx(AEM_LOG_DEBUG, "Switched to new log source: %s", aem_log_color ? "color" : "no color");
+	aem_logf_ctx(AEM_LOG_DEBUG, "Switched to new log source: %s", dst->dst.flags & AEM_LOG_FLAG_COLOR ? "color" : "no color");
 
 	return fp_old;
 }
@@ -231,9 +229,14 @@ void aem_log_level_parse_set(const char *p)
 
 __thread struct aem_stringbuf aem_log_buf = {0};
 
-int aem_log_module = 1;
-
 unsigned int mod_name_width_max = 1;
+
+static enum aem_log_flags aem_log_module_flags(const struct aem_log_module *mod)
+{
+	aem_assert(mod);
+	aem_assert(mod->dst);
+	return mod->flags | mod->dst->flags;
+}
 
 struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func)
 {
@@ -241,14 +244,18 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 	if (loglevel > mod->loglevel)
 		return NULL;
 
+	if (!mod->dst)
+		mod->dst = &aem_log_default.dst;
+	enum aem_log_flags flags = aem_log_module_flags(mod);
+
 	aem_stringbuf_reset(str);
 
-	if (aem_log_color)
+	if (flags & AEM_LOG_FLAG_COLOR)
 		aem_stringbuf_puts(str, aem_log_level_color(loglevel));
 	aem_stringbuf_putc(str, aem_log_level_letter(loglevel));
 	aem_stringbuf_putc(str, ' ');
 
-	if (aem_log_module) {
+	if (flags & AEM_LOG_FLAG_MODULE) {
 		aem_stringbuf_puts(str, "[");
 		size_t name_start = str->n;
 		if (mod->name)
@@ -266,7 +273,7 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 	//aem_stringbuf_puts(str, ": ");
 	//aem_stringbuf_putc(str, aem_log_level_describe(loglevel));
 	aem_stringbuf_putc(str, ':');
-	if (aem_log_color)
+	if (flags & AEM_LOG_FLAG_COLOR)
 		aem_stringbuf_puts(str, AEM_SGR("0")); // Reset text style
 	aem_stringbuf_putc(str, ' ');
 
@@ -293,6 +300,8 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 	if (!str)
 		return 0;
 
+	enum aem_log_flags flags = aem_log_module_flags(mod);
+
 	va_list ap;
 	va_start(ap, fmt);
 	aem_stringbuf_vprintf(str, fmt, ap);
@@ -303,12 +312,12 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 		str->n--;
 
 	// Reset color
-	if (aem_log_color)
+	if (flags & AEM_LOG_FLAG_COLOR)
 		aem_stringbuf_puts(str, AEM_SGR("0"));
 	// Add newline
 	aem_stringbuf_puts(str, "\n");
 
-	if (!aem_log_color)
+	if (!(flags & AEM_LOG_FLAG_COLOR))
 		aem_ansi_strip_inplace(str);
 
 	// TODO: If message exceeds line width, wrap and insert continuation headers.
@@ -331,7 +340,8 @@ void aem_log_multi_impl(struct aem_log_module *mod, struct aem_stringbuf *str)
 {
 	aem_assert(str);
 	aem_stringbuf_putc(str, '\n');
-	if (!aem_log_color)
+	enum aem_log_flags flags = aem_log_module_flags(mod);
+	if (!(flags & AEM_LOG_FLAG_COLOR))
 		aem_ansi_strip_inplace(str);
 	aem_log_submit(mod, str);
 }

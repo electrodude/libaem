@@ -25,21 +25,26 @@ enum aem_log_level {
 	AEM_LOG_DEBUG3,   // Very fine debug info: Probably drowns out all normal messages during normal execution
 };
 
+enum aem_log_flags {
+	AEM_LOG_FLAG_COLOR  = 0x1,
+	AEM_LOG_FLAG_MODULE = 0x2,
+};
+
 struct aem_log_dest;
 struct aem_log_module {
 	enum aem_log_level loglevel;
 	const char *name;
 	struct aem_log_dest *dst;
+	enum aem_log_flags flags;
 };
 
-
-extern int aem_log_color;
 
 /// Log destinations
 
 struct aem_stringslice;
 struct aem_log_dest {
 	void (*log)(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg);
+	enum aem_log_flags flags;
 };
 
 // Null destination: goes nowhere

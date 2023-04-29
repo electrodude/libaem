@@ -89,18 +89,18 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 #define aem_log_header_mod(str, module, loglevel) aem_log_header_mod_impl((str), (module), (loglevel), __FILE__, __LINE__, __func__)
 #define aem_log_header(str, loglevel) aem_log_header_mod((str), (aem_log_module_current), (loglevel))
 
+int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...);
+#define aem_logmf_ctx(module, loglevel, fmt, ...) aem_logmf_ctx_impl((module), (loglevel), __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
+#define aem_logf_ctx(loglevel, fmt, ...) aem_logmf_ctx((aem_log_module_current), (loglevel), fmt, ##__VA_ARGS__)
+
+#define aem_logf_ctx_once(loglevel, ...) do { static int _hits = 0; if (!_hits) aem_logf_ctx((loglevel), ##__VA_ARGS__); _hits = 1; } while (0)
+
 void aem_log_multi_impl(struct aem_log_module *mod, struct aem_stringbuf *str);
 #define AEM_LOG_MULTI_BUF_MOD_IMPL(str, buf, module, loglevel, file, line, func) \
 	for (struct aem_stringbuf *str = aem_log_header_mod_impl((buf), (module), (loglevel), (file), (line), (func)); \
 	     str; aem_log_multi_impl((aem_log_module_current), str), str = NULL)
 #define AEM_LOG_MULTI_BUF(str, buf, loglevel) AEM_LOG_MULTI_BUF_MOD_IMPL(str, buf, (aem_log_module_current), loglevel, __FILE__, __LINE__, __func__)
 #define AEM_LOG_MULTI(str, loglevel) AEM_LOG_MULTI_BUF(str, &aem_log_buf, loglevel)
-
-int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...);
-#define aem_logmf_ctx(module, loglevel, fmt, ...) aem_logmf_ctx_impl((module), (loglevel), __FILE__, __LINE__, __func__, fmt, ##__VA_ARGS__)
-#define aem_logf_ctx(loglevel, fmt, ...) aem_logmf_ctx((aem_log_module_current), (loglevel), fmt, ##__VA_ARGS__)
-
-#define aem_logf_ctx_once(loglevel, ...) do { static int _hits = 0; if (!_hits) aem_logf_ctx((loglevel), ##__VA_ARGS__); _hits = 1; } while (0)
 
 /// Assertions
 #ifndef aem_assert

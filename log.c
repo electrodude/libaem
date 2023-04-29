@@ -285,6 +285,19 @@ static void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str
 	if (!str)
 		return;
 	aem_assert(mod);
+
+	enum aem_log_flags flags = aem_log_module_flags(mod);
+
+	if (flags & AEM_LOG_FLAG_COLOR)
+		// Reset color
+		aem_stringbuf_puts(str, AEM_SGR("0"));
+	else
+		// Strip color
+		aem_ansi_strip_inplace(str);
+
+	// Add newline
+	aem_stringbuf_puts(str, "\n");
+
 	struct aem_log_dest *dst = mod->dst;
 	if (!dst)
 		dst = &aem_log_default.dst;
@@ -300,8 +313,6 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 	if (!str)
 		return 0;
 
-	enum aem_log_flags flags = aem_log_module_flags(mod);
-
 	va_list ap;
 	va_start(ap, fmt);
 	aem_stringbuf_vprintf(str, fmt, ap);
@@ -310,17 +321,6 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 	// If present, remove the final newline the user was required to supply in previous versions.
 	if (str->n && str->s[str->n-1] == '\n')
 		str->n--;
-
-	// Reset color
-	if (flags & AEM_LOG_FLAG_COLOR)
-		aem_stringbuf_puts(str, AEM_SGR("0"));
-	// Add newline
-	aem_stringbuf_puts(str, "\n");
-
-	if (!(flags & AEM_LOG_FLAG_COLOR))
-		aem_ansi_strip_inplace(str);
-
-	// TODO: If message exceeds line width, wrap and insert continuation headers.
 
 	aem_log_submit(mod, str);
 
@@ -339,9 +339,5 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 void aem_log_multi_impl(struct aem_log_module *mod, struct aem_stringbuf *str)
 {
 	aem_assert(str);
-	aem_stringbuf_putc(str, '\n');
-	enum aem_log_flags flags = aem_log_module_flags(mod);
-	if (!(flags & AEM_LOG_FLAG_COLOR))
-		aem_ansi_strip_inplace(str);
 	aem_log_submit(mod, str);
 }

@@ -40,17 +40,12 @@ int show_test_results_impl(const char *file, int line, const char *func)
 {
 	int loglevel = test_errors ? AEM_LOG_ERROR : AEM_LOG_GOOD;
 
-	struct aem_stringbuf *str = aem_log_header_mod_impl(&aem_log_buf, aem_log_module_current, loglevel, file, line, func);
-	if (!str)
-		return test_errors;
-
-	if (!test_errors)
-		aem_stringbuf_puts(str, "All tests passed");
-	else
-		aem_stringbuf_printf(str, "%zd test%s failed!", test_errors, test_errors != 1 ? "s" : "");
-
-	aem_stringbuf_putc(str, '\n');
-	aem_log_str(str);
+	AEM_LOG_MULTI_BUF_MOD_IMPL(str, &aem_log_buf, aem_log_module_current, loglevel, file, line, func) {
+		if (!test_errors)
+			aem_stringbuf_puts(str, "All tests passed");
+		else
+			aem_stringbuf_printf(str, "%zd test%s failed!", test_errors, test_errors != 1 ? "s" : "");
+	}
 
 	// Make valgrind happy
 	aem_stringbuf_dtor(&aem_log_buf);

@@ -77,7 +77,10 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 #define aem_log_header(str, loglevel) aem_log_header_mod((str), (aem_log_module_current), (loglevel))
 
 void aem_log_multi_impl(struct aem_stringbuf *str);
-#define AEM_LOG_MULTI_BUF(str, buf, loglevel) for (struct aem_stringbuf *str = aem_log_header((buf), (loglevel)); str; aem_log_multi_impl(str), str = NULL)
+#define AEM_LOG_MULTI_BUF_MOD_IMPL(str, buf, module, loglevel, file, line, func) \
+	for (struct aem_stringbuf *str = aem_log_header_mod_impl((buf), (module), (loglevel), (file), (line), (func)); \
+	     str; aem_log_multi(str), str = NULL)
+#define AEM_LOG_MULTI_BUF(str, buf, loglevel) AEM_LOG_MULTI_BUF_MOD_IMPL(str, buf, (aem_log_module_current), loglevel, __FILE__, __LINE__, __func__)
 #define AEM_LOG_MULTI(str, loglevel) AEM_LOG_MULTI_BUF(str, &aem_log_buf, loglevel)
 
 int aem_log_str(struct aem_stringbuf *str);

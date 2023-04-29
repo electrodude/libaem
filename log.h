@@ -42,6 +42,10 @@ struct aem_log_dest {
 	void (*log)(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg);
 };
 
+// Null destination: goes nowhere
+// TODO: Should be const
+extern struct aem_log_dest aem_log_dest_null;
+
 // Log to FILE
 void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg);
 struct aem_log_dest_fp {

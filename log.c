@@ -16,6 +16,17 @@ int aem_log_color = 0;
 
 /// Log destinations
 
+// Null destination: goes nowhere
+static void aem_log_dest_null_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg)
+{
+	(void)dst;
+	(void)mod;
+	(void)msg;
+}
+struct aem_log_dest aem_log_dest_null = {
+	.log = aem_log_dest_null_log,
+};
+
 // Log to FILE
 void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg)
 {

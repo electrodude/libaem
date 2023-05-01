@@ -96,3 +96,29 @@ int aem_sandbox_path(struct aem_stringbuf *out, struct aem_stringslice base, str
 	return rc;
 
 }
+
+
+struct aem_stringslice aem_dirname(struct aem_stringslice path)
+{
+	// Remove trailing slashes
+	while (aem_stringslice_ok(path) && path.end[-1] == '/')
+		path.end--;
+
+	// Remove trailing non-slashes
+	while (aem_stringslice_ok(path) && path.end[-1] != '/')
+		path.end--;
+
+	// If empty, return .
+	if (!aem_stringslice_ok(path))
+		return aem_stringslice_new_cstr(".");
+
+	// Remove trailing slashes
+	while (aem_stringslice_ok(path) && path.end[-1] == '/')
+		path.end--;
+
+	// If empty, return /
+	if (!aem_stringslice_ok(path))
+		return aem_stringslice_new_cstr("/");
+
+	return path;
+}

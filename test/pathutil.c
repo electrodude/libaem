@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 199309L
+#include <libgen.h>
 
 #include "test_common.h"
 
@@ -16,6 +17,39 @@ static void test_sandbox_path(const char *base, const char *path, const char *ex
 	if (rc != rc_expect || !match) {
 		test_errors++;
 		aem_logf_ctx(AEM_LOG_BUG, "sandbox_path(\"%s\", \"%s\", \"%s\") returned (%d, \"%s\"), expected (%d, \"%s\")!", base, path, ext, rc, aem_stringbuf_get(&buf), rc_expect, result);
+	}
+}
+
+static void test_dirname(const char *path, const char *result)
+{
+	aem_logf_ctx(AEM_LOG_INFO, "dirname(\"%s\") expect (\"%s\")", path, result);
+
+	aem_stringbuf_reset(&buf);
+	aem_stringbuf_puts(&buf, path);
+	aem_stringbuf_get(&buf);
+	const char *result_sys = dirname(buf.s);
+
+	// Make sure testcase is sane
+	{
+		if (strcmp(result_sys, result))
+			aem_logf_ctx(AEM_LOG_BUG, "Testcase fails invariant: given result \"%s\" doesn't match system dirname result: \"%s\"", result, result_sys);
+	}
+	{
+		struct aem_stringslice path_ss = aem_stringslice_new_cstr(path);
+		if (strcmp(result, ".") && !aem_stringslice_match_prefix(&path_ss, aem_stringslice_new_cstr(result)))
+			aem_logf_ctx(AEM_LOG_BUG, "Testcase fails invariant: given result \"%s\" is not '.' or a prefix of path \"%s\"", result, path);
+	}
+
+	struct aem_stringslice dir = aem_dirname(aem_stringslice_new_cstr(path));
+	int match = aem_stringslice_eq(dir, result);
+
+	if (!match) {
+		test_errors++;
+		AEM_LOG_MULTI(out, AEM_LOG_BUG) {
+			aem_stringbuf_printf(out, "dirname(\"%s\") returned (\"", path);
+			aem_stringbuf_putss(out, dir);
+			aem_stringbuf_printf(out, "\"), expected (\"%s\")!", result);
+		}
 	}
 }
 
@@ -96,6 +130,25 @@ int main(int argc, char **argv)
 	test_sandbox_path("/base/../dir" , "/a/..///b/filename", NULL  , 0, "/base/../dir/b/filename");
 	test_sandbox_path("/base/../dir" , "a/.././b/filename" , NULL  , 0, "/base/../dir/b/filename");
 	test_sandbox_path("/base/../dir" , "a/../../b/filename", NULL  , 1, "/base/../dir/b/filename");
+
+
+	// aem_dirname
+	test_dirname(NULL, ".");
+	test_dirname("", ".");
+	test_dirname(".", ".");
+	test_dirname("..", ".");
+	test_dirname("...", ".");
+	test_dirname("f", ".");
+	test_dirname("file", ".");
+	test_dirname("/file", "/");
+	test_dirname("/d/", "/");
+	test_dirname("dir/f", "dir");
+	test_dirname("d/f", "d");
+	test_dirname("d/D/", "d");
+	test_dirname("/base/dir/path", "/base/dir");
+	test_dirname("/base/dir/path/", "/base/dir");
+	test_dirname("/base/dir/path///", "/base/dir");
+	test_dirname("/base/dir///path", "/base/dir");
 
 
 	aem_stringbuf_dtor(&buf);

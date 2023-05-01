@@ -7,6 +7,7 @@
 
 #define AEM_INTERNAL
 #include <aem/log.h>
+#include <aem/pathutil.h>
 
 #include "unix.h"
 
@@ -21,7 +22,7 @@ again:
 		goto again;
 	}
 
-	aem_stringbuf_puts(out, dirname(aem_stringbuf_get(&exe)));
+	aem_stringbuf_putss(out, aem_dirname(aem_stringslice_new_str(&exe)));
 	aem_stringbuf_dtor(&exe);
 }
 

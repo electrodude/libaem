@@ -39,18 +39,18 @@ void test_init(int argc, char **argv)
 
 int show_test_results_impl(const char *file, int line, const char *func)
 {
-	int loglevel = !tests_count  ? AEM_LOG_BUG
-	             : !tests_failed ? AEM_LOG_GOOD
-	             :                 AEM_LOG_ERROR;
-
-	AEM_LOG_MULTI_BUF_MOD_IMPL(str, &aem_log_buf, aem_log_module_current, loglevel, file, line, func) {
-		if (!tests_count)
+	#define test_log(str, level) \
+		AEM_LOG_MULTI_BUF_MOD_IMPL(str, &aem_log_buf, aem_log_module_current, level, file, line, func)
+	if (!tests_count)
+		test_log(str, AEM_LOG_BUG)
 			aem_stringbuf_printf(str, "No tests!");
-		else if (!tests_failed)
+	else if (!tests_failed)
+		test_log(str, AEM_LOG_GOOD)
 			aem_stringbuf_printf(str, "All %zd test%s passed", tests_count, tests_count != 1 ? "s" : "");
-		else
+	else
+		test_log(str, AEM_LOG_ERROR)
 			aem_stringbuf_printf(str, "%zd/%zd test%s failed!", tests_failed, tests_count, tests_count != 1 ? "s" : "");
-	}
+	#undef test_log
 
 	// Make valgrind happy
 	aem_stringbuf_dtor(&aem_log_buf);

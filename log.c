@@ -280,7 +280,7 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 	return str;
 }
 
-static void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str)
+void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str)
 {
 	if (!str)
 		return;
@@ -334,10 +334,4 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 #endif
 
 	return 0;
-}
-
-void aem_log_multi_impl(struct aem_log_module *mod, struct aem_stringbuf *str)
-{
-	aem_assert(str);
-	aem_log_submit(mod, str);
 }

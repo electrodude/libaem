@@ -107,10 +107,10 @@ int aem_logmf_ctx_impl(struct aem_log_module *module, enum aem_log_level logleve
 
 #define aem_logf_ctx_once(loglevel, ...) do { static int _hits = 0; if (!_hits) aem_logf_ctx((loglevel), ##__VA_ARGS__); _hits = 1; } while (0)
 
-void aem_log_multi_impl(struct aem_log_module *mod, struct aem_stringbuf *str);
+void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str);
 #define AEM_LOG_MULTI_BUF_MOD_IMPL(str, buf, module, loglevel, file, line, func) \
 	for (struct aem_stringbuf *str = aem_log_header_mod_impl((buf), (module), (loglevel), (file), (line), (func)); \
-	     str; aem_log_multi_impl((aem_log_module_current), str), str = NULL)
+	     str; aem_log_submit((aem_log_module_current), str), str = NULL)
 #define AEM_LOG_MULTI_BUF(str, buf, loglevel) AEM_LOG_MULTI_BUF_MOD_IMPL(str, buf, (aem_log_module_current), loglevel, __FILE__, __LINE__, __func__)
 #define AEM_LOG_MULTI(str, loglevel) AEM_LOG_MULTI_BUF(str, &aem_log_buf, loglevel)
 

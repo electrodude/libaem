@@ -25,18 +25,18 @@
 	__typeof__(chain) _chain = (chain); \
 	__typeof__(node ) _node  = (node ); \
 	\
-	(_node)->next = (_chain)->next; \
-	(_chain)->next = (_node); \
+	_node->next = _chain->next; \
+	_chain->next = _node; \
 } while (0)
 
 #define AEM_LL2_INSERT_BEFORE_4(chain, node, prev, next) do { \
 	__typeof__(chain) _chain = (chain); \
 	__typeof__(node ) _node  = (node ); \
 	\
-	(_node )->next       = (_chain); \
-	(_node )->prev       = (_chain)->prev; \
-	(_chain)->prev->next = (_node ); \
-	(_chain)->prev       = (_node ); \
+	_node ->next       = _chain; \
+	_node ->prev       = _chain->prev; \
+	_chain->prev->next = _node ; \
+	_chain->prev       = _node ; \
 } while (0)
 
 #define AEM_LL2_INSERT_AFTER_4(chain, node, prev, next) \
@@ -53,10 +53,10 @@
 #define AEM_LL2_REMOVE_EXPLICIT(node, prev, next) do { \
 	__typeof__(node) _node = (node); \
 	\
-	(_node)->next->prev = (_node)->prev; \
-	(_node)->prev->next = (_node)->next; \
-	(_node)->next = (_node); \
-	(_node)->prev = (_node); \
+	_node->next->prev = _node->prev; \
+	_node->prev->next = _node->next; \
+	_node->next = _node; \
+	_node->prev = _node; \
 } while (0)
 
 #define AEM_LL2_REMOVE(node, name) \

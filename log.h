@@ -76,11 +76,11 @@ static inline FILE *aem_log_stderr(void)
 extern struct aem_log_module aem_log_module_default;
 extern struct aem_log_module aem_log_module_default_internal;
 #ifndef aem_log_module_current
-#ifdef AEM_INTERNAL
-#define aem_log_module_current (&aem_log_module_default_internal)
-#else
-#define aem_log_module_current (&aem_log_module_default)
-#endif
+# ifdef AEM_INTERNAL
+#  define aem_log_module_current (&aem_log_module_default_internal)
+# else
+#  define aem_log_module_current (&aem_log_module_default)
+# endif
 #endif
 
 const char *aem_log_level_color(enum aem_log_level loglevel);
@@ -116,34 +116,34 @@ void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str);
 
 /// Assertions
 #ifndef aem_assert
-#ifndef AEM_SKIP_ASSERTS
-#define aem_assert(condition) do { \
+# ifndef AEM_SKIP_ASSERTS
+#  define aem_assert(condition) do { \
 	if (!(condition)) { \
 		aem_logf_ctx(AEM_LOG_BUG, "Assertion failed: %s", #condition); \
 		aem_abort(); \
 	} \
 } while (0)
-#else
-#define aem_assert(condition) do { (void)(condition); } while (0)
-#endif
+# else
+#  define aem_assert(condition) do { (void)(condition); } while (0)
+# endif
 #endif /* aem_assert */
 
 #ifndef aem_assert_msg
-#ifndef AEM_SKIP_ASSERTS
-#define aem_assert_msg(condition, msg) do { \
+# ifndef AEM_SKIP_ASSERTS
+#  define aem_assert_msg(condition, msg) do { \
 	if (!(condition)) { \
 		aem_logf_ctx(AEM_LOG_BUG, "Assertion failed: %s: %s", #condition, msg); \
 		aem_abort(); \
 	} \
 } while (0)
-#else
-#define aem_assert_msg(condition, msg) do { (void)(condition); (void)(msg); } while (0)
-#endif
+# else
+#  define aem_assert_msg(condition, msg) do { (void)(condition); (void)(msg); } while (0)
+# endif
 #endif /* aem_assert_msg */
 
 #ifndef aem_assert_eq
-#ifndef AEM_SKIP_ASSERTS
-#define aem_assert_eq(a, b) ({ \
+# ifndef AEM_SKIP_ASSERTS
+#  define aem_assert_eq(a, b) ({ \
 	__typeof__(a) _a = (a); \
 	__typeof__(b) _b = (b); \
 	if (_a != _b) { \
@@ -152,15 +152,15 @@ void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str);
 	} \
 	_a; \
 })
-#else
-#define aem_assert_eq(a, b) ({ (void)(b); (a); })
-#endif
+# else
+#  define aem_assert_eq(a, b) ({ (void)(b); (a); })
+# endif
 #endif /* aem_assert_eq */
 
 #ifdef AEM_DEBUG
-#ifndef aem_unreachable
-#define aem_unreachable() do { aem_logf_ctx(AEM_LOG_BUG, "Can't get here!"); aem_abort(); } while (0)
-#endif
+# ifndef aem_unreachable
+#  define aem_unreachable() do { aem_logf_ctx(AEM_LOG_BUG, "Can't get here!"); aem_abort(); } while (0)
+# endif
 #endif
 
 #endif /* AEM_LOG_H */

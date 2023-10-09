@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #ifdef __unix__
-#include <errno.h>
+# include <errno.h>
 #endif
 
 #define AEM_INTERNAL

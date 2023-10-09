@@ -7,15 +7,15 @@
 #include <aem/log.h>
 
 #ifdef AEM_CONFIG_UNIX
-#ifdef POLLRDHUP
-#define AEM_POLL_EVENT_EOF POLLRDHUP
-#else
-#define AEM_POLL_NO_POLLRDHUP
-//#define AEM_POLL_EVENT_EOF ???
-#endif
+# ifdef POLLRDHUP
+#  define AEM_POLL_EVENT_EOF POLLRDHUP
+# else
+#  define AEM_POLL_NO_POLLRDHUP
+//# define AEM_POLL_EVENT_EOF ???
+# endif
 
-#define AEM_POLL_EVENT_RD POLLIN
-#define AEM_POLL_EVENT_WR POLLOUT
+# define AEM_POLL_EVENT_RD POLLIN
+# define AEM_POLL_EVENT_WR POLLOUT
 #endif
 
 struct aem_poll;

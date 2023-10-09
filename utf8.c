@@ -5,7 +5,7 @@
 #include <aem/stringbuf.h>
 
 #if AEM_DEBUG_UTF8
-#include <aem/log.h>
+# include <aem/log.h>
 #endif
 
 #include "utf8.h"

@@ -1,8 +1,8 @@
 //#define AEM_PMCRCU_DLFCN
 
 #ifdef AEM_PMCRCU_DLFCN
-#define _GNU_SOURCE
-#include <dlfcn.h>
+# define _GNU_SOURCE
+# include <dlfcn.h>
 #endif
 
 #define AEM_INTERNAL

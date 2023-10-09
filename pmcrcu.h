@@ -2,7 +2,7 @@
 #define AEM_PMCRCU_H
 
 #if !defined(AEM_FOUND_RCU_IMPL) && !defined(AEM_INTERNAL)
-#warning Do not include this header directly; include <aem/rcu.h> instead.
+# warning Do not include this header directly; include <aem/rcu.h> instead.
 #endif
 
 /// Poor man's call_rcu

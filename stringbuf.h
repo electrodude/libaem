@@ -5,7 +5,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #ifdef __unix__
-#include <unistd.h>
+# include <unistd.h>
 #endif
 
 #define AEM_STRINGBUF_DEBUG 0

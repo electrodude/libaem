@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #ifdef __unix__
-#include <unistd.h>
+# include <unistd.h>
 #endif
 
 #include <aem/aem.h>

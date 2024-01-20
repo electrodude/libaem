@@ -106,6 +106,9 @@ TEST_MAIN(test_nfa)(struct test *test)
 	test_regex_compile(&nfa, ".+efg", 4, 0);
 	test_regex_compile(&nfa, "a+a+b", 5, 0);
 
+	// Invalid regexes
+	test_regex_compile(&nfa, "[z-a]", 1, -1);
+
 	struct aem_nfa nfa2 = {0};
 	nfa2 = nfa;
 	aem_nfa_dup(&nfa, &nfa2);

@@ -84,6 +84,11 @@ static struct aem_nfa_node *re_parse_range(struct aem_nfa_compile_ctx *ctx)
 			goto fail;
 	}
 
+	if (hi < lo) {
+		aem_logf_ctx(AEM_LOG_ERROR, "Invalid range: hi %#02x < lo %#02x ", hi, lo);
+		goto fail;
+	}
+
 	node->args.range.min = lo;
 	node->args.range.max = hi;
 

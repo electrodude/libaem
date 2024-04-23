@@ -1030,7 +1030,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 		int rc2 = aem_nfa_step(&run, &thr_matched, c);
 		if (rc2 <= -2) {
 			rc = rc2;
-			goto out;
+			break;
 		} else if (rc2 >= 0) {
 			aem_assert(thr_matched);
 			rc = rc2;
@@ -1044,7 +1044,6 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 		run.c_prev = c;
 	}
 
-out:
 	aem_logf_ctx(AEM_LOG_DEBUG3, "done");
 	if (match_p) {
 		*match_p = (struct aem_nfa_match){ .match = rc };

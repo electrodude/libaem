@@ -115,10 +115,10 @@ TEST_MAIN(test_nfa_lexer)(struct test *test)
 
 	test_add_regex(&nfa, "\\n\\r?|\\r");
 	test_add_regex(&nfa, "(\\s|\\\\$)+");
-	test_add_regex(&nfa, "//.*$");
+	test_add_regex(&nfa, "//([^\\n\\r]|\\\\[\\n\\r])*$");
 	test_add_regex(&nfa, "/\\*([^*]|\\*[^/]|\\n|\\r)*\\*/");
 	test_add_regex(&nfa, "^\\s*#\\s*\\w+([^\\n\\r]|\\\\(\\n\\r?|\\r))*$");
-	test_add_regex(&nfa, "(\\a|_)(\\w|_)*");
+	test_add_regex(&nfa, "([[:alpha:]]|_)(\\w|_)*");
 	test_add_regex(&nfa, "-?(\\d|_)*\\d(\\d|_)*");
 	test_add_string(&nfa, "(");
 	test_add_string(&nfa, ")");

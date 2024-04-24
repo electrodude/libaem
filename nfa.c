@@ -664,6 +664,9 @@ static void aem_nfa_thread_add(struct aem_nfa_run *run, int next, struct aem_nfa
 	aem_stack_push(stk, thr);
 }
 
+#define THREAD_PASS -1
+#define THREAD_DEAD -2
+#define THREAD_ERROR -3
 static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_thread *thr, int c)
 {
 	aem_assert(run);
@@ -676,12 +679,12 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 	for (;;) {
 		if (thr->pc >= run->n_insns) {
 			aem_logf_ctx(AEM_LOG_BUG, "Invalid pc: %zx/%zx", thr->pc, run->n_insns);
-			return -2;
+			return THREAD_ERROR;
 		}
 		// Ignore new threads on instructions that were already active this character.
 		if (bitfield_test(run->map_curr, thr->pc)) {
 			// Thread is a duplicate; remove
-			goto dead;
+			return THREAD_DEAD;
 		}
 		bitfield_set(run->map_curr, thr->pc);
 
@@ -701,15 +704,15 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 
 			// No more input => dead
 			if (c < 0)
-				goto dead;
+				return THREAD_DEAD;
 
 			if (!(lo <= c && c <= hi))
-				goto dead;
+				return THREAD_DEAD;
 
 			if (thr->match.visited)
 				bitfield_set(thr->match.visited, pc_curr);
 
-			goto pass;
+			return THREAD_PASS;
 		}
 		case AEM_NFA_CLASS: {
 			int neg = insn & 0x1;
@@ -723,7 +726,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 				match = !aem_nfa_cclass_match(neg, cclass, run->c_prev);
 
 			if (!match)
-				goto dead;
+				return THREAD_DEAD;
 
 
 			if (thr->match.visited)
@@ -733,7 +736,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 			if (frontier)
 				break;
 
-			goto pass;
+			return THREAD_PASS;
 		}
 
 		case AEM_NFA_CAPTURE: {
@@ -742,7 +745,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 				insn >>= 1;
 				if (insn >= run->n_captures) {
 					aem_logf_ctx(AEM_LOG_BUG, "Invalid capture: %zx/%zx", insn, run->n_captures);
-					return -2;
+					return THREAD_ERROR;
 				}
 				aem_logf_ctx(AEM_LOG_DEBUG3, "capture %s %zx", end ? "end" : "start", insn);
 				struct aem_stringslice *capture = &thr->match.captures[insn];
@@ -770,7 +773,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 			aem_logf_ctx(AEM_LOG_DEBUG3, "jmp %x", pc_next);
 			if (pc_next >= run->n_insns) {
 				aem_logf_ctx(AEM_LOG_BUG, "Invalid pc: %zx/%zx", pc_next, run->n_insns);
-				return -2;
+				return THREAD_ERROR;
 			}
 			thr->pc = pc_next;
 			break;
@@ -781,7 +784,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 			aem_logf_ctx(AEM_LOG_DEBUG3, "fork %x", pc_next);
 			if (pc_next >= run->n_insns) {
 				aem_logf_ctx(AEM_LOG_BUG, "Invalid pc: %zx/%zx", pc_next, run->n_insns);
-				return -2;
+				return THREAD_ERROR;
 			}
 			struct aem_nfa_thread *child = aem_nfa_thread_new(run, pc_next);
 			aem_assert(child);
@@ -802,7 +805,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 
 		default:
 			aem_logf_ctx(AEM_LOG_BUG, "Invalid op: %x", op);
-			return -2;
+			return THREAD_ERROR;
 		}
 
 		if (thr->match.visited)
@@ -810,16 +813,6 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 	}
 
 	aem_unreachable();
-
-
-pass:
-	aem_nfa_thread_add(run, 1, thr);
-	return -1;
-
-
-dead:
-	aem_nfa_thread_free(thr);
-	return -1;
 }
 static int aem_nfa_step(struct aem_nfa_run *run, struct aem_nfa_thread **thr_matched_p, int c)
 {
@@ -843,11 +836,11 @@ static int aem_nfa_step(struct aem_nfa_run *run, struct aem_nfa_thread **thr_mat
 
 		int rc2 = aem_nfa_thread_step(run, thr, c);
 
-		// Fatal error
-		if (rc2 <= -2)
-			return rc2;
-
-		if (rc2 >= 0) {
+		if (rc2 == THREAD_PASS) {
+			aem_nfa_thread_add(run, 1, thr);
+		} else if (rc2 == THREAD_DEAD) {
+			aem_nfa_thread_free(thr);
+		} else if (rc2 >= 0) {
 			if (*thr_matched_p)
 				aem_nfa_thread_free(*thr_matched_p);
 
@@ -855,6 +848,9 @@ static int aem_nfa_step(struct aem_nfa_run *run, struct aem_nfa_thread **thr_mat
 			rc = rc2;
 			*thr_matched_p = thr;
 			aem_assert(rc == (*thr_matched_p)->match.match);
+		} else {
+			// Fatal error
+			return rc2;
 		}
 	}
 
@@ -1028,7 +1024,7 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 			aem_nfa_desc_char(out, c);
 		}
 		int rc2 = aem_nfa_step(&run, &thr_matched, c);
-		if (rc2 <= -2) {
+		if (rc2 <= THREAD_ERROR) {
 			rc = rc2;
 			break;
 		} else if (rc2 >= 0) {

@@ -144,7 +144,7 @@ TEST_MAIN(test_nfa)(struct test *test)
 	test_nfa_run(&nfa, "asdf", 3, "");
 	test_nfa_run(&nfa, "abcdefg", 4, "");
 	test_nfa_run(&nfa, "aaaaaaaaaabZ", 5, "Z");
-	test_nfa_run(&nfa, "abZ", 11, "");
+	test_nfa_run(&nfa, "abZ", -1, "abZ");
 	test_nfa_run(&nfa, "asaaaabbab.bb", 8, "b");
 	test_nfa_run(&nfa, "asaaaaabab.bb", 8, "b");
 

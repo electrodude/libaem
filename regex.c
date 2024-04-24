@@ -336,7 +336,7 @@ static struct aem_nfa_node *re_parse_atom(struct aem_nfa_compile_ctx *ctx)
 			case 'w':
 			case 'W':
 				type = AEM_NFA_NODE_CLASS;
-				args.cclass = (struct aem_nfa_node_class){.neg = 0, .frontier = 0, .cclass = AEM_NFA_CCLASS_ALNUM};
+				args.cclass = (struct aem_nfa_node_class){.neg = neg, .frontier = 0, .cclass = AEM_NFA_CCLASS_ALNUM};
 				break;
 			case 'd':
 			case 'D':

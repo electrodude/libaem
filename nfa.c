@@ -558,7 +558,6 @@ struct aem_nfa_run {
 	struct aem_stack next;
 	struct aem_stringslice in_curr;
 	struct aem_stringslice longest_match;
-	const char *p_curr;
 	const struct aem_nfa *nfa;
 	aem_nfa_bitfield *map_curr; // Needs to be run on this character, or already was
 	aem_nfa_bitfield *map_next; // Needs to be run on next character
@@ -762,7 +761,7 @@ static inline int aem_nfa_thread_step(struct aem_nfa_run *run, struct aem_nfa_th
 			aem_logf_ctx(AEM_LOG_DEBUG3, "match %x", insn);
 			// Do NOT mark this instruction as visited.
 
-			run->longest_match.end = run->p_curr;
+			run->longest_match.end = run->in_curr.start;
 
 			// Return argument of latest match
 			return thr->match.match = insn;
@@ -1016,14 +1015,18 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 
 		aem_assert(run.curr.n);
 
-		run.p_curr = run.in_curr.start;
-		int c = aem_stringslice_getc(&run.in_curr);
+		// Peek current character
+		int c = aem_stringslice_ok(run.in_curr) ? *run.in_curr.start : -1;
 
 		AEM_LOG_MULTI(out, AEM_LOG_DEBUG3) {
 			aem_stringbuf_puts(out, "char ");
 			aem_nfa_desc_char(out, c);
 		}
 		int rc2 = aem_nfa_step(&run, &thr_matched, c);
+
+		// Consume processed character
+		aem_assert(aem_stringslice_getc(&run.in_curr) == c);
+
 		if (rc2 <= THREAD_ERROR) {
 			rc = rc2;
 			break;
@@ -1072,10 +1075,16 @@ int aem_nfa_run(const struct aem_nfa *nfa, struct aem_stringslice *in, struct ae
 	// dying, clean them up here.  This should never happen.
 	while (run.curr.n) {
 		struct aem_nfa_thread *thr = aem_stack_pop(&run.curr);
+		if (!thr)
+			continue;
+		aem_logf_ctx(AEM_LOG_BUG, "Leftover curr @ %zx: %p", thr ? thr->pc : 0, thr);
 		aem_nfa_thread_free(thr);
 	}
 	while (run.next.n) {
 		struct aem_nfa_thread *thr = aem_stack_pop(&run.next);
+		if (!thr)
+			continue;
+		aem_logf_ctx(AEM_LOG_BUG, "Leftover next @ %zx: %p", thr ? thr->pc : 0, thr);
 		aem_nfa_thread_free(thr);
 	}
 	aem_stack_dtor(&run.curr);

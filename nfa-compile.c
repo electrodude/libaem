@@ -10,7 +10,54 @@
 
 #include "nfa-compile.h"
 
-/// Regex parser AST structore
+
+/// Flags
+enum aem_regex_flags aem_regex_flags_parse(struct aem_stringslice *in, int sandbox)
+{
+	aem_assert(in);
+	enum aem_regex_flags flags = 0;
+	for (;;) {
+#define X(name, flag, safe, value) \
+		if (aem_stringslice_match(in, flag) && (safe || !sandbox)) { \
+			flags |= name; \
+			continue; \
+		}
+		AEM_REGEX_FLAGS_DEFINE(X)
+#undef X
+		break;
+	}
+	return flags;
+}
+enum aem_regex_flags aem_regex_flags_adj(struct aem_stringslice *in, enum aem_regex_flags flags, int sandbox)
+{
+	aem_assert(in);
+	flags |= aem_regex_flags_parse(in, sandbox);
+	if (aem_stringslice_match(in, "-"))
+		flags &= ~aem_regex_flags_parse(in, sandbox);
+	return flags;
+}
+void aem_regex_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, int sandbox)
+{
+	aem_assert(out);
+#define X(name, flag, safe, value) \
+	if ((flags & name) && (safe || !sandbox)) \
+		aem_stringbuf_puts(out, flag);
+	AEM_REGEX_FLAGS_DEFINE(X)
+#undef X
+	size_t checkpoint = out->n;
+	aem_stringbuf_puts(out, "-");
+#define X(name, flag, safe, value) \
+	if (!(flags & name) && (safe || !sandbox)) \
+		aem_stringbuf_puts(out, flag);
+	AEM_REGEX_FLAGS_DEFINE(X)
+#undef X
+	// Remove "-" if no negative flags were appended.
+	if (out->n == checkpoint+1)
+		out->n = checkpoint;
+}
+
+
+/// Regex parser AST structure
 struct aem_nfa_node *aem_nfa_node_new(enum aem_nfa_node_type type)
 {
 	struct aem_nfa_node *node = malloc(sizeof(*node));
@@ -38,6 +85,8 @@ void aem_nfa_node_free(struct aem_nfa_node *node)
 
 	free(node);
 }
+
+/// AST construction
 void aem_nfa_node_push(struct aem_nfa_node *node, struct aem_nfa_node *child)
 {
 	aem_assert(node);
@@ -126,53 +175,6 @@ void aem_nfa_node_sexpr(struct aem_stringbuf *out, const struct aem_nfa_node *no
 
 	if (do_parens)
 		aem_stringbuf_printf(out, AEM_SGR("1;96") ")" AEM_SGR("0"));
-}
-
-
-/// AST construction
-// Flags
-enum aem_regex_flags aem_regex_flags_parse(struct aem_stringslice *in, int sandbox)
-{
-	aem_assert(in);
-	enum aem_regex_flags flags = 0;
-	for (;;) {
-#define X(name, flag, safe, value) \
-		if (aem_stringslice_match(in, flag) && (safe || !sandbox)) { \
-			flags |= name; \
-			continue; \
-		}
-		AEM_REGEX_FLAGS_DEFINE(X)
-#undef X
-		break;
-	}
-	return flags;
-}
-enum aem_regex_flags aem_regex_flags_adj(struct aem_stringslice *in, enum aem_regex_flags flags, int sandbox)
-{
-	aem_assert(in);
-	flags |= aem_regex_flags_parse(in, sandbox);
-	if (aem_stringslice_match(in, "-"))
-		flags &= ~aem_regex_flags_parse(in, sandbox);
-	return flags;
-}
-void aem_regex_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, int sandbox)
-{
-	aem_assert(out);
-#define X(name, flag, safe, value) \
-	if ((flags & name) && (safe || !sandbox)) \
-		aem_stringbuf_puts(out, flag);
-	AEM_REGEX_FLAGS_DEFINE(X)
-#undef X
-	size_t checkpoint = out->n;
-	aem_stringbuf_puts(out, "-");
-#define X(name, flag, safe, value) \
-	if (!(flags & name) && (safe || !sandbox)) \
-		aem_stringbuf_puts(out, flag);
-	AEM_REGEX_FLAGS_DEFINE(X)
-#undef X
-	// Remove "-" if no negative flags were appended.
-	if (out->n == checkpoint+1)
-		out->n = checkpoint;
 }
 
 

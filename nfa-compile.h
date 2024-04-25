@@ -1,16 +1,37 @@
 #ifndef AEM_NFA_COMPILE_H
 #define AEM_NFA_COMPILE_H
 
-// Don't include this yourself unless you're defining your own pattern compiler.
+// Declarations required for defining pattern compilers
 
 #include <aem/nfa.h>
 #include <aem/stack.h>
 #include <aem/stringbuf.h>
 
+
 // Failure, invalid address, no address assigned yet, etc.
 #define AEM_NFA_PARSE_ERROR ((size_t)-1)
 
-/// Regex parser AST structore
+
+/// Flags
+#define AEM_REGEX_FLAGS_DEFINE(FLAG) \
+	/*                  name            ,flag,safe,value*/ \
+	FLAG(AEM_REGEX_FLAG_DEBUG            , "d", 0, 0x01) \
+	FLAG(AEM_REGEX_FLAG_EXPLICIT_CAPTURES, "c", 1, 0x02) \
+	FLAG(AEM_REGEX_FLAG_BINARY           , "b", 1, 0x20)
+
+enum aem_regex_flags {
+#define X(name, flag, safe, value) \
+	name = value,
+	AEM_REGEX_FLAGS_DEFINE(X)
+#undef X
+};
+
+enum aem_regex_flags aem_regex_flags_parse(struct aem_stringslice *in, int sandbox);
+enum aem_regex_flags aem_regex_flags_adj(struct aem_stringslice *in, enum aem_regex_flags flags, int sandbox);
+void aem_regex_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, int sandbox);
+
+
+/// Regex parser AST structure
 struct aem_nfa_node {
 	enum aem_nfa_node_type {
 		AEM_NFA_NODE_RANGE,
@@ -50,27 +71,10 @@ struct aem_nfa_node {
 struct aem_nfa_node *aem_nfa_node_new(enum aem_nfa_node_type type);
 void aem_nfa_node_free(struct aem_nfa_node *node);
 
+
 /// AST construction
 void aem_nfa_node_push(struct aem_nfa_node *node, struct aem_nfa_node *child);
 void aem_nfa_node_sexpr(struct aem_stringbuf *out, const struct aem_nfa_node *node);
-
-// Flags
-#define AEM_REGEX_FLAGS_DEFINE(FLAG) \
-	/*                  name            ,flag,safe,value*/ \
-	FLAG(AEM_REGEX_FLAG_DEBUG            , "d", 0, 0x01) \
-	FLAG(AEM_REGEX_FLAG_EXPLICIT_CAPTURES, "c", 1, 0x02) \
-	FLAG(AEM_REGEX_FLAG_BINARY           , "b", 1, 0x20)
-
-enum aem_regex_flags {
-#define X(name, flag, safe, value) \
-	name = value,
-	AEM_REGEX_FLAGS_DEFINE(X)
-#undef X
-};
-
-enum aem_regex_flags aem_regex_flags_parse(struct aem_stringslice *in, int sandbox);
-enum aem_regex_flags aem_regex_flags_adj(struct aem_stringslice *in, enum aem_regex_flags flags, int sandbox);
-void aem_regex_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags flags, int sandbox);
 
 
 /// AST compilation

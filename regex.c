@@ -442,15 +442,15 @@ static struct aem_nfa_node *re_parse_postfix(struct aem_nfa_compile_ctx *ctx, st
 	if (!aem_stringslice_ok(out))
 		return atom;
 
-	if ((ctx->flags & AEM_REGEX_FLAG_EXPLICIT_CAPTURES) && atom->type == AEM_NFA_NODE_CAPTURE) {
+	if (atom->type == AEM_NFA_NODE_CAPTURE && (ctx->flags & AEM_REGEX_FLAG_EXPLICIT_CAPTURES)) {
 		const struct aem_nfa_node_capture capture = atom->args.capture;
 		aem_logf_ctx(AEM_LOG_NOTICE, "Deleting capture %zd/%zd", capture.capture, ctx->n_captures);
 		if (capture.capture == ctx->n_captures-1) {
 			ctx->n_captures--;
 		}
-		struct aem_nfa_node *child = aem_stack_pop(&atom->children);
-		aem_assert(!atom->children.n);
-		atom = child;
+		// Elide capture
+		aem_assert(atom->children.n == 1);
+		atom = aem_stack_pop(&atom->children);
 	}
 
 	struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_REPEAT);
@@ -486,9 +486,6 @@ static struct aem_nfa_node *re_parse_branch(struct aem_nfa_compile_ctx *ctx)
 			return NULL;
 		aem_nfa_node_push(node, atom);
 	}
-
-	if (node->children.n == 1)
-		return aem_stack_pop(&node->children);
 
 	return node;
 }

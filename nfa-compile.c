@@ -169,6 +169,33 @@ void aem_nfa_node_sexpr(struct aem_stringbuf *out, const struct aem_nfa_node *no
 
 
 /// AST compilation
+// TODO: Does this result in any better VM code, or does it just add more complexity?
+static struct aem_nfa_node *aem_nfa_node_optimize(struct aem_nfa_node *node)
+{
+	if (!node)
+		return node;
+
+	switch (node->type) {
+	case AEM_NFA_NODE_BRANCH:
+	case AEM_NFA_NODE_ALTERNATION:
+		// Inline single-child branches or alternations
+		if (node->children.n == 1)
+			return aem_stack_pop(&node->children);
+
+		break;
+
+	default:
+		break;
+	}
+
+	AEM_STACK_FOREACH(i, &node->children) {
+		struct aem_nfa_node *child = node->children.s[i];
+		node->children.s[i] = aem_nfa_node_optimize(child);
+	}
+
+	return node;
+}
+
 static void re_set_debug(struct aem_nfa_compile_ctx *ctx, size_t i, struct aem_stringslice dbg)
 {
 	aem_assert(ctx);
@@ -451,6 +478,9 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 
 	// TODO: Automatically process AEM_REGEX_FLAG_IGNCASE
 	// TODO: Automatically process !AEM_REGEX_FLAG_BINARY
+
+	// Optimize
+	root = aem_nfa_node_optimize(root);
 
 	// Compile AST
 	size_t entry = aem_nfa_node_compile(&ctx, root);

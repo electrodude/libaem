@@ -26,19 +26,19 @@ static struct aem_nfa_node *re_parse_named_class(struct aem_nfa_compile_ctx *ctx
 {
 	aem_assert(ctx);
 
-	struct aem_stringslice in = ctx->in;
+	struct aem_stringslice orig = ctx->in;
 
-	if (!aem_stringslice_match(&in, "[:"))
-		return NULL;
+	if (!aem_stringslice_match(&ctx->in, "[:"))
+		goto nomatch;
 
-	int neg = aem_stringslice_match(&in, "^");
+	int neg = aem_stringslice_match(&ctx->in, "^");
 
-	struct aem_stringslice classname = aem_stringslice_match_alnum(&in);
+	struct aem_stringslice classname = aem_stringslice_match_alnum(&ctx->in);
 	if (!aem_stringslice_ok(classname))
-		return NULL;
+		goto nomatch;
 
-	if (!aem_stringslice_match(&in, ":]"))
-		return NULL;
+	if (!aem_stringslice_match(&ctx->in, ":]"))
+		goto nomatch;
 
 	enum aem_nfa_cclass cclass;
 	for (cclass = 0; cclass < AEM_NFA_CCLASS_MAX; cclass++)
@@ -46,17 +46,20 @@ static struct aem_nfa_node *re_parse_named_class(struct aem_nfa_compile_ctx *ctx
 			break;
 
 	if (cclass >= AEM_NFA_CCLASS_MAX)
-		return NULL;
+		goto nomatch;
 
-	struct aem_nfa_node *node = aem_nfa_node_new(AEM_NFA_NODE_CLASS);
+	struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_CLASS);
 	if (!node)
 		return NULL;
 
-	node->text = aem_stringslice_new(ctx->in.start, in.start);
-	ctx->in = in;
+	node->text = aem_stringslice_new(orig.start, ctx->in.start);
 	node->args.cclass = (struct aem_nfa_node_class){.neg = neg, .cclass = cclass};
 
 	return node;
+
+nomatch:
+	ctx->in = orig;
+	return NULL;
 }
 static struct aem_nfa_node *re_parse_range(struct aem_nfa_compile_ctx *ctx)
 {
@@ -68,12 +71,10 @@ static struct aem_nfa_node *re_parse_range(struct aem_nfa_compile_ctx *ctx)
 			return node;
 	}
 
-	struct aem_nfa_node *node = aem_nfa_node_new(AEM_NFA_NODE_RANGE);
+	struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_RANGE);
 	if (!node)
 		return NULL;
 	node->text = ctx->in;
-
-	struct aem_stringslice orig = ctx->in;
 
 	uint32_t lo;
 	if (!match_escape(ctx, &lo, NULL))
@@ -97,9 +98,10 @@ static struct aem_nfa_node *re_parse_range(struct aem_nfa_compile_ctx *ctx)
 
 fail:
 	aem_nfa_node_free(node);
-	ctx->in = orig;
+	ctx->rc = -1;
 	return NULL;
 }
+
 static int aem_nfa_brackets_compar(const void *p1, const void *p2)
 {
 	aem_assert(p1);
@@ -124,25 +126,20 @@ static struct aem_nfa_node *re_parse_brackets(struct aem_nfa_compile_ctx *ctx)
 {
 	aem_assert(ctx);
 
-	struct aem_stringslice orig = ctx->in;
-
-	if (!aem_stringslice_match(&ctx->in, "["))
-		goto fail_nofree;
-
-	struct aem_nfa_node *node = aem_nfa_node_new(AEM_NFA_NODE_ALTERNATION);
+	struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_ALTERNATION);
 	if (!node)
-		goto fail_nofree;
-	node->text = orig;
+		return NULL;
+	node->text = ctx->in;
 
 	int negate = aem_stringslice_match(&ctx->in, "^");
 
-	while (aem_stringslice_ok(ctx->in)) {
+	while (!aem_stringslice_match(&ctx->in, "]")) {
 		struct aem_nfa_node *range = re_parse_range(ctx);
 		if (!range)
 			goto fail;
 		aem_nfa_node_push(node, range);
-		if (aem_stringslice_match(&ctx->in, "]"))
-			break;
+		if (!aem_stringslice_ok(ctx->in))
+			goto fail;
 	}
 	node->text.end = ctx->in.start;
 
@@ -191,7 +188,7 @@ static struct aem_nfa_node *re_parse_brackets(struct aem_nfa_compile_ctx *ctx)
 		struct aem_nfa_node_range range_last = {.min = range_prev.max+1, .max = UINT_MAX};
 		// TODO HACK: UINT_MAX + 1 == 0, so skip if final range ends at UINT_MAX
 		if (range_last.min && range_last.min <= range_last.max) {
-			struct aem_nfa_node *child = aem_nfa_node_new(AEM_NFA_NODE_RANGE);
+			struct aem_nfa_node *child = aem_nfa_node_new(ctx, AEM_NFA_NODE_RANGE);
 			if (!child) {
 				aem_stack_dtor(&stk);
 				goto fail;
@@ -214,8 +211,7 @@ static struct aem_nfa_node *re_parse_brackets(struct aem_nfa_compile_ctx *ctx)
 
 fail:
 	aem_nfa_node_free(node);
-fail_nofree:
-	ctx->in = orig;
+	ctx->rc = -1;
 	return NULL;
 }
 
@@ -228,7 +224,6 @@ static struct aem_nfa_node *re_parse_atom(struct aem_nfa_compile_ctx *ctx)
 
 	struct aem_stringslice out = ctx->in;
 	if (aem_stringslice_match(&ctx->in, "[")) {
-		ctx->in = orig;
 		struct aem_nfa_node *brackets = re_parse_brackets(ctx);
 		return brackets;
 	} else if (aem_stringslice_match(&ctx->in, "(")) {
@@ -268,11 +263,11 @@ static struct aem_nfa_node *re_parse_atom(struct aem_nfa_compile_ctx *ctx)
 		if ((ctx->flags & AEM_REGEX_FLAG_EXPLICIT_CAPTURES) && pattern->type == AEM_NFA_NODE_ALTERNATION)
 			return pattern;
 
-		struct aem_nfa_node *capture = aem_nfa_node_new(AEM_NFA_NODE_CAPTURE);
+		struct aem_nfa_node *capture = aem_nfa_node_new(ctx, AEM_NFA_NODE_CAPTURE);
 		if (!capture) {
 			aem_nfa_node_free(pattern);
 			ctx->n_captures = i;
-			goto fail;
+			return NULL;
 		}
 		capture->text = out;
 		capture->args.capture.capture = i;
@@ -309,7 +304,7 @@ static struct aem_nfa_node *re_parse_atom(struct aem_nfa_compile_ctx *ctx)
 			case '|':
 			case '\\':
 				// Not an atom
-				goto fail;
+				goto nomatch;
 			default:
 				// Plain character
 				break;
@@ -374,9 +369,9 @@ static struct aem_nfa_node *re_parse_atom(struct aem_nfa_compile_ctx *ctx)
 			break;
 		}
 
-		struct aem_nfa_node *node = aem_nfa_node_new(type);
+		struct aem_nfa_node *node = aem_nfa_node_new(ctx, type);
 		if (!node)
-			goto fail;
+			return NULL;
 
 		out.end = ctx->in.start;
 		node->text = out;
@@ -385,25 +380,26 @@ static struct aem_nfa_node *re_parse_atom(struct aem_nfa_compile_ctx *ctx)
 		return node;
 	}
 
-fail:
+	// fall through
+nomatch:
 	ctx->in = orig;
+	return NULL;
+
+fail:
+	ctx->rc = -1;
 	return NULL;
 }
 
 // Atom, possibly followed by a postfix repetition operator
-static struct aem_nfa_node *re_parse_postfix(struct aem_nfa_compile_ctx *ctx)
+static struct aem_nfa_node *re_parse_postfix(struct aem_nfa_compile_ctx *ctx, struct aem_nfa_node *atom)
 {
 	aem_assert(ctx);
-
-	struct aem_nfa_node *atom = re_parse_atom(ctx);
-	if (!atom)
-		return NULL;
+	aem_assert(atom);
 
 	struct aem_stringslice out = ctx->in;
 
 	struct aem_nfa_node_repeat repeat = {.min = 0, .max = UINT_MAX};
 
-	struct aem_stringslice orig = ctx->in;
 	if (aem_stringslice_match(&ctx->in, "?")) {
 		repeat.min = 0;
 		repeat.max = 1;
@@ -424,7 +420,7 @@ static struct aem_nfa_node *re_parse_postfix(struct aem_nfa_compile_ctx *ctx)
 		int comma = aem_stringslice_match(&ctx->in, ",");
 
 		if (!lower && !comma)
-			return atom;
+			goto fail;
 
 		// Try to get a upper bound, but only if we got a comma
 		int upper = comma && aem_stringslice_match_uint_base(&ctx->in, 10, &repeat.max);
@@ -463,11 +459,9 @@ static struct aem_nfa_node *re_parse_postfix(struct aem_nfa_compile_ctx *ctx)
 		atom = child;
 	}
 
-	struct aem_nfa_node *node = aem_nfa_node_new(AEM_NFA_NODE_REPEAT);
-	if (!node) {
-		aem_nfa_node_free(atom);
-		return NULL;
-	}
+	struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_REPEAT);
+	if (!node)
+		goto fail;
 	node->text = out;
 	node->args.repeat = repeat;
 	aem_nfa_node_push(node, atom);
@@ -476,7 +470,7 @@ static struct aem_nfa_node *re_parse_postfix(struct aem_nfa_compile_ctx *ctx)
 
 fail:
 	aem_nfa_node_free(atom);
-	ctx->in = orig;
+	ctx->rc = -1;
 	return NULL;
 }
 
@@ -485,15 +479,20 @@ static struct aem_nfa_node *re_parse_branch(struct aem_nfa_compile_ctx *ctx)
 {
 	aem_assert(ctx);
 
-	struct aem_nfa_node *node = aem_nfa_node_new(AEM_NFA_NODE_BRANCH);
+	struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_BRANCH);
 	if (!node)
 		return NULL;
 
 	while (aem_stringslice_ok(ctx->in)) {
-		struct aem_nfa_node *atom = re_parse_postfix(ctx);
-		if (!atom) {
-			// TODO: No more is indistinguishable from a real error.
+		struct aem_nfa_node *atom = re_parse_atom(ctx);
+		if (!atom)
 			break;
+
+		atom = re_parse_postfix(ctx, atom);
+		if (!atom) {
+			aem_nfa_node_free(node);
+			ctx->rc = -1;
+			return NULL;
 		}
 		aem_nfa_node_push(node, atom);
 	}
@@ -520,10 +519,9 @@ static struct aem_nfa_node *re_parse_pattern(struct aem_nfa_compile_ctx *ctx)
 		return branch;
 	out.end = ctx->in.start;
 
-	struct aem_nfa_node *node = aem_nfa_node_new(AEM_NFA_NODE_ALTERNATION);
+	struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_ALTERNATION);
 	if (!node) {
 		aem_nfa_node_free(branch);
-		ctx->in = orig;
 		return NULL;
 	}
 	node->text = out;
@@ -531,6 +529,10 @@ static struct aem_nfa_node *re_parse_pattern(struct aem_nfa_compile_ctx *ctx)
 
 	do {
 		struct aem_nfa_node *rest = re_parse_branch(ctx);
+		if (!rest) {
+			aem_nfa_node_free(node);
+			return NULL;
+		}
 		aem_nfa_node_push(node, rest);
 	} while (aem_stringslice_match(&ctx->in, "|"));
 
@@ -553,7 +555,7 @@ static struct aem_nfa_node *aem_string_compile(struct aem_nfa_compile_ctx *ctx)
 {
 	aem_assert(ctx);
 
-	struct aem_nfa_node *root = aem_nfa_node_new(AEM_NFA_NODE_BRANCH);
+	struct aem_nfa_node *root = aem_nfa_node_new(ctx, AEM_NFA_NODE_BRANCH);
 	if (!root)
 		return NULL;
 
@@ -566,9 +568,10 @@ static struct aem_nfa_node *aem_string_compile(struct aem_nfa_compile_ctx *ctx)
 			break;
 		atom.end = ctx->in.start;
 
-		struct aem_nfa_node *node = aem_nfa_node_new(AEM_NFA_NODE_ATOM);
+		struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_ATOM);
 		if (!node) {
 			aem_nfa_node_free(root);
+			ctx->rc = -1;
 			return NULL;
 		}
 

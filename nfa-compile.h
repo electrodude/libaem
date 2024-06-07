@@ -68,7 +68,8 @@ struct aem_nfa_node {
 	} args;
 };
 
-struct aem_nfa_node *aem_nfa_node_new(enum aem_nfa_node_type type);
+struct aem_nfa_compile_ctx;
+struct aem_nfa_node *aem_nfa_node_new(struct aem_nfa_compile_ctx *ctx, enum aem_nfa_node_type type);
 void aem_nfa_node_free(struct aem_nfa_node *node);
 
 

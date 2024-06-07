@@ -58,11 +58,12 @@ void aem_regex_flags_describe(struct aem_stringbuf *out, enum aem_regex_flags fl
 
 
 /// Regex parser AST structure
-struct aem_nfa_node *aem_nfa_node_new(enum aem_nfa_node_type type)
+struct aem_nfa_node *aem_nfa_node_new(struct aem_nfa_compile_ctx *ctx, enum aem_nfa_node_type type)
 {
 	struct aem_nfa_node *node = malloc(sizeof(*node));
 	if (!node) {
 		aem_logf_ctx(AEM_LOG_ERROR, "malloc() failed: %s", strerror(errno));
+		ctx->rc = -1;
 		return NULL;
 	}
 
@@ -439,15 +440,16 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 	// Call callback to convert given pattern to RE tree
 	struct aem_nfa_node *root = compile(&ctx);
 
-	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
-		aem_stringbuf_puts(out, "Parsed RE: ");
-		aem_nfa_node_sexpr(out, root);
-	}
-
-	if (!root || ctx.rc < 0) {
+	if (ctx.rc < 0) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse pattern! rc = %d", ctx.rc);
 		aem_nfa_node_free(root);
 		goto fail;
+	}
+
+	aem_assert(root);
+	AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
+		aem_stringbuf_puts(out, "Parsed RE: ");
+		aem_nfa_node_sexpr(out, root);
 	}
 
 	if (aem_stringslice_ok(ctx.in)) {
@@ -456,6 +458,7 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 			aem_string_escape(out, ctx.in);
 		}
 		aem_nfa_node_free(root);
+		ctx.rc = -1;
 		goto fail;
 	}
 

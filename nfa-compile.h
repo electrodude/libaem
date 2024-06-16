@@ -70,7 +70,6 @@ struct aem_nfa_node {
 
 struct aem_nfa_compile_ctx;
 struct aem_nfa_node *aem_nfa_node_new(struct aem_nfa_compile_ctx *ctx, enum aem_nfa_node_type type);
-void aem_nfa_node_free(struct aem_nfa_node *node);
 
 
 /// AST construction
@@ -80,6 +79,7 @@ void aem_nfa_node_sexpr(struct aem_stringbuf *out, const struct aem_nfa_node *no
 
 /// AST compilation
 struct aem_nfa_compile_ctx {
+	struct aem_stack nodes;
 	struct aem_stringslice in;
 	struct aem_nfa *nfa;
 	unsigned int n_captures;

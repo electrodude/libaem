@@ -67,24 +67,13 @@ struct aem_nfa_node *aem_nfa_node_new(struct aem_nfa_compile_ctx *ctx, enum aem_
 		return NULL;
 	}
 
+	aem_stack_push(&ctx->nodes, node);
+
 	node->type = type;
 	node->text = AEM_STRINGSLICE_EMPTY;
 	aem_stack_init(&node->children);
 
 	return node;
-}
-void aem_nfa_node_free(struct aem_nfa_node *node)
-{
-	if (!node)
-		return;
-
-	while (node->children.n) {
-		struct aem_nfa_node *child = aem_stack_pop(&node->children);
-		aem_nfa_node_free(child);
-	}
-	aem_stack_dtor(&node->children);
-
-	free(node);
 }
 
 /// AST construction
@@ -442,7 +431,6 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 
 	if (ctx.rc < 0) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to parse pattern! rc = %d", ctx.rc);
-		aem_nfa_node_free(root);
 		goto fail;
 	}
 
@@ -457,7 +445,6 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 			aem_stringbuf_puts(out, "Garbage remains after pattern: ");
 			aem_string_escape(out, ctx.in);
 		}
-		aem_nfa_node_free(root);
 		ctx.rc = -1;
 		goto fail;
 	}
@@ -467,7 +454,6 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 
 	// Compile AST
 	size_t entry = aem_nfa_node_compile(&ctx, root);
-	aem_nfa_node_free(root);
 
 	if (entry == AEM_NFA_PARSE_ERROR) {
 		aem_logf_ctx(AEM_LOG_ERROR, "Failed to compile regex tree!");
@@ -493,11 +479,22 @@ int aem_nfa_add(struct aem_nfa *nfa, struct aem_stringslice *in, int match, stru
 
 	*in = ctx.in;
 
-	return ctx.match;
+	ctx.rc = ctx.match;
 
-fail:
-	// Restore NFA to how it was before we started breaking stuff
-	nfa->n_insns = n_insns;
-	nfa->n_captures = n_captures;
+	if (0) {
+	fail:
+		// Restore NFA to how it was before we started breaking stuff
+		nfa->n_insns = n_insns;
+		nfa->n_captures = n_captures;
+	}
+
+	// Free all nodes
+	AEM_STACK_FOREACH(i, &ctx.nodes) {
+		struct aem_nfa_node *node = ctx.nodes.s[i];
+		aem_stack_dtor(&node->children);
+		free(node);
+	}
+	aem_stack_dtor(&ctx.nodes);
+
 	return ctx.rc;
 }

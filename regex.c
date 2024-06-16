@@ -97,7 +97,6 @@ static struct aem_nfa_node *re_parse_range(struct aem_nfa_compile_ctx *ctx)
 	return node;
 
 fail:
-	aem_nfa_node_free(node);
 	ctx->rc = -1;
 	return NULL;
 }
@@ -179,7 +178,6 @@ static struct aem_nfa_node *re_parse_brackets(struct aem_nfa_compile_ctx *ctx)
 				aem_nfa_node_push(node, child);
 			} else {
 				// Overlapping/null ranges
-				aem_nfa_node_free(child);
 			}
 
 			range_prev = range;
@@ -210,7 +208,6 @@ static struct aem_nfa_node *re_parse_brackets(struct aem_nfa_compile_ctx *ctx)
 	return node;
 
 fail:
-	aem_nfa_node_free(node);
 	ctx->rc = -1;
 	return NULL;
 }
@@ -252,7 +249,6 @@ static struct aem_nfa_node *re_parse_atom(struct aem_nfa_compile_ctx *ctx)
 		struct aem_nfa_node *pattern = re_parse_pattern(ctx);
 		ctx->flags = flags; // Restore flags
 		if (!aem_stringslice_match(&ctx->in, ")")) {
-			aem_nfa_node_free(pattern);
 			ctx->n_captures = i;
 			goto fail;
 		}
@@ -265,7 +261,6 @@ static struct aem_nfa_node *re_parse_atom(struct aem_nfa_compile_ctx *ctx)
 
 		struct aem_nfa_node *capture = aem_nfa_node_new(ctx, AEM_NFA_NODE_CAPTURE);
 		if (!capture) {
-			aem_nfa_node_free(pattern);
 			ctx->n_captures = i;
 			return NULL;
 		}
@@ -455,7 +450,6 @@ static struct aem_nfa_node *re_parse_postfix(struct aem_nfa_compile_ctx *ctx, st
 		}
 		struct aem_nfa_node *child = aem_stack_pop(&atom->children);
 		aem_assert(!atom->children.n);
-		aem_nfa_node_free(atom);
 		atom = child;
 	}
 
@@ -469,7 +463,6 @@ static struct aem_nfa_node *re_parse_postfix(struct aem_nfa_compile_ctx *ctx, st
 	return node;
 
 fail:
-	aem_nfa_node_free(atom);
 	ctx->rc = -1;
 	return NULL;
 }
@@ -489,19 +482,13 @@ static struct aem_nfa_node *re_parse_branch(struct aem_nfa_compile_ctx *ctx)
 			break;
 
 		atom = re_parse_postfix(ctx, atom);
-		if (!atom) {
-			aem_nfa_node_free(node);
-			ctx->rc = -1;
+		if (!atom)
 			return NULL;
-		}
 		aem_nfa_node_push(node, atom);
 	}
 
-	if (node->children.n == 1) {
-		struct aem_nfa_node *child = aem_stack_pop(&node->children);
-		aem_nfa_node_free(node);
-		return child;
-	}
+	if (node->children.n == 1)
+		return aem_stack_pop(&node->children);
 
 	return node;
 }
@@ -520,19 +507,15 @@ static struct aem_nfa_node *re_parse_pattern(struct aem_nfa_compile_ctx *ctx)
 	out.end = ctx->in.start;
 
 	struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_ALTERNATION);
-	if (!node) {
-		aem_nfa_node_free(branch);
+	if (!node)
 		return NULL;
-	}
 	node->text = out;
 	aem_nfa_node_push(node, branch);
 
 	do {
 		struct aem_nfa_node *rest = re_parse_branch(ctx);
-		if (!rest) {
-			aem_nfa_node_free(node);
+		if (!rest)
 			return NULL;
-		}
 		aem_nfa_node_push(node, rest);
 	} while (aem_stringslice_match(&ctx->in, "|"));
 
@@ -569,11 +552,8 @@ static struct aem_nfa_node *aem_string_compile(struct aem_nfa_compile_ctx *ctx)
 		atom.end = ctx->in.start;
 
 		struct aem_nfa_node *node = aem_nfa_node_new(ctx, AEM_NFA_NODE_ATOM);
-		if (!node) {
-			aem_nfa_node_free(root);
-			ctx->rc = -1;
+		if (!node)
 			return NULL;
-		}
 
 		node->text = atom;
 		node->args.atom.c = c;

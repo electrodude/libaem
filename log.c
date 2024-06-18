@@ -14,10 +14,11 @@
 /// Log destinations
 
 // Null destination: goes nowhere
-static void aem_log_dest_null_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg)
+static void aem_log_dest_null_log(struct aem_log_dest *dst, struct aem_log_module *mod, enum aem_log_level level, struct aem_stringslice msg)
 {
 	(void)dst;
 	(void)mod;
+	(void)level;
 	(void)msg;
 }
 struct aem_log_dest aem_log_dest_null = {
@@ -25,10 +26,12 @@ struct aem_log_dest aem_log_dest_null = {
 };
 
 // Log to FILE
-static void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, struct aem_stringslice msg)
+static void aem_log_dest_fp_log(struct aem_log_dest *dst, struct aem_log_module *mod, enum aem_log_level level, struct aem_stringslice msg)
 {
 	aem_assert(dst);
 	aem_assert(mod);
+	(void)level;
+
 	struct aem_log_dest_fp *dst_fp = aem_container_of(dst, struct aem_log_dest_fp, dst);
 
 	aem_stringslice_file_write(msg, dst_fp->fp);
@@ -280,7 +283,7 @@ struct aem_stringbuf *aem_log_header_mod_impl(struct aem_stringbuf *str, struct 
 	return str;
 }
 
-void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str)
+void aem_log_submit(struct aem_log_module *mod, enum aem_log_level level, struct aem_stringbuf *str)
 {
 	if (!str)
 		return;
@@ -302,7 +305,7 @@ void aem_log_submit(struct aem_log_module *mod, struct aem_stringbuf *str)
 	if (!dst)
 		dst = &aem_log_default.dst;
 	aem_assert(dst->log);
-	dst->log(dst, mod, aem_stringslice_new_str(str));
+	dst->log(dst, mod, level, aem_stringslice_new_str(str));
 }
 
 int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, const char *file, int line, const char *func, const char *fmt, ...)
@@ -322,7 +325,7 @@ int aem_logmf_ctx_impl(struct aem_log_module *mod, enum aem_log_level loglevel, 
 	if (str->n && str->s[str->n-1] == '\n')
 		str->n--;
 
-	aem_log_submit(mod, str);
+	aem_log_submit(mod, loglevel, str);
 
 	// Warn if format string ends with newline
 	if (fmt[0] && fmt[strlen(fmt)-1] == '\n')

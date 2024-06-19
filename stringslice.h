@@ -118,6 +118,9 @@ int aem_stringslice_match_newline(struct aem_stringslice *slice);
 struct aem_stringslice aem_stringslice_match_alnum(struct aem_stringslice *slice);
 struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice);
 
+// Match until end char or EOF
+struct aem_stringslice aem_stringslice_match_until(struct aem_stringslice *slice, char end);
+
 // Match a line, even if it's missing its line terminator.
 struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice);
 

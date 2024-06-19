@@ -131,6 +131,21 @@ struct aem_stringslice aem_stringslice_match_word(struct aem_stringslice *slice)
 	return line;
 }
 
+struct aem_stringslice aem_stringslice_match_until(struct aem_stringslice *slice, char end)
+{
+	if (!slice)
+		return AEM_STRINGSLICE_EMPTY;
+
+	struct aem_stringslice line = *slice;
+
+	while (aem_stringslice_ok(*slice) && *slice->start != end)
+		slice->start++;
+
+	line.end = slice->start;
+
+	return line;
+}
+
 struct aem_stringslice aem_stringslice_match_line(struct aem_stringslice *slice)
 {
 	if (!slice)

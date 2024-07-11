@@ -51,9 +51,6 @@ static void test_dirname(const char *path, const char *result)
 
 int main(int argc, char **argv)
 {
-	aem_log_module_default.loglevel = AEM_LOG_NOTICE;
-	aem_log_module_default_internal.loglevel = AEM_LOG_DEBUG;
-
 	test_init(argc, argv);
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test sandbox_path");

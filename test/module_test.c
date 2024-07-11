@@ -6,6 +6,7 @@ struct aem_log_module module_test_log_module = {.name = "test:mod", .loglevel = 
 
 static int module_test_register(struct aem_module *mod, struct aem_stringslice args)
 {
+	module_test_log_module.loglevel = mod->logmodule->loglevel;
 	mod->logmodule = &module_test_log_module;
 	AEM_LOG_MULTI(out, AEM_LOG_NOTICE) {
 		aem_stringbuf_puts(out, "Arguments: \"");

@@ -61,6 +61,7 @@ FILE *aem_log_dest_fset(struct aem_log_dest_fp *dst, FILE *fp_new, int autoclose
 FILE *aem_log_dest_fopen(struct aem_log_dest_fp *dst, const char *path_new);
 
 // Default log destination
+extern struct aem_log_dest_fp aem_log_dest_default;
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new);
 FILE *aem_log_fopen(const char *path_new);
 FILE *aem_log_fget(void);
@@ -69,6 +70,9 @@ static inline FILE *aem_log_stderr(void)
 {
 	return aem_log_fset(stderr, 0);
 }
+
+// Fallback log destination
+extern struct aem_log_dest *aem_log_default;
 
 
 /// Log level

@@ -82,22 +82,21 @@ FILE *aem_log_dest_fopen(struct aem_log_dest_fp *dst, const char *path_new)
 }
 
 // Default log destination
-struct aem_log_dest_fp aem_log_default = {
+struct aem_log_dest_fp aem_log_dest_default = {
 	.dst = {.log = aem_log_dest_fp_log},
 	.fp = NULL,
 };
 FILE *aem_log_fset(FILE *fp_new, int autoclose_new)
 {
-	return aem_log_dest_fset(&aem_log_default, fp_new, autoclose_new);
+	return aem_log_dest_fset(&aem_log_dest_default, fp_new, autoclose_new);
 }
 FILE *aem_log_fopen(const char *path_new)
 {
-	return aem_log_dest_fopen(&aem_log_default, path_new);
+	return aem_log_dest_fopen(&aem_log_dest_default, path_new);
 }
-FILE *aem_log_fget(void)
-{
-	return aem_log_default.fp;
-}
+
+// Fallback log destination
+struct aem_log_dest *aem_log_default = &aem_log_dest_default.dst;
 
 
 /// log level
@@ -303,7 +302,7 @@ void aem_log_submit(struct aem_log_module *mod, enum aem_log_level level, struct
 
 	struct aem_log_dest *dst = mod->dst;
 	if (!dst)
-		dst = &aem_log_default.dst;
+		dst = aem_log_default;
 	aem_assert(dst->log);
 	dst->log(dst, mod, level, aem_stringslice_new_str(str));
 }

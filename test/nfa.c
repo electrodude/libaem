@@ -39,8 +39,12 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 			aem_logf_ctx(AEM_LOG_BUG, "Testcase fails invariant: remaining input is not a suffix of original input");
 	}
 
+	if (rc_expect < 0)
+		test_xerrors = 100;
+
 	struct aem_nfa_match match = {0};
 	int rc = aem_nfa_run(nfa, &in, &match);
+	test_xerrors = 0;
 	if (match.captures) {
 		AEM_LOG_MULTI(out, AEM_LOG_DEBUG) {
 			aem_stringbuf_puts(out, "Captures:");
@@ -85,10 +89,6 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 
 int main(int argc, char **argv)
 {
-	test_log_module.loglevel = AEM_LOG_DEBUG;
-	aem_log_module_default.loglevel = AEM_LOG_NOTICE;
-	aem_log_module_default_internal.loglevel = AEM_LOG_DEBUG;
-
 	test_init(argc, argv);
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "init");

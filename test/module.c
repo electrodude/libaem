@@ -157,8 +157,14 @@ static void test_module_load(const char *name, const char *args, int rc_expect, 
 
 	struct aem_stringslice args_ss = aem_stringslice_new_cstr(args);
 	struct aem_stringslice name_ss = aem_stringslice_new_cstr(name);
+
+	if (rc_expect < 0)
+		test_xerrors = 2;
+
 	int rc;
 	struct module *mod = module_load(name_ss, args_ss, &rc);
+
+	test_xerrors = 0;
 
 	if (mod_p)
 		*mod_p = mod;
@@ -178,7 +184,12 @@ static void test_modules_load(const char *spec, const char *remain, int rc_expec
 	struct aem_stringslice spec_ss = aem_stringslice_new_cstr(spec);
 
 	struct aem_stringslice spec_ret = spec_ss;
+
+	if (rc_expect < 0)
+		test_xerrors = 1;
+
 	int rc = modules_load(&spec_ret);
+	test_xerrors = 0;
 
 	TEST_EXPECT(out, rc == rc_expect) {
 		aem_stringbuf_puts(out, "modules_load(");
@@ -204,9 +215,6 @@ static void test_module_unload(const char *name, int rc_expect)
 
 int main(int argc, char **argv)
 {
-	aem_log_module_default.loglevel = AEM_LOG_FATAL;
-	aem_log_module_default_internal.loglevel = AEM_LOG_FATAL;
-
 	test_init(argc, argv);
 
 	struct aem_log_module logmodule_modules = {.loglevel = AEM_LOG_DEBUG};

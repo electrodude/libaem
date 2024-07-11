@@ -49,9 +49,9 @@ static void test_dirname(const char *path, const char *result)
 	}
 }
 
-int main(int argc, char **argv)
+TEST_MAIN(int argc, char **argv)
 {
-	test_init(argc, argv);
+	(void)argc; (void)argv;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test sandbox_path");
 
@@ -146,5 +146,5 @@ int main(int argc, char **argv)
 
 	aem_stringbuf_dtor(&buf);
 
-	return show_test_results();
+	return 0;
 }

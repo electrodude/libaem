@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "test_common.h"
+
 #include <aem/log.h>
 #include <aem/memory.h>
 #include <aem/net.h>
@@ -205,7 +207,7 @@ void usage(const char *cmd)
 
 int main(int argc, char **argv)
 {
-	test_init(argc, argv);
+	test_init(NULL, NULL);
 
 	const char *bind_path = "localhost";
 	const char *service = "12345";
@@ -272,5 +274,11 @@ int main(int argc, char **argv)
 
 	aem_poll_dtor(&poller);
 
+	return 0;
+}
+
+// dummy
+TEST_MAIN(int argc, char **argv) {
+	(void)argc; (void)argv;
 	return 0;
 }

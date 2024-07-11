@@ -213,9 +213,9 @@ static void test_module_unload(const char *name, int rc_expect)
 	}
 }
 
-int main(int argc, char **argv)
+TEST_MAIN(int argc, char **argv)
 {
-	test_init(argc, argv);
+	(void)argc; (void)argv;
 
 	struct aem_log_module logmodule_modules = {.loglevel = AEM_LOG_DEBUG};
 	aem_module_logmodule = &logmodule_modules;
@@ -268,5 +268,5 @@ int main(int argc, char **argv)
 
 	aem_stringbuf_dtor(&aem_module_path);
 
-	return show_test_results();
+	return 0;
 }

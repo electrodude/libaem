@@ -87,9 +87,9 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 	}
 }
 
-int main(int argc, char **argv)
+TEST_MAIN(int argc, char **argv)
 {
-	test_init(argc, argv);
+	(void)argc; (void)argv;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "init");
 
@@ -175,5 +175,5 @@ int main(int argc, char **argv)
 	aem_nfa_dtor(&nfa);
 	aem_nfa_dtor(&nfa2);
 
-	return show_test_results();
+	return 0;
 }

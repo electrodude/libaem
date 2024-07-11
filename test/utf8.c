@@ -13,9 +13,9 @@ uint32_t hash(size_t i)
 	return i*i*i*(i+1);
 }
 
-int main(int argc, char **argv)
+TEST_MAIN(int argc, char **argv)
 {
-	test_init(argc, argv);
+	(void)argc; (void)argv;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test utf8");
 
@@ -70,5 +70,5 @@ int main(int argc, char **argv)
 
 	aem_stringbuf_dtor(&str);
 
-	return show_test_results();
+	return 0;
 }

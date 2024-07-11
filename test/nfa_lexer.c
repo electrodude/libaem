@@ -97,35 +97,9 @@ static void test_nfa_lex(struct aem_nfa *nfa, struct aem_stringslice input, stru
 	}
 }
 
-void usage(const char *cmd)
+TEST_MAIN(int argc, char **argv)
 {
-	fprintf(stderr, "Usage: %s [<options>]\n", cmd);
-	fprintf(stderr, "   %-20s%s\n", "[-h]", "show this help");
-	fprintf(stderr, "   %-20s%s\n", "[-v<loglevel>]", "set log level (default: debug)");
-	fprintf(stderr, "   %-20s%s\n", "[-l<logfile>]", "set log file");
-}
-int main(int argc, char **argv)
-{
-	test_init(argc, argv);
-
 	const char *path = "../regex.c";
-
-	int opt;
-	while ((opt = getopt(argc, argv, "l:v:h")) != -1)
-	{
-		switch (opt)
-		{
-			case 'l': aem_log_fopen(optarg); break;
-			case 'v': aem_log_level_parse_set(optarg); break;
-			case 'h':
-			default:
-				usage(argv[0]);
-				exit(1);
-		}
-	}
-
-	argv += optind;
-	argc -= optind;
 
 	if (argc) {
 		path = argv[0];
@@ -222,5 +196,5 @@ int main(int argc, char **argv)
 
 	aem_nfa_dtor(&nfa);
 
-	return show_test_results();
+	return 0;
 }

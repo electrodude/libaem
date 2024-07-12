@@ -87,9 +87,9 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 	}
 }
 
-TEST_MAIN(test_nfa)(int argc, char **argv)
+TEST_MAIN(test_nfa)(struct test *test)
 {
-	(void)argc; (void)argv;
+	(void)test;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "init");
 

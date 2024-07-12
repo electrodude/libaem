@@ -106,9 +106,9 @@ static void test_stringslice_match_line_multi(struct aem_stringslice slice, int 
 	}
 }
 
-TEST_MAIN(test_stringslice)(int argc, char **argv)
+TEST_MAIN(test_stringslice)(struct test *test)
 {
-	(void)argc; (void)argv;
+	(void)test;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test aem_stringslice_match{,_end}");
 

@@ -102,9 +102,9 @@ static void test_stringslice_match_long_auto(struct aem_stringslice slice, struc
 	}
 }
 
-TEST_MAIN(test_stringslice_numeric)(int argc, char **argv)
+TEST_MAIN(test_stringslice_numeric)(struct test *test)
 {
-	(void)argc; (void)argv;
+	(void)test;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test aem_stringslice_match_long_base");
 

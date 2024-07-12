@@ -13,9 +13,9 @@ uint32_t hash(size_t i)
 	return i*i*i*(i+1);
 }
 
-TEST_MAIN(test_utf8)(int argc, char **argv)
+TEST_MAIN(test_utf8)(struct test *test)
 {
-	(void)argc; (void)argv;
+	(void)test;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test utf8");
 

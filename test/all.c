@@ -2,13 +2,13 @@
 
 #include "test_common.h"
 
-int test_utf8(int argc, char **argv);
-int test_module(int argc, char **argv);
-int test_nfa(int argc, char **argv);
-int test_nfa_lexer(int argc, char **argv);
-int test_pathutil(int argc, char **argv);
-int test_stringslice(int argc, char **argv);
-int test_stringslice_numeric(int argc, char **argv);
+int test_utf8(struct test *test);
+int test_module(struct test *test);
+int test_nfa(struct test *test);
+int test_nfa_lexer(struct test *test);
+int test_pathutil(struct test *test);
+int test_stringslice(struct test *test);
+int test_stringslice_numeric(struct test *test);
 
 TESTS {
 	TEST(test_utf8),

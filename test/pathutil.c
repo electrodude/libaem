@@ -49,9 +49,9 @@ static void test_dirname(const char *path, const char *result)
 	}
 }
 
-TEST_MAIN(test_pathutil)(int argc, char **argv)
+TEST_MAIN(test_pathutil)(struct test *test)
 {
-	(void)argc; (void)argv;
+	(void)test;
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "test sandbox_path");
 

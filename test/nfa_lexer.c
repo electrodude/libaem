@@ -97,14 +97,14 @@ static void test_nfa_lex(struct aem_nfa *nfa, struct aem_stringslice input, stru
 	}
 }
 
-TEST_MAIN(test_nfa_lexer)(int argc, char **argv)
+TEST_MAIN(test_nfa_lexer)(struct test *test)
 {
 	const char *path = "../regex.c";
 
-	if (argc) {
-		path = argv[0];
-		argv++;
-		argc--;
+	if (test->argc) {
+		path = test->argv[0];
+		test->argv++;
+		test->argc--;
 	}
 
 	aem_logf_ctx(AEM_LOG_NOTICE, "init");

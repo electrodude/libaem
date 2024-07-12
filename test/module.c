@@ -213,9 +213,9 @@ static void test_module_unload(const char *name, int rc_expect)
 	}
 }
 
-TEST_MAIN(test_module)(int argc, char **argv)
+TEST_MAIN(test_module)(struct test *test)
 {
-	(void)argc; (void)argv;
+	(void)test;
 
 	struct aem_log_module logmodule_modules = {.loglevel = AEM_LOG_DEBUG};
 	aem_module_logmodule = &logmodule_modules;

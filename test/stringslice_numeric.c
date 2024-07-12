@@ -102,7 +102,7 @@ static void test_stringslice_match_long_auto(struct aem_stringslice slice, struc
 	}
 }
 
-TEST_MAIN(int argc, char **argv)
+TEST_MAIN(test_stringslice_numeric)(int argc, char **argv)
 {
 	(void)argc; (void)argv;
 

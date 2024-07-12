@@ -2,7 +2,7 @@
 
 #include "test_common.h"
 
-TEST_MAIN(int argc, char **argv)
+TEST_MAIN(test_test)(int argc, char **argv)
 {
 	(void)argc; (void)argv;
 

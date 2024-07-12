@@ -49,7 +49,7 @@ static void test_dirname(const char *path, const char *result)
 	}
 }
 
-TEST_MAIN(int argc, char **argv)
+TEST_MAIN(test_pathutil)(int argc, char **argv)
 {
 	(void)argc; (void)argv;
 

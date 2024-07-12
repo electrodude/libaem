@@ -278,7 +278,7 @@ int main(int argc, char **argv)
 }
 
 // dummy
-TEST_MAIN(int argc, char **argv) {
+TEST_MAIN(test_server)(int argc, char **argv) {
 	(void)argc; (void)argv;
 	return 0;
 }

@@ -87,7 +87,7 @@ static void test_nfa_run(struct aem_nfa *nfa, const char *input, int rc_expect, 
 	}
 }
 
-TEST_MAIN(int argc, char **argv)
+TEST_MAIN(test_nfa)(int argc, char **argv)
 {
 	(void)argc; (void)argv;
 

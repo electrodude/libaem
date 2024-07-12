@@ -213,7 +213,7 @@ static void test_module_unload(const char *name, int rc_expect)
 	}
 }
 
-TEST_MAIN(int argc, char **argv)
+TEST_MAIN(test_module)(int argc, char **argv)
 {
 	(void)argc; (void)argv;
 

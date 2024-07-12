@@ -13,7 +13,7 @@ uint32_t hash(size_t i)
 	return i*i*i*(i+1);
 }
 
-TEST_MAIN(int argc, char **argv)
+TEST_MAIN(test_utf8)(int argc, char **argv)
 {
 	(void)argc; (void)argv;
 

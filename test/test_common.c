@@ -53,10 +53,61 @@ void toc(const struct timespec t_start)
 
 
 /// Tests
-int tests_count = 0;
-int tests_failed = 0;
-int test_bugs = 0;    // AEM_LOG_BUG or AEM_LOG_NYI
-int test_errors = 0;  // Unexpected errors
+struct test test_total = {
+	.name = "test_total",
+	.file = __FILE__,
+};
+
+void test_start(struct test *test)
+{
+	test->count -= test_total.count;
+	test->failed -= test_total.failed;
+	test->bugs -= test_total.bugs;
+	test->errors -= test_total.errors;
+}
+
+void test_end(struct test *test)
+{
+	// Copy into per-test counters
+	test->count += test_total.count;
+	test->failed += test_total.failed;
+	test->bugs += test_total.bugs;
+	test->errors += test_total.errors;
+}
+
+int test_show_results(struct test *test, int test_rc)
+{
+	// Report results
+	enum {
+		NONE,
+		PASS,
+		FAIL,
+	} result = !test->count            ? NONE
+	         : test->failed || test_rc ? FAIL
+	                                   : PASS;
+
+	enum aem_log_level level = result == PASS ? AEM_LOG_GOOD
+		                 : result == FAIL ? AEM_LOG_ERROR
+		                                  : AEM_LOG_BUG;
+
+	AEM_LOG_MULTI_BUF_MOD_IMPL(str, &aem_log_buf, aem_log_module_current, level, test->name, test->line, test->file) {
+		switch (result) {
+			case NONE: aem_stringbuf_printf(str, "No tests!"); break;
+			case PASS: aem_stringbuf_printf(str, "All %zd test%s passed", test->count, test->count != 1 ? "s" : ""); break;
+			default  : aem_stringbuf_printf(str, "%zd/%zd test%s failed!", test->failed, test->count, test->count != 1 ? "s" : ""); break;
+		}
+		if (test->bugs)
+			aem_stringbuf_printf(str, " %s(%zd bugs/NYIs)" AEM_SGR("0"), aem_log_level_color(AEM_LOG_BUG), test->bugs);
+		if (test->errors)
+			aem_stringbuf_printf(str, " %s(%zd unexpected errors)" AEM_SGR("0"), aem_log_level_color(AEM_LOG_ERROR), test->errors);
+	}
+
+	if (!test->count)
+		return -1;
+
+	return test->failed != 0;
+}
+
 int test_xerrors = 0; // Expected error countdown
 
 
@@ -68,14 +119,14 @@ static void test_log_cb(struct aem_log_dest *dst, struct aem_log_module *mod, en
 	aem_stringbuf_reset(&test_log_buf);
 
 	if (level == AEM_LOG_BUG || level == AEM_LOG_NYI) {
-		test_bugs++;
+		test_total.bugs++;
 	} else if (level <= AEM_LOG_ERROR) {
 		if (test_xerrors) {
 			test_xerrors--;
 			// dim
 			aem_stringbuf_puts(&test_log_buf, AEM_SGR("2") "(xfail) ");
 		} else {
-			test_errors++;
+			test_total.errors++;
 		}
 	}
 
@@ -142,43 +193,6 @@ int test_init(int *argc_p, char ***argv_p)
 	return 0;
 }
 
-int test_show_results(const char *file, int line, const char *func, int test_rc)
-{
-	// Report results
-	enum {
-		NONE,
-		PASS,
-		FAIL,
-	} result = !tests_count            ? NONE
-	         : tests_failed || test_rc ? FAIL
-	                                   : PASS;
-
-	enum aem_log_level level = result == PASS ? AEM_LOG_GOOD
-		                 : result == FAIL ? AEM_LOG_ERROR
-		                                  : AEM_LOG_BUG;
-
-	AEM_LOG_MULTI_BUF_MOD_IMPL(str, &aem_log_buf, aem_log_module_current, level, file, line, func) {
-		switch (result) {
-			case NONE: aem_stringbuf_printf(str, "No tests!"); break;
-			case PASS: aem_stringbuf_printf(str, "All %zd test%s passed", tests_count, tests_count != 1 ? "s" : ""); break;
-			default  : aem_stringbuf_printf(str, "%zd/%zd test%s failed!", tests_failed, tests_count, tests_count != 1 ? "s" : ""); break;
-		}
-		if (test_bugs)
-			aem_stringbuf_printf(str, " %s(%zd bugs/NYIs)" AEM_SGR("0"), aem_log_level_color(AEM_LOG_BUG), test_bugs);
-		if (test_errors)
-			aem_stringbuf_printf(str, " %s(%zd unexpected errors)" AEM_SGR("0"), aem_log_level_color(AEM_LOG_ERROR), test_errors);
-	}
-
-	// Make valgrind happy
-	aem_stringbuf_dtor(&aem_log_buf);
-	aem_stringbuf_dtor(&test_log_buf);
-
-	if (!tests_count)
-		return -1;
-
-	return tests_failed;
-}
-
 __attribute__((weak)) int main(int argc, char **argv)
 {
 	// Initialize
@@ -186,13 +200,30 @@ __attribute__((weak)) int main(int argc, char **argv)
 	if (rc)
 		return rc;
 
-	test_reset();
+	test_total.name = __func__;
+	test_total.file = __FILE__;
+	test_total.line = __LINE__;
 
 	// Run tests
-	rc = test_main(argc, argv);
-	if (rc)
-		aem_logf_ctx(AEM_LOG_FATAL, "test_main failed: %d", rc);
+	for (struct test *test = tests; test->fn; test++) {
+		test_start(test);
+		int test_rc = test->fn(argc, argv);
+		if (test_rc) {
+			aem_logf_ctx(AEM_LOG_FATAL, "%s failed: %d", test->name, test_rc);
+			rc = test_rc;
+		}
+		test_end(test);
+		test_rc = test_show_results(test, test_rc);
+		if (test_rc)
+			rc = test_rc;
+	}
 
-	// Report results
-	return test_show_results(test_name, 0, "test_main", rc);
+	// Report overall results
+	rc = test_show_results(&test_total, rc);
+
+	// Make valgrind happy
+	aem_stringbuf_dtor(&aem_log_buf);
+	aem_stringbuf_dtor(&test_log_buf);
+
+	return rc;
 }

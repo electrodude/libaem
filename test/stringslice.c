@@ -106,7 +106,7 @@ static void test_stringslice_match_line_multi(struct aem_stringslice slice, int 
 	}
 }
 
-TEST_MAIN(int argc, char **argv)
+TEST_MAIN(test_stringslice)(int argc, char **argv)
 {
 	(void)argc; (void)argv;
 

@@ -97,7 +97,7 @@ static void test_nfa_lex(struct aem_nfa *nfa, struct aem_stringslice input, stru
 	}
 }
 
-TEST_MAIN(int argc, char **argv)
+TEST_MAIN(test_nfa_lexer)(int argc, char **argv)
 {
 	const char *path = "../regex.c";
 

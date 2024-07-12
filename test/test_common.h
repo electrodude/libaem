@@ -28,20 +28,45 @@ void toc(struct timespec t_start);
 
 
 /// Tests
-extern int tests_count;
-extern int tests_failed;
-extern int test_bugs;    // AEM_LOG_BUG or AEM_LOG_NYI
-extern int test_errors;  // Unexpected errors
+struct test {
+	// Callback
+	int (*fn)(int argc, char **argv);
+
+	// Context
+	const char *name;
+	const char *file;
+	int line;
+
+	// Results
+	int count;   // Total tests
+	int failed;  // Failed tests
+	int bugs;    // AEM_LOG_BUG or AEM_LOG_NYI
+	int errors;  // Unexpected errors
+};
+extern struct test test_total;
+
 extern int test_xerrors; // Expected error countdown
 
-#define TEST_EXPECT(err_str, ok) if (ok) { tests_count++; } else for (struct aem_stringbuf *err_str = aem_log_header(&aem_log_buf, AEM_LOG_BUG); err_str ? tests_count++, tests_failed++, aem_stringbuf_printf(out, "Test %zd failed: ", tests_count), 1 : 0; aem_log_submit(&test_log_module, AEM_LOG_BUG, err_str), test_bugs--, err_str = NULL)
+// Start/stop per-test counters
+void test_start(struct test *test);
+void test_end(struct test *test);
+
+// Show test results
+int test_show_results(struct test *test, int test_rc);
+
+#define TEST_EXPECT(err_str, ok) if (ok) { test_total.count++; } else for (struct aem_stringbuf *err_str = aem_log_header(&aem_log_buf, AEM_LOG_BUG); err_str ? test_total.count++, test_total.failed++, aem_stringbuf_printf(out, "Test %zd failed: ", test_total.count), 1 : 0; aem_log_submit(&test_log_module, AEM_LOG_BUG, err_str), test_total.bugs--, err_str = NULL)
 
 
 /// Test infrastructure
-int test_main(int argc, char **argv);
-extern const char *test_name;
-#define TEST_MAIN(argc, argv) \
-	const char *test_name = __FILE__; \
-	int test_main(argc, argv)
+int test_init(int *argc_p, char ***argv_p);
+
+// Test table (last element must be {0})
+extern struct test tests[];
+#define TESTS __attribute__((weak)) struct test tests[] =
+#define TEST(_func) {.name = AEM_STRINGIFY(_func), .file = __FILE__, .line = __LINE__, .fn = (_func)}
+#define TEST_MAIN(_func) \
+	int _func(int argc, char **argv); \
+	TESTS { TEST(_func), {0}, }; \
+	int _func
 
 #endif /* AEM_TEST_COMMON_H */

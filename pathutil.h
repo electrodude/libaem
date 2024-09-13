@@ -9,4 +9,6 @@ int aem_sandbox_path(struct aem_stringbuf *out, struct aem_stringslice base, str
 
 struct aem_stringslice aem_dirname(struct aem_stringslice path);
 
+struct aem_stringslice aem_exe_path(const char *argv0);
+
 #endif /* AEM_PATHUTIL_H */

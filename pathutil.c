@@ -122,3 +122,32 @@ struct aem_stringslice aem_dirname(struct aem_stringslice path)
 
 	return path;
 }
+
+
+static struct aem_stringbuf aem_exe_path_str = {0};
+
+struct aem_stringslice aem_exe_path(const char *argv0)
+{
+	// Already found
+	if (aem_exe_path_str.s)
+		return aem_stringslice_new_str(&aem_exe_path_str);
+
+#if 1
+	// Try resolving
+	char *resolved_exe = realpath("/proc/self/exe", NULL);
+	if (resolved_exe) {
+		aem_exe_path_str = aem_stringbuf_absorb_cstr(resolved_exe);
+		return aem_stringslice_new_str(&aem_exe_path_str);
+	}
+#endif
+
+	if (argv0) {
+		char *resolved_exe = realpath(argv0, NULL);
+		if (resolved_exe) {
+			aem_exe_path_str = aem_stringbuf_absorb_cstr(resolved_exe);
+			return aem_stringslice_new_str(&aem_exe_path_str);
+		}
+	}
+
+	return AEM_STRINGSLICE_EMPTY;
+}

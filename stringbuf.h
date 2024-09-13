@@ -76,6 +76,10 @@ void aem_stringbuf_free(struct aem_stringbuf *str);
 // Free a stringbuf's buffer and reset it to its initial state.
 void aem_stringbuf_dtor(struct aem_stringbuf *str);
 
+// Construct a stringbuf from a malloc'd string.
+// Takes ownership of the string.
+struct aem_stringbuf aem_stringbuf_absorb_cstr(char *str);
+
 // Free malloc'd stringbuf, returning its internal buffer and writing the
 // number of elements to n
 // The caller assumes responsibilty for free()ing the returned buffer.

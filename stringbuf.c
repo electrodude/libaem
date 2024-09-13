@@ -81,6 +81,12 @@ void aem_stringbuf_dtor(struct aem_stringbuf *str)
 	*str = AEM_STRINGBUF_EMPTY;
 }
 
+struct aem_stringbuf aem_stringbuf_absorb_cstr(char *str)
+{
+	size_t len = strlen(str);
+	return (struct aem_stringbuf){.s = str, .n = len, .maxn = len+1};
+}
+
 char *aem_stringbuf_release(struct aem_stringbuf *str, size_t *n_p)
 {
 	if (!str) {
